@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Untangled Life — waitlist landing page
 
-## Getting Started
+Next.js (App Router, TypeScript, Tailwind v4) waitlist page for Untangled Life, a couples shared-calendar app.
 
-First, run the development server:
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Supabase setup (required for signups to work)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Create a Supabase project (or use an existing one).
+2. In the Supabase SQL editor, run `supabase/waitlist.sql` — it creates the `waitlist` table and an insert-only Row Level Security policy (the anon key can add signups but can never read them back, even if the key leaks).
+3. Copy `.env.local.example` to `.env.local` and fill in:
+   - `SUPABASE_URL` — your project's URL
+   - `SUPABASE_ANON_KEY` — your project's anon/public API key
 
-## Learn More
+   Both are read only in the server-side `/api/waitlist` route handler and are never exposed to the client.
+4. Restart `npm run dev` after adding `.env.local`.
 
-To learn more about Next.js, take a look at the following resources:
+## Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `src/app/page.tsx` — the landing page
+- `src/components/waitlist-form.tsx` — the signup form (name, email, shared-calendar question)
+- `src/app/api/waitlist/route.ts` — API route that validates input and inserts into Supabase
+- `supabase/waitlist.sql` — table schema + RLS policy to run in Supabase
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploying
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Not yet deployed. Planned: push to GitHub, deploy on Vercel, point `untangledlife.com.au` at it.

@@ -55,27 +55,35 @@ export async function POST(request: Request) {
     );
   }
 
-  const { error } = await supabase.from("waitlist").insert({
-    name,
-    email,
-    uses_shared_calendar: sharedApp,
-  });
+  try {
+    const { error } = await supabase.from("waitlist").insert({
+      name,
+      email,
+      uses_shared_calendar: sharedApp,
+    });
 
-  if (error) {
-    // Postgres unique_violation on the email column
-    if (error.code === "23505") {
+    if (error) {
+      // Postgres unique_violation on the email column
+      if (error.code === "23505") {
+        return NextResponse.json(
+          { error: "That email is already on the waitlist." },
+          { status: 409 }
+        );
+      }
+
+      console.error("Supabase insert failed:", error);
       return NextResponse.json(
-        { error: "That email is already on the waitlist." },
-        { status: 409 }
+        { error: "Something went wrong. Please try again." },
+        { status: 500 }
       );
     }
 
-    console.error("Supabase insert failed:", error);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("Unexpected error inserting waitlist signup:", err);
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }
-
-  return NextResponse.json({ ok: true });
 }

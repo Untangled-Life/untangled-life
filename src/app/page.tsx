@@ -32,11 +32,6 @@ export default function Home() {
             <Logo size={30} />
             <span className="text-base font-medium">Untangled Life</span>
           </div>
-          <nav className="hidden gap-5 text-sm text-text-secondary sm:flex">
-            <span>How it works</span>
-            <span>Pricing</span>
-            <span>Log in</span>
-          </nav>
         </header>
 
         <section className="px-6 pb-9 pt-11 text-center sm:px-10">
