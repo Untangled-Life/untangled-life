@@ -70,12 +70,14 @@ export default function Home() {
         </section>
 
         <footer className="border-t border-border px-6 py-5 text-center sm:px-10">
+          {/* placeholder testimonial - swap for a real one before launch */}
           <p className="font-voice italic text-[16px] leading-7 text-text-primary">
-            &ldquo;We stopped arguing about who forgot what. Now we argue
-            about where to go.&rdquo;
+            &ldquo;Created by a couple that felt their relationship fraying
+            in the midst of all the tangles that inevitably pop up in
+            life.&rdquo;
           </p>
           <p className="mt-1.5 text-[13px] text-text-muted">
-            Early tester, Wollongong
+            The founders of Untangled Life
           </p>
         </footer>
       </div>
