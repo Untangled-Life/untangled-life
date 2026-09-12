@@ -1,69 +1,84 @@
-import Image from "next/image";
+import { Logo, HeroMark } from "@/components/logo";
+import { WaitlistForm } from "@/components/waitlist-form";
+import { CalendarIcon, ClockIcon, HeartIcon } from "@/components/icons";
+
+const features = [
+  {
+    Icon: CalendarIcon,
+    color: "text-brand-green",
+    title: "Both diaries, one screen",
+    body: "Google, Apple, Outlook and work rosters, side by side. Share what you want, hide the rest.",
+  },
+  {
+    Icon: ClockIcon,
+    color: "text-brand-orange",
+    title: "Your next free night, found",
+    body: "Shift work, late finishes, weekends that don't line up. We find the overlap so you don't have to.",
+  },
+  {
+    Icon: HeartIcon,
+    color: "text-brand-green",
+    title: "Book it on both phones",
+    body: "Add a date once. It lands in both your calendars, with a nudge if it's been a while.",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
+      <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-surface-card shadow-sm">
+        <header className="flex items-center justify-between border-b border-border px-6 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <Logo size={30} />
+            <span className="text-base font-medium">Untangled Life</span>
+          </div>
+          <nav className="hidden gap-5 text-sm text-text-secondary sm:flex">
+            <span>How it works</span>
+            <span>Pricing</span>
+            <span>Log in</span>
+          </nav>
+        </header>
+
+        <section className="px-6 pb-9 pt-11 text-center sm:px-10">
+          <HeroMark />
+          <h1 className="mx-auto text-2xl font-semibold tracking-tight sm:text-[26px]">
+            Two calendars. One life. No knots.
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mx-auto mt-3 max-w-md text-[15px] leading-7 text-text-secondary">
+            Untangled Life pulls both your calendars into one view, spots the
+            evenings you&apos;re actually both free, and gets the date booked
+            before the week swallows it.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+          <div className="mt-6">
+            <WaitlistForm />
+          </div>
+          <p className="mt-3 text-[13px] text-text-muted">
+            Free for early couples. iPhone and Android.
+          </p>
+        </section>
+
+        <section className="grid gap-3 px-6 pb-6 sm:grid-cols-3 sm:px-10">
+          {features.map(({ Icon, color, title, body }) => (
+            <div key={title} className="rounded-xl bg-surface p-4">
+              <Icon className={`h-5 w-5 ${color}`} />
+              <p className="mt-2 text-[15px] font-medium">{title}</p>
+              <p className="mt-1 text-[13px] leading-6 text-text-secondary">
+                {body}
+              </p>
+            </div>
+          ))}
+        </section>
+
+        <footer className="border-t border-border px-6 py-5 text-center sm:px-10">
+          <p className="font-voice italic text-[16px] leading-7 text-text-primary">
+            &ldquo;We stopped arguing about who forgot what. Now we argue
+            about where to go.&rdquo;
+          </p>
+          <p className="mt-1.5 text-[13px] text-text-muted">
+            Early tester, Wollongong
+          </p>
+        </footer>
+      </div>
     </div>
   );
 }
