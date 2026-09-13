@@ -59,6 +59,13 @@ export function DateField({
       value={draft}
       mode="date"
       display={Platform.OS === "ios" ? "spinner" : "default"}
+      // The native picker follows the PHONE's appearance unless told
+      // otherwise, while this sheet follows the app's theme — which renders
+      // white text on a white sheet and makes the picker look missing.
+      themeVariant={t.scheme}
+      textColor={t.textPrimary}
+      accentColor={t.accent}
+      style={Platform.OS === "ios" ? styles.picker : undefined}
       minimumDate={minimumDate}
       maximumDate={maximumDate}
       onChange={(event, selected) => {
@@ -139,6 +146,10 @@ export function TimeField({ label, value, onChange }: TimeFieldProps) {
       is24Hour={false}
       minuteInterval={5}
       display={Platform.OS === "ios" ? "spinner" : "default"}
+      themeVariant={t.scheme}
+      textColor={t.textPrimary}
+      accentColor={t.accent}
+      style={Platform.OS === "ios" ? styles.picker : undefined}
       onChange={(event, selected) => {
         if (Platform.OS === "android") {
           setOpen(false);
@@ -223,6 +234,9 @@ const createStyles = (t: Theme) =>
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: t.border,
     },
+    // iOS spinners need a definite height inside a modal, or they lay out
+    // against an unbounded parent and drift off the bottom.
+    picker: { height: 216, backgroundColor: t.surface },
     sheetTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary },
     sheetCancel: { fontSize: 15, color: t.textMuted },
     sheetDone: { fontSize: 15, color: t.accent, fontWeight: "700" },
