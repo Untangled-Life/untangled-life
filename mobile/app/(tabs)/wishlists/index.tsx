@@ -1,7 +1,17 @@
 import { useCallback, useState } from "react";
-import { RefreshControl,
-  View, Text, StyleSheet, Pressable, ScrollView, TextInput, Modal } from "react-native";
+import {
+  Alert,
+  RefreshControl,
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  TextInput,
+  Modal,
+} from "react-native";
 import { press } from "@/components/press";
+import { warned } from "@/lib/haptics";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -20,6 +30,8 @@ export default function Wishlists() {
   const [modalVisible, setModalVisible] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -58,6 +70,63 @@ export default function Wishlists() {
     }
   }
 
+  async function renameWishlist() {
+    const listId = renamingId;
+    const next = renameDraft.trim();
+    if (!listId || !next) {
+      setRenamingId(null);
+      return;
+    }
+
+    setWishlists((prev) => prev.map((w) => (w.id === listId ? { ...w, name: next } : w)));
+    setRenamingId(null);
+
+    const { error } = await supabase.from("wishlists").update({ name: next }).eq("id", listId);
+    if (error) {
+      warned();
+      Alert.alert("Couldn't rename that", error.message);
+      load();
+    }
+  }
+
+  async function deleteWishlist(listId: string) {
+    setWishlists((prev) => prev.filter((w) => w.id !== listId));
+    const { error } = await supabase.from("wishlists").delete().eq("id", listId);
+    if (error) {
+      warned();
+      Alert.alert("Couldn't delete that", error.message);
+      load();
+    }
+  }
+
+  function listActions(list: Wishlist) {
+    Alert.alert(list.name, undefined, [
+      {
+        text: "Rename",
+        onPress: () => {
+          setRenamingId(list.id);
+          setRenameDraft(list.name);
+        },
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () =>
+          Alert.alert(
+            "Delete this list?",
+            list.item_count > 0
+              ? `"${list.name}" and its ${list.item_count} ${list.item_count === 1 ? "item" : "items"} will be gone for both of you.`
+              : `"${list.name}" will be gone for both of you.`,
+            [
+              { text: "Keep it", style: "cancel" },
+              { text: "Delete", style: "destructive", onPress: () => deleteWishlist(list.id) },
+            ]
+          ),
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
+
   return (
     <ScrollView
       refreshControl={
@@ -77,17 +146,45 @@ export default function Wishlists() {
           </Text>
         </View>
       ) : (
-        wishlists.map((w) => (
-          <Pressable
-            key={w.id}
-            style={press(styles.card)}
-            onPress={() => router.push(`/wishlists/${w.id}?name=${encodeURIComponent(w.name)}`)}
-          >
-            <Text style={styles.cardTitle}>{w.name}</Text>
-            <Text style={styles.cardCount}>{w.item_count} item{w.item_count === 1 ? "" : "s"}</Text>
-          </Pressable>
-        ))
+        wishlists.map((w) =>
+          renamingId === w.id ? (
+            <View key={w.id} style={styles.card}>
+              <TextInput
+                style={styles.renameInput}
+                value={renameDraft}
+                onChangeText={setRenameDraft}
+                onSubmitEditing={renameWishlist}
+                autoFocus
+                returnKeyType="done"
+              />
+              <View style={styles.renameActions}>
+                <Pressable onPress={() => setRenamingId(null)} hitSlop={8}>
+                  <Text style={styles.renameCancel}>Cancel</Text>
+                </Pressable>
+                <Pressable onPress={renameWishlist} hitSlop={8}>
+                  <Text style={styles.renameSave}>Save</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              key={w.id}
+              style={press(styles.card)}
+              onPress={() => router.push(`/wishlists/${w.id}?name=${encodeURIComponent(w.name)}`)}
+              onLongPress={() => listActions(w)}
+            >
+              <Text style={styles.cardTitle}>{w.name}</Text>
+              <Text style={styles.cardCount}>
+                {w.item_count} item{w.item_count === 1 ? "" : "s"}
+              </Text>
+            </Pressable>
+          )
+        )
       )}
+
+      {wishlists.length > 0 ? (
+        <Text style={styles.hint}>Hold a list to rename or delete it</Text>
+      ) : null}
 
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
@@ -126,6 +223,19 @@ const createStyles = (t: Theme) =>
   emptyCard: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 20 },
   emptyText: { fontSize: 13, color: t.textSecondary, lineHeight: 18 },
   card: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 18, marginBottom: 12 },
+  renameInput: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: t.textPrimary,
+    backgroundColor: t.surfaceSunken,
+    borderRadius: t.radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  renameActions: { flexDirection: "row", justifyContent: "flex-end", gap: 18, marginTop: 10 },
+  renameCancel: { fontSize: 14, color: t.textMuted },
+  renameSave: { fontSize: 14, color: t.accent, fontWeight: "700" },
+  hint: { fontSize: 12, color: t.textMuted, textAlign: "center", marginTop: 4 },
   cardTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary, marginBottom: 4 },
   cardCount: { fontSize: 13, color: t.textMuted },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 24 },
