@@ -49,8 +49,9 @@ export default function Home() {
               date booked before the week swallows it.
             </p>
             <p className="mt-2 text-[15px] leading-7 text-text-secondary">
-              Let Untangled Life handle the groundwork so you don&apos;t
-              have to.
+              You fell in love with each other, not with the logistics.
+              Untangled Life takes care of the admin so the two of you can
+              get back to the good stuff.
             </p>
             <div className="mt-8">
               <WaitlistForm />
