@@ -124,12 +124,33 @@ export default function Todos() {
           <FilterChip label="Us" active={filter === "us"} onPress={() => setFilter("us")} />
         </View>
 
-        {BUCKETS.map((bucket) => {
+        {/* Four buckets each saying "Nothing here" is a wall of nothing. When
+            the list is genuinely empty, say so once. */}
+        {visible.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>
+              {filter === "us"
+                ? "Nothing shared yet"
+                : filter === "me"
+                  ? "Nothing on your list"
+                  : `Nothing on ${partner?.display_name ?? "their"}'s list`}
+            </Text>
+            <Text style={styles.emptyBody}>
+              Add one below — anything either of you would otherwise be carrying around in your
+              head.
+            </Text>
+          </View>
+        ) : null}
+
+        {visible.length === 0
+          ? null
+          : BUCKETS.map((bucket) => {
           const items = visible.filter((t) => bucketFor(t.due_date) === bucket);
+          if (items.length === 0) return null;
           return (
             <View key={bucket} style={{ marginBottom: 20 }}>
               <Text style={styles.bucketTitle}>{bucket}</Text>
-              {items.length === 0 ? (
+              {false ? (
                 <View style={styles.emptyRow}>
                   <Text style={styles.emptyText}>Nothing here</Text>
                 </View>
@@ -191,6 +212,15 @@ const createStyles = (t: Theme) =>
   chipText: { fontSize: 13, fontWeight: "600", color: t.textSecondary },
   chipTextActive: { color: t.surface },
   bucketTitle: { fontSize: 14, fontWeight: "600", color: t.textPrimary, marginBottom: 8 },
+  emptyCard: {
+    backgroundColor: t.surface,
+    borderRadius: t.radius.lg,
+    padding: t.space(5),
+    marginBottom: t.space(5),
+    ...t.shadow,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary, marginBottom: t.space(1.5) },
+  emptyBody: { fontSize: 13, color: t.textSecondary, lineHeight: 19 },
   emptyRow: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 14 },
   emptyText: { fontSize: 13, color: t.textMuted },
   todoRow: {

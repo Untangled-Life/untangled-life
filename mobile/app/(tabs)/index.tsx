@@ -15,7 +15,7 @@ import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { CalendarIcon, MenuIcon } from "@/components/icons";
 import { Theme } from "@/theme/tokens";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import * as Calendar from "expo-calendar/legacy";
 import { PermissionStatus } from "expo";
 import { supabase } from "@/lib/supabase";
@@ -258,6 +258,30 @@ export default function Home() {
     ]);
   }
 
+  const setupSteps = [
+    permission !== PermissionStatus.GRANTED
+      ? {
+          label: "Connect your calendar",
+          why: "So we can find time you're both actually free",
+          onPress: requestAccess,
+        }
+      : null,
+    !myPattern || myPattern.shifts.length === 0
+      ? {
+          label: "Add your working hours",
+          why: "So free time stops suggesting the middle of a shift",
+          onPress: () => router.push("/work-hours"),
+        }
+      : null,
+    keyDates.length === 0
+      ? {
+          label: "Add your key dates",
+          why: "Anniversary and birthdays, with reminders in good time",
+          onPress: () => router.push("/key-dates"),
+        }
+      : null,
+  ].filter((step): step is { label: string; why: string; onPress: () => void } => step !== null);
+
   const upcoming = [...keyDates].sort(
     (a, b) => daysUntil(a.date, a.recurring) - daysUntil(b.date, b.recurring)
   );
@@ -286,6 +310,30 @@ export default function Home() {
       <Text style={styles.subtitle}>
         You&apos;re paired up. Here&apos;s what&apos;s coming up together.
       </Text>
+
+      {/* A brand-new couple lands here with nothing and no idea what to do
+          first. This says so, in order, and disappears as each is done —
+          rather than leaving three empty sections to interpret. */}
+      {setupSteps.length > 0 ? (
+        <View style={styles.setupCard}>
+          <Text style={styles.setupTitle}>Finish setting up</Text>
+          <Text style={styles.setupBody}>
+            {setupSteps.length === 1
+              ? "One thing left before this really works."
+              : `${setupSteps.length} quick things and this starts earning its keep.`}
+          </Text>
+          {setupSteps.map((step) => (
+            <Pressable key={step.label} style={press(styles.setupStep)} onPress={step.onPress}>
+              <View style={styles.setupDot} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.setupStepLabel}>{step.label}</Text>
+                <Text style={styles.setupStepWhy}>{step.why}</Text>
+              </View>
+              <Text style={styles.setupChevron}>›</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Key dates &amp; countdowns</Text>
@@ -444,6 +492,30 @@ export default function Home() {
 const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flexGrow: 1, padding: t.space(6), paddingTop: t.space(14), paddingBottom: 40 },
+  setupCard: {
+    backgroundColor: t.accentSoft,
+    borderRadius: t.radius.lg,
+    padding: t.space(5),
+    marginBottom: t.space(6),
+  },
+  setupTitle: { fontSize: 16, fontWeight: "700", color: t.accent, marginBottom: t.space(1) },
+  setupBody: { fontSize: 13, color: t.textSecondary, marginBottom: t.space(4), lineHeight: 18 },
+  setupStep: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: t.space(3),
+    paddingVertical: t.space(3),
+  },
+  setupDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: t.accent,
+  },
+  setupStepLabel: { fontSize: 14, fontWeight: "600", color: t.textPrimary },
+  setupStepWhy: { fontSize: 12, color: t.textSecondary, marginTop: 1 },
+  setupChevron: { fontSize: 20, color: t.accent },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
