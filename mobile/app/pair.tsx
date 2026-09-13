@@ -1,26 +1,94 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 
+const PARTNER_POLL_MS = 3000;
+
 export default function Pair() {
-  const { session, refreshProfile, signOut } = useAuth();
+  const { session, profile, refreshProfile, signOut } = useAuth();
   const [code, setCode] = useState("");
   const [myCode, setMyCode] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const restoredRef = useRef(false);
+
+  const coupleId = profile?.couple_id ?? null;
+  const userId = session?.user.id ?? null;
+
+  const fetchInviteCode = useCallback(async () => {
+    const { data, error: rpcError } = await supabase.rpc("create_couple_invite");
+    if (rpcError) throw new Error(rpcError.message);
+    return data as string;
+  }, []);
+
+  // Landing here while already in a couple means we invited someone and they
+  // haven't joined yet -- so show that same code again rather than stranding
+  // them without it.
+  useEffect(() => {
+    if (!coupleId || restoredRef.current || myCode) return;
+    restoredRef.current = true;
+    fetchInviteCode()
+      .then((restored) => {
+        setMyCode(restored);
+        setWaiting(true);
+      })
+      .catch(() => {
+        // Already paired, or the code couldn't be read -- either way there's
+        // nothing to restore and the normal buttons still work.
+      });
+  }, [coupleId, myCode, fetchInviteCode]);
+
+  // While waiting, watch for the partner's profile joining the couple, then
+  // go through. Polling rather than realtime: no channel setup, and this
+  // screen is short-lived.
+  useEffect(() => {
+    if (!waiting || !coupleId || !userId) return;
+
+    let cancelled = false;
+
+    async function checkForPartner() {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("couple_id", coupleId);
+
+      if (cancelled) return;
+
+      const partner = data?.find((m) => m.id !== userId);
+      if (partner) {
+        cancelled = true;
+        await refreshProfile();
+        router.replace("/");
+      }
+    }
+
+    checkForPartner();
+    const interval = setInterval(checkForPartner, PARTNER_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [waiting, coupleId, userId, refreshProfile]);
 
   async function handleCreateInvite() {
     setError(null);
     setLoading(true);
-    const { data, error: rpcError } = await supabase.rpc("create_couple_invite");
-    setLoading(false);
-    if (rpcError) {
-      setError(rpcError.message);
-      return;
+    try {
+      const created = await fetchInviteCode();
+      setMyCode(created);
+      // The RPC set our couple_id as a side effect; pick it up so the poll
+      // below has a couple to watch.
+      await refreshProfile();
+      setWaiting(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't create a code.");
+    } finally {
+      setLoading(false);
     }
-    setMyCode(data as string);
   }
 
   async function handleRedeemInvite() {
@@ -47,32 +115,53 @@ export default function Pair() {
         into one couple.
       </Text>
 
-      <Pressable style={styles.buttonSecondary} onPress={handleCreateInvite} disabled={loading}>
-        <Text style={styles.buttonSecondaryText}>Create an invite code</Text>
-      </Pressable>
+      {waiting && myCode ? (
+        <>
+          <View style={styles.codeBox}>
+            <Text style={styles.codeLabel}>Send this to your partner</Text>
+            <Text style={styles.code}>{myCode}</Text>
+          </View>
 
-      {myCode ? (
-        <View style={styles.codeBox}>
-          <Text style={styles.codeLabel}>Send this to your partner</Text>
-          <Text style={styles.code}>{myCode}</Text>
-        </View>
-      ) : null}
+          <View style={styles.waitingRow}>
+            <ActivityIndicator color="#1D9E75" />
+            <Text style={styles.waitingText}>
+              Waiting for them to enter it. This screen moves on by itself.
+            </Text>
+          </View>
+        </>
+      ) : (
+        <>
+          <Pressable
+            style={styles.buttonSecondary}
+            onPress={handleCreateInvite}
+            disabled={loading}
+          >
+            <Text style={styles.buttonSecondaryText}>Create an invite code</Text>
+          </Pressable>
 
-      <Text style={styles.orText}>— or —</Text>
+          <Text style={styles.orText}>— or —</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Enter partner's code"
-        autoCapitalize="characters"
-        value={code}
-        onChangeText={setCode}
-      />
+          <TextInput
+            style={styles.input}
+            placeholder="Enter partner's code"
+            autoCapitalize="characters"
+            value={code}
+            onChangeText={setCode}
+          />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable style={styles.button} onPress={handleRedeemInvite} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Pair up</Text>}
-      </Pressable>
+          <Pressable style={styles.button} onPress={handleRedeemInvite} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Pair up</Text>
+            )}
+          </Pressable>
+        </>
+      )}
+
+      {waiting && error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Pressable onPress={() => signOut()} style={{ marginTop: 24 }}>
         <Text style={styles.link}>Signed in as {session?.user.email}. Sign out</Text>
@@ -111,9 +200,11 @@ const styles = StyleSheet.create({
     borderColor: "#1D9E75",
   },
   buttonSecondaryText: { color: "#1D9E75", fontWeight: "600", fontSize: 15 },
-  codeBox: { alignItems: "center", marginTop: 16, marginBottom: 8 },
+  codeBox: { alignItems: "center", marginTop: 8, marginBottom: 16 },
   codeLabel: { fontSize: 12, color: "#6B6B6B", marginBottom: 4 },
-  code: { fontSize: 28, fontWeight: "700", letterSpacing: 4 },
+  code: { fontSize: 36, fontWeight: "700", letterSpacing: 6 },
+  waitingRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
+  waitingText: { fontSize: 13, color: "#6B6B6B", flexShrink: 1 },
   orText: { textAlign: "center", color: "#9A9A9A", marginVertical: 16 },
   error: { color: "#B3261E", marginBottom: 8, fontSize: 13, textAlign: "center" },
   link: { textAlign: "center", color: "#9A9A9A", fontSize: 13 },
