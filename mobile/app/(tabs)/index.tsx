@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  RefreshControl,
 } from "react-native";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { CalendarIcon, MenuIcon } from "@/components/icons";
 import { Theme } from "@/theme/tokens";
@@ -144,18 +146,26 @@ export default function Home() {
     return syncResult;
   }, [profile?.couple_id, session?.user.id, loadFreeWindows, loadPlans]);
 
-  useEffect(() => {
-    Calendar.getCalendarPermissionsAsync().then((result) => {
-      setPermission(result.status);
-      if (result.status === PermissionStatus.GRANTED) {
-        syncAndLoad();
-      }
-    });
-    loadKeyDates();
-    loadFreeWindows();
-    loadPlans();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadKeyDates]);
+  /**
+   * Everything this screen shows can change elsewhere — your partner books a
+   * date, you add a key date on another tab, a calendar event moves. So it
+   * reloads whenever it comes back into view rather than only on mount, and
+   * re-reads the phone's calendar when permission allows.
+   */
+  const refreshAll = useCallback(async () => {
+    const permissionResult = await Calendar.getCalendarPermissionsAsync();
+    setPermission(permissionResult.status);
+
+    await Promise.all([loadKeyDates(), loadPlans()]);
+
+    if (permissionResult.status === PermissionStatus.GRANTED) {
+      await syncAndLoad();
+    } else {
+      await loadFreeWindows();
+    }
+  }, [loadKeyDates, loadPlans, loadFreeWindows, syncAndLoad]);
+
+  const { refreshing, onRefresh } = useRefreshOnFocus(refreshAll);
 
   async function requestAccess() {
     const result = await Calendar.requestCalendarPermissionsAsync();
@@ -250,7 +260,12 @@ export default function Home() {
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
+      }
+    >
       <View style={styles.topBar}>
         <Link href="/menu" asChild>
           <Pressable style={styles.iconButton} hitSlop={8} accessibilityLabel="Menu">

@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
+import { useCallback, useState } from "react";
+import { RefreshControl,
+  View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { useLocalSearchParams, router } from "expo-router";
@@ -27,9 +29,9 @@ export default function WishlistDetail() {
     if (data) setItems(data as Item[]);
   }, [id]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Refreshes whenever this screen comes back into view, not just on
+  // mount — otherwise changes made elsewhere aren't here until a restart.
+  const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
   async function addItem() {
     if (!title.trim() || !id || !profile?.couple_id) return;
@@ -52,7 +54,10 @@ export default function WishlistDetail() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
+      } contentContainerStyle={styles.container}>
         <Pressable onPress={() => router.back()} style={{ marginBottom: 16 }}>
           <Text style={styles.back}>{"‹ Wishlists"}</Text>
         </Pressable>

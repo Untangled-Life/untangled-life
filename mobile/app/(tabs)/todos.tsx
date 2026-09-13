@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
+  RefreshControl,
   View,
   Text,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { supabase } from "@/lib/supabase";
@@ -60,9 +62,9 @@ export default function Todos() {
     if (data) setTodos(data as Todo[]);
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Refreshes whenever this screen comes back into view, not just on
+  // mount — otherwise changes made elsewhere aren't here until a restart.
+  const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
   const assignedIdForFilter =
     filter === "me" ? me.id : filter === "partner" ? partner?.id ?? null : null;
@@ -99,7 +101,10 @@ export default function Todos() {
       style={{ flex: 1, backgroundColor: t.bg }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
+      } contentContainerStyle={styles.container}>
         <Text style={styles.title}>To-dos</Text>
 
         <View style={styles.filterRow}>

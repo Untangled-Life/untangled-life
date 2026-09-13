@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert } from "react-native";
-import { useThemedStyles } from "@/contexts/theme";
+import { useCallback, useState } from "react";
+import { RefreshControl,
+  View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert } from "react-native";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
+import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { DateField, TimeField } from "@/components/fields";
 import { toFriendlyDate, toDisplayTime, fromISODate, isValidTimeString } from "@/lib/dates";
@@ -25,6 +27,7 @@ const MODES: { key: WorkMode; label: string; blurb: string }[] = [
 
 export default function WorkHours() {
   const styles = useThemedStyles(createStyles);
+  const t = useTheme();
 
   const { session, profile } = useAuth();
   const [mode, setMode] = useState<WorkMode>("weekly");
@@ -74,9 +77,9 @@ export default function WorkHours() {
     setOneOffs((shiftRows as WorkShift[]) ?? []);
   }, [userId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Refreshes whenever this screen comes back into view, not just on
+  // mount — otherwise changes made elsewhere aren't here until a restart.
+  const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
   async function persist(next: {
     mode?: WorkMode;
@@ -174,7 +177,10 @@ export default function WorkHours() {
   const weekOptions = Array.from({ length: cycleWeeks }, (_, i) => i);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
+      } contentContainerStyle={styles.container}>
       <Pressable onPress={() => router.back()} hitSlop={8}>
         <Text style={styles.back}>‹ Back</Text>
       </Pressable>

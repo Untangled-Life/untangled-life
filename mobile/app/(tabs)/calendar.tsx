@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRef } from "react";
 import {
+  RefreshControl,
   View,
   Text,
   StyleSheet,
@@ -10,7 +11,8 @@ import {
   Animated,
   PanResponder,
 } from "react-native";
-import { useThemedStyles } from "@/contexts/theme";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
+import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
@@ -96,6 +98,7 @@ function SwipeRow({
   onAction: (entry: DayEntry) => void;
 }) {
   const styles = useThemedStyles(createStyles);
+  const t = useTheme();
 
   const translateX = useRef(new Animated.Value(0)).current;
   const openRef = useRef(false);
@@ -171,6 +174,7 @@ function SwipeRow({
 
 export default function CalendarScreen() {
   const styles = useThemedStyles(createStyles);
+  const t = useTheme();
 
   const { session, profile } = useAuth();
   const { me, partner } = useCoupleMembers();
@@ -261,9 +265,9 @@ export default function CalendarScreen() {
     setWork(expanded);
   }, [session?.user.id, month]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Refreshes whenever this screen comes back into view, not just on
+  // mount — otherwise changes made elsewhere aren't here until a restart.
+  const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
   // Everything that falls on each day, keyed by YYYY-MM-DD.
   const entriesByDay = useMemo(() => {
@@ -398,7 +402,10 @@ export default function CalendarScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
+      } contentContainerStyle={styles.container}>
       <Pressable onPress={() => router.back()} hitSlop={8}>
         <Text style={styles.back}>‹ Back</Text>
       </Pressable>

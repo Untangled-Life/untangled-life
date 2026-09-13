@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
+import { useCallback, useState } from "react";
+import { RefreshControl,
+  View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { DateField } from "@/components/fields";
@@ -67,9 +69,9 @@ export default function KeyDates() {
     }
   }, [myId, partnerId, nameFor]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Refreshes whenever this screen comes back into view, not just on
+  // mount — otherwise changes made elsewhere aren't here until a restart.
+  const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
   async function saveSingleton(
     kind: "anniversary" | "birthday",
@@ -135,7 +137,10 @@ export default function KeyDates() {
   const miscDates = dates.filter((d) => d.kind === "misc");
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
+      } contentContainerStyle={styles.container}>
       <Text style={styles.title}>Key Dates</Text>
       <Text style={styles.subtitle}>
         We&apos;ll remind you 2 weeks, 1 week, and 3 days before each one — plenty of time to
