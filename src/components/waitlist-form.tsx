@@ -58,6 +58,9 @@ export function WaitlistForm() {
       onSubmit={handleSubmit}
       className="mx-auto flex w-full max-w-sm flex-col gap-2.5 text-left"
     >
+      <p className="mb-1 px-1 text-sm font-medium text-text-primary">
+        Register your interest
+      </p>
       <input
         type="text"
         required
