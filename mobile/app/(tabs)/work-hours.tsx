@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert } from "react-native";
+import { useThemedStyles } from "@/contexts/theme";
+import { Theme } from "@/theme/tokens";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
@@ -22,6 +24,8 @@ const MODES: { key: WorkMode; label: string; blurb: string }[] = [
 ];
 
 export default function WorkHours() {
+  const styles = useThemedStyles(createStyles);
+
   const { session, profile } = useAuth();
   const [mode, setMode] = useState<WorkMode>("weekly");
   const [cycleWeeks, setCycleWeeks] = useState(2);
@@ -391,76 +395,77 @@ export default function WorkHours() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: Theme) =>
+  StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 70, paddingBottom: 48 },
-  back: { fontSize: 15, color: "#1D9E75", fontWeight: "600", marginBottom: 12 },
-  title: { fontSize: 26, fontWeight: "600", color: "#14140F", marginBottom: 8 },
-  subtitle: { fontSize: 13, color: "#6B6B6B", lineHeight: 19, marginBottom: 20 },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 18, marginBottom: 16 },
-  cardTitle: { fontSize: 15, fontWeight: "600", color: "#14140F", marginBottom: 12 },
-  fieldLabel: { fontSize: 12, color: "#6B6B6B", marginBottom: 8 },
+  back: { fontSize: 15, color: t.accent, fontWeight: "600", marginBottom: 12 },
+  title: { fontSize: 26, fontWeight: "600", color: t.textPrimary, marginBottom: 8 },
+  subtitle: { fontSize: 13, color: t.textSecondary, lineHeight: 19, marginBottom: 20 },
+  card: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 18, marginBottom: 16 },
+  cardTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary, marginBottom: 12 },
+  fieldLabel: { fontSize: 12, color: t.textSecondary, marginBottom: 8 },
   modeRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: t.radius.md,
     marginBottom: 8,
-    backgroundColor: "#F7F5F0",
+    backgroundColor: t.bg,
   },
-  modeRowActive: { backgroundColor: "#E8F5EF" },
-  modeLabel: { fontSize: 14, fontWeight: "600", color: "#14140F" },
-  modeLabelActive: { color: "#1D9E75" },
-  modeBlurb: { fontSize: 12, color: "#6B6B6B", marginTop: 2 },
-  tick: { color: "#1D9E75", fontSize: 16, fontWeight: "700" },
+  modeRowActive: { backgroundColor: t.accentSoft },
+  modeLabel: { fontSize: 14, fontWeight: "600", color: t.textPrimary },
+  modeLabelActive: { color: t.accent },
+  modeBlurb: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
+  tick: { color: t.accent, fontSize: 16, fontWeight: "700" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#F7F5F0",
+    borderRadius: t.radius.pill,
+    backgroundColor: t.bg,
   },
-  chipActive: { backgroundColor: "#D85A30" },
-  chipText: { fontSize: 13, color: "#6B6B6B", fontWeight: "600" },
-  chipTextActive: { color: "#fff" },
+  chipActive: { backgroundColor: t.brand },
+  chipText: { fontSize: 13, color: t.textSecondary, fontWeight: "600" },
+  chipTextActive: { color: t.surface },
   row: { flexDirection: "row", gap: 8 },
   input: {
     flex: 1,
-    backgroundColor: "#F7F5F0",
-    borderRadius: 12,
+    backgroundColor: t.bg,
+    borderRadius: t.radius.md,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 14,
   },
   saveButton: {
-    backgroundColor: "#1D9E75",
-    borderRadius: 999,
+    backgroundColor: t.accent,
+    borderRadius: t.radius.pill,
     paddingHorizontal: 18,
     paddingVertical: 12,
     justifyContent: "center",
     alignItems: "center",
   },
-  saveButtonText: { color: "#fff", fontWeight: "600", fontSize: 13 },
+  saveButtonText: { color: t.surface, fontWeight: "600", fontSize: 13 },
   offButton: {
-    backgroundColor: "#F7F5F0",
-    borderRadius: 999,
+    backgroundColor: t.bg,
+    borderRadius: t.radius.pill,
     paddingHorizontal: 18,
     paddingVertical: 12,
     justifyContent: "center",
     alignItems: "center",
   },
-  offButtonText: { color: "#6B6B6B", fontWeight: "600", fontSize: 13 },
+  offButtonText: { color: t.textSecondary, fontWeight: "600", fontSize: 13 },
   shiftRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0EEE8",
+    borderBottomColor: t.surfaceSunken,
   },
-  shiftDay: { fontSize: 14, color: "#14140F", fontWeight: "500" },
-  shiftTime: { fontSize: 13, color: "#6B6B6B" },
-  empty: { fontSize: 13, color: "#9A9A9A" },
-  hint: { fontSize: 12, color: "#9A9A9A", marginTop: 8, lineHeight: 16 },
-  divider: { height: 1, backgroundColor: "#F0EEE8", marginVertical: 16 },
-  savingNote: { fontSize: 12, color: "#9A9A9A", textAlign: "center" },
-});
+  shiftDay: { fontSize: 14, color: t.textPrimary, fontWeight: "500" },
+  shiftTime: { fontSize: 13, color: t.textSecondary },
+  empty: { fontSize: 13, color: t.textMuted },
+  hint: { fontSize: 12, color: t.textMuted, marginTop: 8, lineHeight: 16 },
+  divider: { height: 1, backgroundColor: t.surfaceSunken, marginVertical: 16 },
+  savingNote: { fontSize: 12, color: t.textMuted, textAlign: "center" },
+  });

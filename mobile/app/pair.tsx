@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { useThemedStyles, useTheme } from "@/contexts/theme";
+import { Theme } from "@/theme/tokens";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
@@ -7,6 +9,9 @@ import { useAuth } from "@/contexts/auth";
 const PARTNER_POLL_MS = 3000;
 
 export default function Pair() {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+
   const { session, profile, refreshProfile, signOut } = useAuth();
   const [code, setCode] = useState("");
   const [myCode, setMyCode] = useState<string | null>(null);
@@ -123,7 +128,7 @@ export default function Pair() {
           </View>
 
           <View style={styles.waitingRow}>
-            <ActivityIndicator color="#1D9E75" />
+            <ActivityIndicator color={t.accent} />
             <Text style={styles.waitingText}>
               Waiting for them to enter it. This screen moves on by itself.
             </Text>
@@ -153,7 +158,7 @@ export default function Pair() {
 
           <Pressable style={styles.button} onPress={handleRedeemInvite} disabled={loading}>
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={t.surface} />
             ) : (
               <Text style={styles.buttonText}>Pair up</Text>
             )}
@@ -170,13 +175,14 @@ export default function Pair() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#F7F5F0" },
+const createStyles = (t: Theme) =>
+  StyleSheet.create({
+  container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: t.bg },
   title: { fontSize: 22, fontWeight: "600", textAlign: "center", marginBottom: 8 },
-  subtitle: { fontSize: 14, color: "#6B6B6B", textAlign: "center", marginBottom: 24, lineHeight: 20 },
+  subtitle: { fontSize: 14, color: t.textSecondary, textAlign: "center", marginBottom: 24, lineHeight: 20 },
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    backgroundColor: t.surface,
+    borderRadius: t.radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 12,
@@ -185,27 +191,27 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   button: {
-    backgroundColor: "#D85A30",
-    borderRadius: 999,
+    backgroundColor: t.brand,
+    borderRadius: t.radius.pill,
     paddingVertical: 14,
     alignItems: "center",
   },
-  buttonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
+  buttonText: { color: t.surface, fontWeight: "600", fontSize: 15 },
   buttonSecondary: {
-    backgroundColor: "#fff",
-    borderRadius: 999,
+    backgroundColor: t.surface,
+    borderRadius: t.radius.pill,
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#1D9E75",
+    borderColor: t.accent,
   },
-  buttonSecondaryText: { color: "#1D9E75", fontWeight: "600", fontSize: 15 },
+  buttonSecondaryText: { color: t.accent, fontWeight: "600", fontSize: 15 },
   codeBox: { alignItems: "center", marginTop: 8, marginBottom: 16 },
-  codeLabel: { fontSize: 12, color: "#6B6B6B", marginBottom: 4 },
+  codeLabel: { fontSize: 12, color: t.textSecondary, marginBottom: 4 },
   code: { fontSize: 36, fontWeight: "700", letterSpacing: 6 },
   waitingRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
-  waitingText: { fontSize: 13, color: "#6B6B6B", flexShrink: 1 },
-  orText: { textAlign: "center", color: "#9A9A9A", marginVertical: 16 },
-  error: { color: "#B3261E", marginBottom: 8, fontSize: 13, textAlign: "center" },
-  link: { textAlign: "center", color: "#9A9A9A", fontSize: 13 },
-});
+  waitingText: { fontSize: 13, color: t.textSecondary, flexShrink: 1 },
+  orText: { textAlign: "center", color: t.textMuted, marginVertical: 16 },
+  error: { color: t.danger, marginBottom: 8, fontSize: 13, textAlign: "center" },
+  link: { textAlign: "center", color: t.textMuted, fontSize: 13 },
+  });

@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { useThemedStyles, useTheme } from "@/contexts/theme";
+import { Theme } from "@/theme/tokens";
 import { Link, router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 
 export default function SignUp() {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -67,7 +72,7 @@ export default function SignUp() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Pressable style={styles.button} onPress={handleSignUp} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign up</Text>}
+        {loading ? <ActivityIndicator color={t.surface} /> : <Text style={styles.buttonText}>Sign up</Text>}
       </Pressable>
 
       <Link href="/sign-in" style={styles.link}>
@@ -77,26 +82,27 @@ export default function SignUp() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#F7F5F0" },
+const createStyles = (t: Theme) =>
+  StyleSheet.create({
+  container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: t.bg },
   title: { fontSize: 24, fontWeight: "600", textAlign: "center", marginBottom: 4 },
-  subtitle: { fontSize: 16, color: "#6B6B6B", textAlign: "center", marginBottom: 24 },
+  subtitle: { fontSize: 16, color: t.textSecondary, textAlign: "center", marginBottom: 24 },
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    backgroundColor: t.surface,
+    borderRadius: t.radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 12,
     fontSize: 15,
   },
   button: {
-    backgroundColor: "#D85A30",
-    borderRadius: 999,
+    backgroundColor: t.brand,
+    borderRadius: t.radius.pill,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 8,
   },
-  buttonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
-  error: { color: "#B3261E", marginBottom: 8, fontSize: 13 },
-  link: { marginTop: 20, textAlign: "center", color: "#1D9E75", fontSize: 14 },
-});
+  buttonText: { color: t.surface, fontWeight: "600", fontSize: 15 },
+  error: { color: t.danger, marginBottom: 8, fontSize: 13 },
+  link: { marginTop: 20, textAlign: "center", color: t.accent, fontSize: 14 },
+  });

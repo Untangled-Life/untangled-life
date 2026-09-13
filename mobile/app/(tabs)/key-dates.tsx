@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
+import { useThemedStyles } from "@/contexts/theme";
+import { Theme } from "@/theme/tokens";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
@@ -9,6 +11,8 @@ import { requestNotificationPermission, rescheduleKeyDateReminders } from "@/lib
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function KeyDates() {
+  const styles = useThemedStyles(createStyles);
+
   const { profile } = useAuth();
   const { me, partner } = useCoupleMembers();
   const [dates, setDates] = useState<KeyDateRow[]>([]);
@@ -231,37 +235,38 @@ export default function KeyDates() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: Theme) =>
+  StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 80, paddingBottom: 40 },
-  title: { fontSize: 26, fontWeight: "600", color: "#14140F", marginBottom: 8 },
-  subtitle: { fontSize: 13, color: "#6B6B6B", lineHeight: 18, marginBottom: 20 },
-  error: { color: "#B3261E", fontSize: 13, marginBottom: 12 },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 18, marginBottom: 16 },
-  cardTitle: { fontSize: 15, fontWeight: "600", color: "#14140F", marginBottom: 12 },
-  cardHint: { fontSize: 12, color: "#9A9A9A", marginTop: -6, marginBottom: 12, lineHeight: 16 },
+  title: { fontSize: 26, fontWeight: "600", color: t.textPrimary, marginBottom: 8 },
+  subtitle: { fontSize: 13, color: t.textSecondary, lineHeight: 18, marginBottom: 20 },
+  error: { color: t.danger, fontSize: 13, marginBottom: 12 },
+  card: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 18, marginBottom: 16 },
+  cardTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary, marginBottom: 12 },
+  cardHint: { fontSize: 12, color: t.textMuted, marginTop: -6, marginBottom: 12, lineHeight: 16 },
   row: { flexDirection: "row", gap: 8 },
   input: {
     flex: 1,
-    backgroundColor: "#F7F5F0",
-    borderRadius: 12,
+    backgroundColor: t.bg,
+    borderRadius: t.radius.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
   },
   saveButton: {
-    backgroundColor: "#1D9E75",
-    borderRadius: 999,
+    backgroundColor: t.accent,
+    borderRadius: t.radius.pill,
     paddingHorizontal: 18,
     justifyContent: "center",
   },
-  saveButtonText: { color: "#fff", fontWeight: "600", fontSize: 13 },
+  saveButtonText: { color: t.surface, fontWeight: "600", fontSize: 13 },
   miscRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0EEE8",
+    borderBottomColor: t.surfaceSunken,
   },
-  miscTitle: { fontSize: 14, color: "#14140F" },
-  miscDate: { fontSize: 13, color: "#9A9A9A" },
-});
+  miscTitle: { fontSize: 14, color: t.textPrimary },
+  miscDate: { fontSize: 13, color: t.textMuted },
+  });

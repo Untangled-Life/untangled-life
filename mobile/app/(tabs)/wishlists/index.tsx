@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Modal } from "react-native";
+import { useThemedStyles, useTheme } from "@/contexts/theme";
+import { Theme } from "@/theme/tokens";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
@@ -7,6 +9,9 @@ import { useAuth } from "@/contexts/auth";
 type Wishlist = { id: string; name: string; item_count: number };
 
 export default function Wishlists() {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+
   const { profile } = useAuth();
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -90,10 +95,10 @@ export default function Wishlists() {
             />
             <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
               <Pressable
-                style={[styles.button, { flex: 1, backgroundColor: "#E9E7E0" }]}
+                style={[styles.button, { flex: 1, backgroundColor: t.border }]}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={[styles.buttonText, { color: "#14140F" }]}>Cancel</Text>
+                <Text style={[styles.buttonText, { color: t.textPrimary }]}>Cancel</Text>
               </Pressable>
               <Pressable style={[styles.button, { flex: 1 }]} onPress={createWishlist} disabled={saving}>
                 <Text style={styles.buttonText}>{saving ? "Saving..." : "Create"}</Text>
@@ -106,26 +111,27 @@ export default function Wishlists() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: Theme) =>
+  StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 80 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  title: { fontSize: 26, fontWeight: "600", color: "#14140F" },
-  addLink: { fontSize: 14, fontWeight: "600", color: "#1D9E75" },
-  emptyCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
-  emptyText: { fontSize: 13, color: "#6B6B6B", lineHeight: 18 },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 18, marginBottom: 12 },
-  cardTitle: { fontSize: 16, fontWeight: "600", color: "#14140F", marginBottom: 4 },
-  cardCount: { fontSize: 13, color: "#9A9A9A" },
+  title: { fontSize: 26, fontWeight: "600", color: t.textPrimary },
+  addLink: { fontSize: 14, fontWeight: "600", color: t.accent },
+  emptyCard: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 20 },
+  emptyText: { fontSize: 13, color: t.textSecondary, lineHeight: 18 },
+  card: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 18, marginBottom: 12 },
+  cardTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary, marginBottom: 4 },
+  cardCount: { fontSize: 13, color: t.textMuted },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 24 },
-  modalCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
-  modalTitle: { fontSize: 16, fontWeight: "600", marginBottom: 16, color: "#14140F" },
+  modalCard: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 20 },
+  modalTitle: { fontSize: 16, fontWeight: "600", marginBottom: 16, color: t.textPrimary },
   input: {
-    backgroundColor: "#F7F5F0",
-    borderRadius: 12,
+    backgroundColor: t.bg,
+    borderRadius: t.radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
   },
-  button: { backgroundColor: "#1D9E75", borderRadius: 999, paddingVertical: 12, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
-});
+  button: { backgroundColor: t.accent, borderRadius: t.radius.pill, paddingVertical: 12, alignItems: "center" },
+  buttonText: { color: t.surface, fontWeight: "600", fontSize: 14 },
+  });

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
+import { useThemedStyles, useTheme } from "@/contexts/theme";
+import { Theme } from "@/theme/tokens";
 import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
@@ -7,6 +9,9 @@ import { useAuth } from "@/contexts/auth";
 type Item = { id: string; title: string; url: string | null };
 
 export default function WishlistDetail() {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const { profile } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
@@ -46,7 +51,7 @@ export default function WishlistDetail() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F7F5F0" }}>
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView contentContainerStyle={styles.container}>
         <Pressable onPress={() => router.back()} style={{ marginBottom: 16 }}>
           <Text style={styles.back}>{"‹ Wishlists"}</Text>
@@ -83,35 +88,36 @@ export default function WishlistDetail() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: Theme) =>
+  StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 80, paddingBottom: 16 },
-  back: { fontSize: 14, color: "#1D9E75", fontWeight: "600" },
-  title: { fontSize: 26, fontWeight: "600", color: "#14140F", marginBottom: 20 },
-  emptyCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
-  emptyText: { fontSize: 13, color: "#6B6B6B" },
-  itemRow: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 8 },
-  itemText: { fontSize: 14, color: "#14140F" },
+  back: { fontSize: 14, color: t.accent, fontWeight: "600" },
+  title: { fontSize: 26, fontWeight: "600", color: t.textPrimary, marginBottom: 20 },
+  emptyCard: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 20 },
+  emptyText: { fontSize: 13, color: t.textSecondary },
+  itemRow: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 14, marginBottom: 8 },
+  itemText: { fontSize: 14, color: t.textPrimary },
   addBar: {
     flexDirection: "row",
     gap: 8,
     padding: 16,
-    backgroundColor: "#F7F5F0",
+    backgroundColor: t.bg,
     borderTopWidth: 1,
-    borderTopColor: "#E9E7E0",
+    borderTopColor: t.border,
   },
   addInput: {
     flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 999,
+    backgroundColor: t.surface,
+    borderRadius: t.radius.pill,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 14,
   },
   addButton: {
-    backgroundColor: "#D85A30",
-    borderRadius: 999,
+    backgroundColor: t.brand,
+    borderRadius: t.radius.pill,
     paddingHorizontal: 20,
     justifyContent: "center",
   },
-  addButtonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
-});
+  addButtonText: { color: t.surface, fontWeight: "600", fontSize: 14 },
+  });

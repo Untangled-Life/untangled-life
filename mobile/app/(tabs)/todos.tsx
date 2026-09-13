@@ -9,6 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { useThemedStyles, useTheme } from "@/contexts/theme";
+import { Theme } from "@/theme/tokens";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
@@ -40,6 +42,9 @@ function bucketFor(dueDate: string | null): "Today" | "Tomorrow" | "This Week" |
 const BUCKETS = ["Today", "Tomorrow", "This Week", "Someday"] as const;
 
 export default function Todos() {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+
   const { profile } = useAuth();
   const { me, partner } = useCoupleMembers();
   const [filter, setFilter] = useState<Filter>("me");
@@ -91,7 +96,7 @@ export default function Todos() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "#F7F5F0" }}
+      style={{ flex: 1, backgroundColor: t.bg }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={styles.container}>
@@ -147,6 +152,8 @@ export default function Todos() {
 }
 
 function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
       <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
@@ -156,28 +163,29 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (t: Theme) =>
+  StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 80, paddingBottom: 16 },
-  title: { fontSize: 26, fontWeight: "600", color: "#14140F", marginBottom: 20 },
+  title: { fontSize: 26, fontWeight: "600", color: t.textPrimary, marginBottom: 20 },
   filterRow: { flexDirection: "row", gap: 8, marginBottom: 24 },
   chip: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: "#fff",
+    borderRadius: t.radius.pill,
+    backgroundColor: t.surface,
     alignItems: "center",
   },
-  chipActive: { backgroundColor: "#1D9E75" },
-  chipText: { fontSize: 13, fontWeight: "600", color: "#6B6B6B" },
-  chipTextActive: { color: "#fff" },
-  bucketTitle: { fontSize: 14, fontWeight: "600", color: "#14140F", marginBottom: 8 },
-  emptyRow: { backgroundColor: "#fff", borderRadius: 12, padding: 14 },
-  emptyText: { fontSize: 13, color: "#9A9A9A" },
+  chipActive: { backgroundColor: t.accent },
+  chipText: { fontSize: 13, fontWeight: "600", color: t.textSecondary },
+  chipTextActive: { color: t.surface },
+  bucketTitle: { fontSize: 14, fontWeight: "600", color: t.textPrimary, marginBottom: 8 },
+  emptyRow: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 14 },
+  emptyText: { fontSize: 13, color: t.textMuted },
   todoRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    backgroundColor: t.surface,
+    borderRadius: t.radius.md,
     padding: 14,
     marginBottom: 8,
   },
@@ -186,31 +194,31 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: "#D85A30",
+    borderColor: t.brand,
     marginRight: 12,
   },
-  todoText: { fontSize: 14, color: "#14140F", flex: 1 },
+  todoText: { fontSize: 14, color: t.textPrimary, flex: 1 },
   addBar: {
     flexDirection: "row",
     gap: 8,
     padding: 16,
-    backgroundColor: "#F7F5F0",
+    backgroundColor: t.bg,
     borderTopWidth: 1,
-    borderTopColor: "#E9E7E0",
+    borderTopColor: t.border,
   },
   addInput: {
     flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 999,
+    backgroundColor: t.surface,
+    borderRadius: t.radius.pill,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 14,
   },
   addButton: {
-    backgroundColor: "#D85A30",
-    borderRadius: 999,
+    backgroundColor: t.brand,
+    borderRadius: t.radius.pill,
     paddingHorizontal: 20,
     justifyContent: "center",
   },
-  addButtonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
-});
+  addButtonText: { color: t.surface, fontWeight: "600", fontSize: 14 },
+  });

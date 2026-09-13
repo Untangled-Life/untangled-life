@@ -10,6 +10,8 @@ import {
   Animated,
   PanResponder,
 } from "react-native";
+import { useThemedStyles } from "@/contexts/theme";
+import { Theme } from "@/theme/tokens";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
@@ -93,6 +95,8 @@ function SwipeRow({
   entry: DayEntry;
   onAction: (entry: DayEntry) => void;
 }) {
+  const styles = useThemedStyles(createStyles);
+
   const translateX = useRef(new Animated.Value(0)).current;
   const openRef = useRef(false);
 
@@ -166,6 +170,8 @@ function SwipeRow({
 }
 
 export default function CalendarScreen() {
+  const styles = useThemedStyles(createStyles);
+
   const { session, profile } = useAuth();
   const { me, partner } = useCoupleMembers();
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
@@ -505,23 +511,24 @@ export default function CalendarScreen() {
 
 const CELL = `${100 / 7}%`;
 
-const styles = StyleSheet.create({
+const createStyles = (t: Theme) =>
+  StyleSheet.create({
   container: { flexGrow: 1, padding: 20, paddingTop: 70, paddingBottom: 48 },
-  back: { fontSize: 15, color: "#1D9E75", fontWeight: "600", marginBottom: 12 },
+  back: { fontSize: 15, color: t.accent, fontWeight: "600", marginBottom: 12 },
   monthHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 14,
   },
-  monthTitle: { fontSize: 20, fontWeight: "600", color: "#14140F" },
-  monthArrow: { fontSize: 28, color: "#1D9E75", paddingHorizontal: 12 },
+  monthTitle: { fontSize: 20, fontWeight: "600", color: t.textPrimary },
+  monthArrow: { fontSize: 28, color: t.accent, paddingHorizontal: 12 },
   weekHeader: { flexDirection: "row", marginBottom: 4 },
   weekHeading: {
     width: CELL,
     textAlign: "center",
     fontSize: 11,
-    color: "#9A9A9A",
+    color: t.textMuted,
     fontWeight: "600",
   },
   grid: { flexDirection: "row", flexWrap: "wrap" },
@@ -530,18 +537,18 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 10,
+    borderRadius: t.radius.sm,
   },
-  cellSelected: { backgroundColor: "#E8F5EF" },
-  cellDay: { fontSize: 14, color: "#14140F" },
-  cellDayToday: { color: "#D85A30", fontWeight: "700" },
+  cellSelected: { backgroundColor: t.accentSoft },
+  cellDay: { fontSize: 14, color: t.textPrimary },
+  cellDayToday: { color: t.brand, fontWeight: "700" },
   cellDaySelected: { fontWeight: "700" },
   dotRow: { flexDirection: "row", gap: 3, marginTop: 3, height: 5 },
   dot: { width: 5, height: 5, borderRadius: 3 },
-  dot_plan: { backgroundColor: "#D85A30" },
-  dot_keydate: { backgroundColor: "#1D9E75" },
-  dot_work: { backgroundColor: "#7A8B99" },
-  dot_busy: { backgroundColor: "#D6D2C8" },
+  dot_plan: { backgroundColor: t.brand },
+  dot_keydate: { backgroundColor: t.accent },
+  dot_work: { backgroundColor: t.dotWork },
+  dot_busy: { backgroundColor: t.dotBusy },
   legend: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -551,25 +558,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendText: { fontSize: 11, color: "#9A9A9A" },
-  dayTitle: { fontSize: 16, fontWeight: "600", color: "#14140F", marginBottom: 12 },
-  emptyCard: { backgroundColor: "#fff", borderRadius: 14, padding: 18 },
-  emptyText: { fontSize: 13, color: "#6B6B6B" },
+  legendText: { fontSize: 11, color: t.textMuted },
+  dayTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary, marginBottom: 12 },
+  emptyCard: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 18 },
+  emptyText: { fontSize: 13, color: t.textSecondary },
   entryRow: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 14,
+    backgroundColor: t.surface,
+    borderRadius: t.radius.md,
     padding: 14,
     marginBottom: 8,
     alignItems: "center",
     gap: 12,
   },
   entryBar: { width: 3, alignSelf: "stretch", borderRadius: 2 },
-  bar_plan: { backgroundColor: "#D85A30" },
-  bar_keydate: { backgroundColor: "#1D9E75" },
-  bar_work: { backgroundColor: "#7A8B99" },
-  bar_busy: { backgroundColor: "#D6D2C8" },
-  entryLabel: { fontSize: 14, fontWeight: "500", color: "#14140F" },
+  bar_plan: { backgroundColor: t.brand },
+  bar_keydate: { backgroundColor: t.accent },
+  bar_work: { backgroundColor: t.dotWork },
+  bar_busy: { backgroundColor: t.dotBusy },
+  entryLabel: { fontSize: 14, fontWeight: "500", color: t.textPrimary },
   swipeWrap: { position: "relative" },
   swipeActionLayer: {
     position: "absolute",
@@ -581,15 +588,15 @@ const styles = StyleSheet.create({
   },
   swipeAction: {
     flex: 1,
-    backgroundColor: "#B3261E",
+    backgroundColor: t.danger,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 14,
+    borderRadius: t.radius.md,
     marginLeft: 8,
   },
-  swipeActionSoft: { backgroundColor: "#E8E4DA" },
-  swipeActionText: { color: "#fff", fontWeight: "600", fontSize: 13 },
-  swipeActionTextSoft: { color: "#6B6B6B" },
-  footnote: { fontSize: 11, color: "#9A9A9A", marginTop: 6, lineHeight: 16 },
-  entryDetail: { fontSize: 12, color: "#6B6B6B", marginTop: 2 },
-});
+  swipeActionSoft: { backgroundColor: t.surfaceSunken },
+  swipeActionText: { color: t.surface, fontWeight: "600", fontSize: 13 },
+  swipeActionTextSoft: { color: t.textSecondary },
+  footnote: { fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 16 },
+  entryDetail: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
+  });

@@ -8,6 +8,9 @@ import {
   TextInput,
   Alert,
 } from "react-native";
+import { useThemedStyles, useTheme } from "@/contexts/theme";
+import { CalendarIcon, MenuIcon } from "@/components/icons";
+import { Theme } from "@/theme/tokens";
 import { Link } from "expo-router";
 import * as Calendar from "expo-calendar/legacy";
 import { PermissionStatus } from "expo";
@@ -29,20 +32,10 @@ import {
 
 const DEFAULT_PLAN_HOURS = 2;
 
-function CalendarGlyph() {
-  return (
-    <View style={styles.glyph}>
-      <View style={styles.glyphTop} />
-      <View style={styles.glyphBody}>
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <View key={i} style={styles.glyphDot} />
-        ))}
-      </View>
-    </View>
-  );
-}
-
 export default function Home() {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+
   const { session, profile, signOut } = useAuth();
   const { me, partner } = useCoupleMembers();
   const [permission, setPermission] = useState<PermissionStatus | null>(null);
@@ -258,19 +251,23 @@ export default function Home() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.headerRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>You&apos;re in</Text>
-          <Text style={styles.subtitle}>
-            You&apos;re paired up. Here&apos;s what&apos;s coming up together.
-          </Text>
-        </View>
+      <View style={styles.topBar}>
+        <Link href="/menu" asChild>
+          <Pressable style={styles.iconButton} hitSlop={8} accessibilityLabel="Menu">
+            <MenuIcon size={22} color={t.textPrimary} />
+          </Pressable>
+        </Link>
         <Link href="/calendar" asChild>
-          <Pressable style={styles.calendarButton} hitSlop={8} accessibilityLabel="Shared calendar">
-            <CalendarGlyph />
+          <Pressable style={styles.iconButton} hitSlop={8} accessibilityLabel="Shared calendar">
+            <CalendarIcon size={22} color={t.brand} />
           </Pressable>
         </Link>
       </View>
+
+      <Text style={styles.title}>You&apos;re in</Text>
+      <Text style={styles.subtitle}>
+        You&apos;re paired up. Here&apos;s what&apos;s coming up together.
+      </Text>
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Key dates &amp; countdowns</Text>
@@ -364,7 +361,7 @@ export default function Home() {
                   <TextInput
                     style={styles.input}
                     placeholder="Date night"
-                    placeholderTextColor="#9A9A9A"
+                    placeholderTextColor={t.textMuted}
                     value={bookingTitle}
                     onChangeText={setBookingTitle}
                     autoFocus
@@ -426,100 +423,82 @@ export default function Home() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 24, paddingTop: 80, paddingBottom: 40 },
-  headerRow: { flexDirection: "row", alignItems: "flex-start" },
-  calendarButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: "#fff",
+const createStyles = (t: Theme) =>
+  StyleSheet.create({
+  container: { flexGrow: 1, padding: t.space(6), paddingTop: t.space(14), paddingBottom: 40 },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: t.space(5),
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: t.radius.pill,
+    backgroundColor: t.surface,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 12,
+    ...t.shadow,
   },
-  glyph: { width: 20, height: 20, alignItems: "center" },
-  glyphTop: {
-    width: 18,
-    height: 4,
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
-    backgroundColor: "#D85A30",
-  },
-  glyphBody: {
-    width: 18,
-    height: 14,
-    borderWidth: 1.5,
-    borderTopWidth: 0,
-    borderColor: "#D85A30",
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignContent: "center",
-    justifyContent: "center",
-    paddingHorizontal: 2,
-    gap: 2,
-  },
-  glyphDot: { width: 3, height: 3, borderRadius: 1, backgroundColor: "#D85A30" },
   cardHeadRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  cardAction: { fontSize: 13, color: "#1D9E75", fontWeight: "600" },
-  title: { fontSize: 26, fontWeight: "600", marginBottom: 8, color: "#14140F" },
-  subtitle: { fontSize: 14, color: "#6B6B6B", lineHeight: 20, marginBottom: 24 },
+  cardAction: { fontSize: 13, color: t.accent, fontWeight: "600" },
+  title: { fontSize: 26, fontWeight: "600", marginBottom: 8, color: t.textPrimary },
+  subtitle: { fontSize: 14, color: t.textSecondary, lineHeight: 20, marginBottom: 24 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: "600", color: "#14140F" },
-  sectionAction: { fontSize: 14, color: "#1D9E75", fontWeight: "600" },
-  emptyCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20, marginBottom: 24 },
-  emptyText: { fontSize: 13, color: "#6B6B6B", lineHeight: 18 },
+  sectionTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary },
+  sectionAction: { fontSize: 14, color: t.accent, fontWeight: "600" },
+  emptyCard: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 20, marginBottom: 24 },
+  emptyText: { fontSize: 13, color: t.textSecondary, lineHeight: 18 },
   keyDateCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: t.surface,
+    borderRadius: t.radius.lg,
     padding: 16,
     marginRight: 12,
     width: 140,
   },
-  keyDateDays: { fontSize: 20, fontWeight: "700", color: "#D85A30", marginBottom: 6 },
-  keyDateTitle: { fontSize: 13, color: "#14140F" },
+  keyDateDays: { fontSize: 20, fontWeight: "700", color: t.brand, marginBottom: 6 },
+  keyDateTitle: { fontSize: 13, color: t.textPrimary },
   planRow: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    backgroundColor: t.surface,
+    borderRadius: t.radius.md,
     padding: 14,
     marginBottom: 8,
     flexDirection: "row",
     alignItems: "center",
   },
-  planTitle: { fontSize: 14, fontWeight: "600", color: "#14140F", marginBottom: 2 },
-  planWhen: { fontSize: 12, color: "#6B6B6B" },
-  planCancel: { fontSize: 13, color: "#9A9A9A", marginLeft: 12 },
-  freeRow: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 8 },
+  planTitle: { fontSize: 14, fontWeight: "600", color: t.textPrimary, marginBottom: 2 },
+  planWhen: { fontSize: 12, color: t.textSecondary },
+  planCancel: { fontSize: 13, color: t.textMuted, marginLeft: 12 },
+  freeRow: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 14, marginBottom: 8 },
   freeRowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  freeText: { fontSize: 14, color: "#14140F", fontWeight: "500", flex: 1 },
-  bookLink: { fontSize: 13, color: "#1D9E75", fontWeight: "600", marginLeft: 12 },
+  freeText: { fontSize: 14, color: t.textPrimary, fontWeight: "500", flex: 1 },
+  bookLink: { fontSize: 13, color: t.accent, fontWeight: "600", marginLeft: 12 },
   bookingBox: { marginTop: 12 },
   input: {
     borderWidth: 1,
-    borderColor: "#E5E2DA",
-    borderRadius: 10,
+    borderColor: t.border,
+    borderRadius: t.radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: "#14140F",
+    color: t.textPrimary,
   },
-  bookingHint: { fontSize: 12, color: "#9A9A9A", marginTop: 8 },
+  bookingHint: { fontSize: 12, color: t.textMuted, marginTop: 8 },
   bookingActions: { flexDirection: "row", alignItems: "center", marginTop: 12 },
   smallButton: {
-    backgroundColor: "#1D9E75",
-    borderRadius: 999,
+    backgroundColor: t.accent,
+    borderRadius: t.radius.pill,
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
   smallButtonDisabled: { opacity: 0.6 },
-  smallButtonText: { color: "#fff", fontWeight: "600", fontSize: 13 },
-  bookingCancel: { fontSize: 13, color: "#9A9A9A", marginLeft: 16 },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 20, marginTop: 16 },
-  cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 8, color: "#14140F" },
-  cardBody: { fontSize: 14, color: "#6B6B6B", lineHeight: 20, marginBottom: 16 },
-  button: { backgroundColor: "#1D9E75", borderRadius: 999, paddingVertical: 12, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
-  link: { textAlign: "center", color: "#9A9A9A", fontSize: 13 },
-});
+  smallButtonText: { color: t.surface, fontWeight: "600", fontSize: 13 },
+  bookingCancel: { fontSize: 13, color: t.textMuted, marginLeft: 16 },
+  card: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 20, marginTop: 16 },
+  cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 8, color: t.textPrimary },
+  cardBody: { fontSize: 14, color: t.textSecondary, lineHeight: 20, marginBottom: 16 },
+  button: { backgroundColor: t.accent, borderRadius: t.radius.pill, paddingVertical: 12, alignItems: "center" },
+  buttonText: { color: t.surface, fontWeight: "600", fontSize: 14 },
+  link: { textAlign: "center", color: t.textMuted, fontSize: 13 },
+  });
