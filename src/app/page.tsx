@@ -42,8 +42,12 @@ export default function Home() {
           </h1>
           <p className="mx-auto mt-3 max-w-md text-[15px] leading-7 text-text-secondary">
             Untangled Life pulls both your calendars into one view, spots the
-            evenings you&apos;re actually both free, and gets the date booked
-            before the week swallows it.
+            time that you&apos;re both actually free, and gets the date
+            booked before the week swallows it.
+          </p>
+          <p className="mx-auto mt-2 max-w-md text-[15px] leading-7 text-text-secondary">
+            Let Untangled Life handle the groundwork so you don&apos;t have
+            to.
           </p>
           <div className="mt-6">
             <WaitlistForm />
@@ -69,9 +73,9 @@ export default function Home() {
         <footer className="border-t border-border px-6 py-5 text-center sm:px-10">
           {/* placeholder testimonial - swap for a real one before launch */}
           <p className="font-voice italic text-[16px] leading-7 text-text-primary">
-            &ldquo;Created by a couple that felt their relationship fraying
+            Created by a couple that felt their relationship fraying
             in the midst of all the tangles that inevitably pop up in
-            life.&rdquo;
+            life.
           </p>
           <p className="mt-1.5 text-[13px] text-text-muted">
             The founders of Untangled Life
