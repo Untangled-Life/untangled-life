@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert } from "react-native";
 import { useThemedStyles } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
+import { DateField, TimeField } from "@/components/fields";
+import { toFriendlyDate, toDisplayTime, fromISODate, isValidTimeString } from "@/lib/dates";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
@@ -14,8 +16,6 @@ import {
   toDateKey,
 } from "@/lib/workHours";
 
-const TIME_PATTERN = /^([01]?\d|2[0-3]):[0-5]\d$/;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const MODES: { key: WorkMode; label: string; blurb: string }[] = [
   { key: "weekly", label: "Regular hours", blurb: "The same shifts every week." },
@@ -111,8 +111,8 @@ export default function WorkHours() {
   }
 
   function addShift() {
-    if (!TIME_PATTERN.test(draftStart) || !TIME_PATTERN.test(draftEnd)) {
-      Alert.alert("Check the times", "Use 24-hour times like 09:00 or 17:30.");
+    if (!isValidTimeString(draftStart) || !isValidTimeString(draftEnd)) {
+      Alert.alert("Check the times", "Pick a start and an end time.");
       return;
     }
 
@@ -136,12 +136,12 @@ export default function WorkHours() {
   }
 
   async function addOneOff(kind: "extra" | "off") {
-    if (!DATE_PATTERN.test(offDate)) {
-      Alert.alert("Check the date", "Use YYYY-MM-DD.");
+    if (!fromISODate(offDate)) {
+      Alert.alert("Check the date", "Pick which day this is for.");
       return;
     }
-    if (kind === "extra" && (!TIME_PATTERN.test(offStart) || !TIME_PATTERN.test(offEnd))) {
-      Alert.alert("Check the times", "Use 24-hour times like 09:00 or 17:30.");
+    if (kind === "extra" && (!isValidTimeString(offStart) || !isValidTimeString(offEnd))) {
+      Alert.alert("Check the times", "Pick a start and an end time.");
       return;
     }
     if (!userId || !profile?.couple_id) return;
@@ -232,18 +232,14 @@ export default function WorkHours() {
           <Text style={[styles.fieldLabel, { marginTop: 14 }]}>
             A date in week 1 of the rotation
           </Text>
-          <View style={styles.row}>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              value={anchorDate}
-              onChangeText={setAnchorDate}
-              keyboardType="numbers-and-punctuation"
-            />
-            <Pressable style={styles.saveButton} onPress={() => persist({ anchorDate })}>
-              <Text style={styles.saveButtonText}>Set</Text>
-            </Pressable>
-          </View>
+          <DateField
+            value={anchorDate || null}
+            placeholder="Pick a date in week 1"
+            onChange={(iso) => {
+              setAnchorDate(iso);
+              persist({ anchorDate: iso });
+            }}
+          />
         </View>
       ) : null}
 
@@ -261,7 +257,7 @@ export default function WorkHours() {
                   {weekdayLabel(s.weekday)}
                 </Text>
                 <Text style={styles.shiftTime}>
-                  {s.start} – {s.end}
+                  {toDisplayTime(s.start)} – {toDisplayTime(s.end)}
                   {s.end <= s.start ? " (+1)" : ""}
                 </Text>
               </Pressable>
@@ -309,24 +305,12 @@ export default function WorkHours() {
           </View>
 
           <View style={[styles.row, { marginTop: 12 }]}>
-            <TextInput
-              style={styles.input}
-              placeholder="09:00"
-              value={draftStart}
-              onChangeText={setDraftStart}
-              keyboardType="numbers-and-punctuation"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="17:00"
-              value={draftEnd}
-              onChangeText={setDraftEnd}
-              keyboardType="numbers-and-punctuation"
-            />
-            <Pressable style={styles.saveButton} onPress={addShift}>
-              <Text style={styles.saveButtonText}>Add</Text>
-            </Pressable>
+            <TimeField label="Starts" value={draftStart} onChange={setDraftStart} />
+            <TimeField label="Ends" value={draftEnd} onChange={setDraftEnd} />
           </View>
+          <Pressable style={[styles.saveButton, { marginTop: 12 }]} onPress={addShift}>
+            <Text style={styles.saveButtonText}>Add shift</Text>
+          </Pressable>
           <Text style={styles.hint}>
             Finishing earlier than you start means an overnight shift.
           </Text>
@@ -345,37 +329,21 @@ export default function WorkHours() {
 
         {oneOffs.map((o) => (
           <Pressable key={o.id} style={styles.shiftRow} onLongPress={() => removeOneOff(o.id)}>
-            <Text style={styles.shiftDay}>{o.date}</Text>
+            <Text style={styles.shiftDay}>{toFriendlyDate(o.date, false)}</Text>
             <Text style={styles.shiftTime}>
               {o.kind === "off"
                 ? "Day off"
-                : `${o.start_time?.slice(0, 5)} – ${o.end_time?.slice(0, 5)}`}
+                : `${toDisplayTime(o.start_time?.slice(0, 5))} – ${toDisplayTime(o.end_time?.slice(0, 5))}`}
             </Text>
           </Pressable>
         ))}
 
-        <View style={[styles.row, { marginTop: 12 }]}>
-          <TextInput
-            style={[styles.input, { flex: 1.3 }]}
-            placeholder="YYYY-MM-DD"
-            value={offDate}
-            onChangeText={setOffDate}
-            keyboardType="numbers-and-punctuation"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="09:00"
-            value={offStart}
-            onChangeText={setOffStart}
-            keyboardType="numbers-and-punctuation"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="17:00"
-            value={offEnd}
-            onChangeText={setOffEnd}
-            keyboardType="numbers-and-punctuation"
-          />
+        <View style={{ marginTop: 12 }}>
+          <DateField label="Which day" value={offDate || null} onChange={setOffDate} />
+        </View>
+        <View style={[styles.row, { marginTop: 10 }]}>
+          <TimeField label="Starts" value={offStart} onChange={setOffStart} />
+          <TimeField label="Ends" value={offEnd} onChange={setOffEnd} />
         </View>
 
         <View style={[styles.row, { marginTop: 10 }]}>

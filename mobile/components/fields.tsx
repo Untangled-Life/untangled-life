@@ -1,0 +1,228 @@
+import { useState } from "react";
+import { View, Text, StyleSheet, Pressable, Platform, Modal } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useThemedStyles, useTheme } from "@/contexts/theme";
+import { Theme } from "@/theme/tokens";
+import {
+  toISODate,
+  fromISODate,
+  toFriendlyDate,
+  toTimeString,
+  fromTimeString,
+  toDisplayTime,
+} from "@/lib/dates";
+import { CalendarIcon, ClockIcon } from "@/components/icons";
+
+/**
+ * Tappable date and time fields backed by the native picker.
+ *
+ * Everything was typed as YYYY-MM-DD text before, which is both the slowest
+ * way to enter a date and the easiest to get wrong. Values still travel as ISO
+ * dates and 24-hour times — only the interaction and the display change.
+ *
+ * iOS shows the picker in a sheet with an explicit Done, because its spinner
+ * has no inherent confirm step; Android's dialog closes itself.
+ */
+
+type DateFieldProps = {
+  label?: string;
+  value: string | null; // ISO YYYY-MM-DD
+  onChange: (iso: string) => void;
+  placeholder?: string;
+  minimumDate?: Date;
+  maximumDate?: Date;
+};
+
+export function DateField({
+  label,
+  value,
+  onChange,
+  placeholder = "Pick a date",
+  minimumDate,
+  maximumDate,
+}: DateFieldProps) {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<Date>(() => fromISODate(value ?? "") ?? new Date());
+
+  const display = value ? toFriendlyDate(value) : "";
+
+  function openPicker() {
+    setDraft(fromISODate(value ?? "") ?? new Date());
+    setOpen(true);
+  }
+
+  const picker = (
+    <DateTimePicker
+      value={draft}
+      mode="date"
+      display={Platform.OS === "ios" ? "spinner" : "default"}
+      minimumDate={minimumDate}
+      maximumDate={maximumDate}
+      onChange={(event, selected) => {
+        if (Platform.OS === "android") {
+          setOpen(false);
+          if (event.type === "set" && selected) onChange(toISODate(selected));
+          return;
+        }
+        if (selected) setDraft(selected);
+      }}
+    />
+  );
+
+  return (
+    <View style={styles.wrap}>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
+
+      <Pressable
+        style={({ pressed }) => [styles.field, pressed ? styles.fieldPressed : null]}
+        onPress={openPicker}
+      >
+        <CalendarIcon size={18} color={t.textMuted} />
+        <Text style={[styles.value, !display ? styles.placeholder : null]}>
+          {display || placeholder}
+        </Text>
+      </Pressable>
+
+      {open && Platform.OS === "android" ? picker : null}
+
+      {Platform.OS === "ios" ? (
+        <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetBar}>
+              <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+                <Text style={styles.sheetCancel}>Cancel</Text>
+              </Pressable>
+              <Text style={styles.sheetTitle}>{label ?? "Pick a date"}</Text>
+              <Pressable
+                onPress={() => {
+                  onChange(toISODate(draft));
+                  setOpen(false);
+                }}
+                hitSlop={8}
+              >
+                <Text style={styles.sheetDone}>Done</Text>
+              </Pressable>
+            </View>
+            {picker}
+          </View>
+        </Modal>
+      ) : null}
+    </View>
+  );
+}
+
+type TimeFieldProps = {
+  label?: string;
+  value: string; // "HH:MM" or "HH:MM:SS"
+  onChange: (time: string) => void;
+};
+
+export function TimeField({ label, value, onChange }: TimeFieldProps) {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<Date>(() => fromTimeString(value));
+
+  function openPicker() {
+    setDraft(fromTimeString(value));
+    setOpen(true);
+  }
+
+  const picker = (
+    <DateTimePicker
+      value={draft}
+      mode="time"
+      is24Hour={false}
+      minuteInterval={5}
+      display={Platform.OS === "ios" ? "spinner" : "default"}
+      onChange={(event, selected) => {
+        if (Platform.OS === "android") {
+          setOpen(false);
+          if (event.type === "set" && selected) onChange(toTimeString(selected));
+          return;
+        }
+        if (selected) setDraft(selected);
+      }}
+    />
+  );
+
+  return (
+    <View style={styles.wrap}>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
+
+      <Pressable
+        style={({ pressed }) => [styles.field, pressed ? styles.fieldPressed : null]}
+        onPress={openPicker}
+      >
+        <ClockIcon size={18} color={t.textMuted} />
+        <Text style={styles.value}>{toDisplayTime(value) || "Pick a time"}</Text>
+      </Pressable>
+
+      {open && Platform.OS === "android" ? picker : null}
+
+      {Platform.OS === "ios" ? (
+        <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetBar}>
+              <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+                <Text style={styles.sheetCancel}>Cancel</Text>
+              </Pressable>
+              <Text style={styles.sheetTitle}>{label ?? "Pick a time"}</Text>
+              <Pressable
+                onPress={() => {
+                  onChange(toTimeString(draft));
+                  setOpen(false);
+                }}
+                hitSlop={8}
+              >
+                <Text style={styles.sheetDone}>Done</Text>
+              </Pressable>
+            </View>
+            {picker}
+          </View>
+        </Modal>
+      ) : null}
+    </View>
+  );
+}
+
+const createStyles = (t: Theme) =>
+  StyleSheet.create({
+    wrap: { flex: 1 },
+    label: { fontSize: 12, color: t.textSecondary, marginBottom: t.space(1.5) },
+    field: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.space(2),
+      backgroundColor: t.surfaceSunken,
+      borderRadius: t.radius.md,
+      paddingHorizontal: t.space(3.5),
+      paddingVertical: t.space(3.5),
+    },
+    fieldPressed: { backgroundColor: t.accentSoft },
+    value: { fontSize: 14, color: t.textPrimary, flexShrink: 1 },
+    placeholder: { color: t.textMuted },
+    backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)" },
+    sheet: {
+      backgroundColor: t.surface,
+      borderTopLeftRadius: t.radius.xl,
+      borderTopRightRadius: t.radius.xl,
+      paddingBottom: t.space(8),
+    },
+    sheetBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: t.space(5),
+      paddingVertical: t.space(4),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: t.border,
+    },
+    sheetTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary },
+    sheetCancel: { fontSize: 15, color: t.textMuted },
+    sheetDone: { fontSize: 15, color: t.accent, fontWeight: "700" },
+  });

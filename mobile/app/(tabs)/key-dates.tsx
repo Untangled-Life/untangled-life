@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
-import { useThemedStyles } from "@/contexts/theme";
+import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
+import { DateField } from "@/components/fields";
+import { toFriendlyDate, fromISODate } from "@/lib/dates";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { KeyDateRow, displayTitleFor } from "@/lib/keyDates";
 import { requestNotificationPermission, rescheduleKeyDateReminders } from "@/lib/notifications";
 
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function KeyDates() {
   const styles = useThemedStyles(createStyles);
+  const t = useTheme();
 
   const { profile } = useAuth();
   const { me, partner } = useCoupleMembers();
@@ -75,8 +77,8 @@ export default function KeyDates() {
     title: string,
     subjectUserId: string | null = null
   ) {
-    if (!DATE_PATTERN.test(date) || !profile?.couple_id) {
-      setError("Enter a date as YYYY-MM-DD.");
+    if (!fromISODate(date) || !profile?.couple_id) {
+      setError("Pick a date first.");
       return;
     }
     setError(null);
@@ -106,8 +108,8 @@ export default function KeyDates() {
   }
 
   async function addMisc() {
-    if (!miscTitle.trim() || !DATE_PATTERN.test(miscDate) || !profile?.couple_id) {
-      setError("Misc dates need a title and a date as YYYY-MM-DD.");
+    if (!miscTitle.trim() || !fromISODate(miscDate) || !profile?.couple_id) {
+      setError("Give it a name and pick a date.");
       return;
     }
     setError(null);
@@ -137,49 +139,34 @@ export default function KeyDates() {
       <Text style={styles.title}>Key Dates</Text>
       <Text style={styles.subtitle}>
         We&apos;ll remind you 2 weeks, 1 week, and 3 days before each one — plenty of time to
-        sort a card and a gift.
+        sort a card and a gift. Dates save as soon as you pick them.
       </Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Anniversary Date</Text>
-        <View style={styles.row}>
-          <TextInput
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            value={anniversaryInput}
-            onChangeText={setAnniversaryInput}
-            keyboardType="numbers-and-punctuation"
-          />
-          <Pressable
-            style={styles.saveButton}
-            onPress={() => saveSingleton("anniversary", anniversaryInput, "Anniversary")}
-          >
-            <Text style={styles.saveButtonText}>Save</Text>
-          </Pressable>
-        </View>
+        <DateField
+          value={anniversaryInput || null}
+          placeholder="Pick your anniversary"
+          onChange={(iso) => {
+            setAnniversaryInput(iso);
+            saveSingleton("anniversary", iso, "Anniversary");
+          }}
+        />
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{partnerName}&apos;s Birthday</Text>
-        <View style={styles.row}>
-          <TextInput
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            value={partnerBirthdayInput}
-            onChangeText={setPartnerBirthdayInput}
-            keyboardType="numbers-and-punctuation"
-          />
-          <Pressable
-            style={styles.saveButton}
-            onPress={() =>
-              saveSingleton("birthday", partnerBirthdayInput, "Birthday", partnerId)
-            }
-          >
-            <Text style={styles.saveButtonText}>Save</Text>
-          </Pressable>
-        </View>
+        <DateField
+          value={partnerBirthdayInput || null}
+          placeholder={`Pick ${partnerName}'s birthday`}
+          maximumDate={new Date()}
+          onChange={(iso) => {
+            setPartnerBirthdayInput(iso);
+            saveSingleton("birthday", iso, "Birthday", partnerId);
+          }}
+        />
       </View>
 
       <View style={styles.card}>
@@ -187,21 +174,15 @@ export default function KeyDates() {
         <Text style={styles.cardHint}>
           So {partnerName} gets the reminders for yours too.
         </Text>
-        <View style={styles.row}>
-          <TextInput
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            value={myBirthdayInput}
-            onChangeText={setMyBirthdayInput}
-            keyboardType="numbers-and-punctuation"
-          />
-          <Pressable
-            style={styles.saveButton}
-            onPress={() => saveSingleton("birthday", myBirthdayInput, "Birthday", myId)}
-          >
-            <Text style={styles.saveButtonText}>Save</Text>
-          </Pressable>
-        </View>
+        <DateField
+          value={myBirthdayInput || null}
+          placeholder="Pick your birthday"
+          maximumDate={new Date()}
+          onChange={(iso) => {
+            setMyBirthdayInput(iso);
+            saveSingleton("birthday", iso, "Birthday", myId);
+          }}
+        />
       </View>
 
       <View style={styles.card}>
@@ -209,22 +190,21 @@ export default function KeyDates() {
         {miscDates.map((d) => (
           <Pressable key={d.id} style={styles.miscRow} onLongPress={() => removeMisc(d.id)}>
             <Text style={styles.miscTitle}>{d.title}</Text>
-            <Text style={styles.miscDate}>{d.date}</Text>
+            <Text style={styles.miscDate}>{toFriendlyDate(d.date)}</Text>
           </Pressable>
         ))}
-        <View style={styles.row}>
-          <TextInput
-            style={[styles.input, { flex: 1.4 }]}
-            placeholder="Title"
-            value={miscTitle}
-            onChangeText={setMiscTitle}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            value={miscDate}
-            onChangeText={setMiscDate}
-            keyboardType="numbers-and-punctuation"
+        <TextInput
+          style={styles.input}
+          placeholder="What is it?"
+          placeholderTextColor={t.textMuted}
+          value={miscTitle}
+          onChangeText={setMiscTitle}
+        />
+        <View style={{ marginTop: 8 }}>
+          <DateField
+            value={miscDate || null}
+            placeholder="Pick a date"
+            onChange={setMiscDate}
           />
         </View>
         <Pressable style={[styles.saveButton, { alignSelf: "flex-start", marginTop: 8 }]} onPress={addMisc}>
