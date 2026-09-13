@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Untangled Life",
+    "slug": "untangled-life",
+    "scheme": "untangledlife",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "au.com.untangledlife.app",
+      "infoPlist": {
+        "NSCalendarsUsageDescription": "Untangled Life reads your calendar to find time you and your partner are both free.",
+        "NSCalendarsFullAccessUsageDescription": "Untangled Life reads and adds events to your calendar so shared plans land on both your phones.",
+        "NSRemindersUsageDescription": "Untangled Life does not use reminders, but iOS groups this permission with calendars."
+      }
+    },
+    "android": {
+      "package": "au.com.untangledlife.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["READ_CALENDAR", "WRITE_CALENDAR"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Untangled Life reads your calendar to find time you and your partner are both free."
+        }
+      ]
+    ]
+  }
+}
