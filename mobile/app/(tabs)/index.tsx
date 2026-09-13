@@ -17,6 +17,7 @@ import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { KeyDateRow, daysUntil, displayTitleFor } from "@/lib/keyDates";
 import { syncBusyBlocks } from "@/lib/calendarSync";
 import { Interval, nextSharedFreeWindows, formatWindow } from "@/lib/freeTime";
+import { WorkPattern, WorkShift, expandWorkHours, toDateKey, describePattern } from "@/lib/workHours";
 import {
   PlannedEvent,
   createPlannedEvent,
@@ -28,6 +29,19 @@ import {
 
 const DEFAULT_PLAN_HOURS = 2;
 
+function CalendarGlyph() {
+  return (
+    <View style={styles.glyph}>
+      <View style={styles.glyphTop} />
+      <View style={styles.glyphBody}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <View key={i} style={styles.glyphDot} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export default function Home() {
   const { session, profile, signOut } = useAuth();
   const { me, partner } = useCoupleMembers();
@@ -36,6 +50,7 @@ export default function Home() {
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [freeWindows, setFreeWindows] = useState<Interval[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const [myPattern, setMyPattern] = useState<WorkPattern | null>(null);
   const [plans, setPlans] = useState<PlannedEvent[]>([]);
   const [bookingIndex, setBookingIndex] = useState<number | null>(null);
   const [bookingTitle, setBookingTitle] = useState("");
@@ -86,7 +101,42 @@ export default function Home() {
 
     const mine = data.filter((b) => b.user_id === session.user.id).map(toInterval);
     const theirs = data.filter((b) => b.user_id !== session.user.id).map(toInterval);
-    setFreeWindows(nextSharedFreeWindows(mine, theirs));
+
+    // Working hours count as busy too -- without them, "free together" happily
+    // suggests the middle of a shift.
+    const now = new Date();
+    const [patternRes, shiftRes] = await Promise.all([
+      supabase.from("work_patterns").select("id, user_id, mode, cycle_weeks, anchor_date, shifts"),
+      supabase
+        .from("work_shifts")
+        .select("id, user_id, date, start_time, end_time, kind")
+        .gte("date", toDateKey(now))
+        .lte("date", toDateKey(windowEnd)),
+    ]);
+
+    const patterns = (patternRes.data as WorkPattern[]) ?? [];
+    const workShifts = (shiftRes.data as WorkShift[]) ?? [];
+    const userIds = new Set<string>([
+      ...patterns.map((p) => p.user_id),
+      ...workShifts.map((w) => w.user_id),
+    ]);
+
+    const myWork: Interval[] = [];
+    const theirWork: Interval[] = [];
+
+    for (const uid of userIds) {
+      const intervals = expandWorkHours(
+        patterns.find((p) => p.user_id === uid) ?? null,
+        workShifts.filter((w) => w.user_id === uid),
+        now,
+        windowEnd
+      );
+      if (uid === session.user.id) myWork.push(...intervals);
+      else theirWork.push(...intervals);
+    }
+
+    setMyPattern(patterns.find((p) => p.user_id === session.user.id) ?? null);
+    setFreeWindows(nextSharedFreeWindows([...mine, ...myWork], [...theirs, ...theirWork]));
   }, [session?.user.id]);
 
   const syncAndLoad = useCallback(async () => {
@@ -208,10 +258,19 @@ export default function Home() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>You&apos;re in</Text>
-      <Text style={styles.subtitle}>
-        You&apos;re paired up. Here&apos;s what&apos;s coming up together.
-      </Text>
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>You&apos;re in</Text>
+          <Text style={styles.subtitle}>
+            You&apos;re paired up. Here&apos;s what&apos;s coming up together.
+          </Text>
+        </View>
+        <Link href="/calendar" asChild>
+          <Pressable style={styles.calendarButton} hitSlop={8} accessibilityLabel="Shared calendar">
+            <CalendarGlyph />
+          </Pressable>
+        </Link>
+      </View>
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Key dates &amp; countdowns</Text>
@@ -336,6 +395,16 @@ export default function Home() {
         </View>
       )}
 
+      <Link href="/work-hours" asChild>
+        <Pressable style={styles.card}>
+          <View style={styles.cardHeadRow}>
+            <Text style={styles.cardTitle}>Working hours</Text>
+            <Text style={styles.cardAction}>Set up ›</Text>
+          </View>
+          <Text style={styles.cardBody}>{describePattern(myPattern)}</Text>
+        </Pressable>
+      </Link>
+
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Calendar access</Text>
         <Text style={styles.cardBody}>
@@ -359,6 +428,42 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 80, paddingBottom: 40 },
+  headerRow: { flexDirection: "row", alignItems: "flex-start" },
+  calendarButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 12,
+  },
+  glyph: { width: 20, height: 20, alignItems: "center" },
+  glyphTop: {
+    width: 18,
+    height: 4,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+    backgroundColor: "#D85A30",
+  },
+  glyphBody: {
+    width: 18,
+    height: 14,
+    borderWidth: 1.5,
+    borderTopWidth: 0,
+    borderColor: "#D85A30",
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignContent: "center",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+    gap: 2,
+  },
+  glyphDot: { width: 3, height: 3, borderRadius: 1, backgroundColor: "#D85A30" },
+  cardHeadRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  cardAction: { fontSize: 13, color: "#1D9E75", fontWeight: "600" },
   title: { fontSize: 26, fontWeight: "600", marginBottom: 8, color: "#14140F" },
   subtitle: { fontSize: 14, color: "#6B6B6B", lineHeight: 20, marginBottom: 24 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },

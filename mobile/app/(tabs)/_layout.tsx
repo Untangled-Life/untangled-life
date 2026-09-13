@@ -78,6 +78,10 @@ export default function TabsLayout() {
       <Tabs.Screen name="key-dates" options={{ title: "Key Dates" }} />
       <Tabs.Screen name="todos" options={{ title: "To-dos" }} />
       <Tabs.Screen name="wishlists" options={{ title: "Wishlists" }} />
+      {/* Reached from the Home header / cards, not the tab bar — href: null
+          keeps them inside the gated tab group without adding tab buttons. */}
+      <Tabs.Screen name="calendar" options={{ href: null }} />
+      <Tabs.Screen name="work-hours" options={{ href: null }} />
     </Tabs>
   );
 }
