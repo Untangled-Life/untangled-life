@@ -85,13 +85,8 @@ export default function Menu() {
       items: [
         {
           label: "Privacy policy",
-          hint: "Not published yet",
           icon: (p) => <ShieldIcon {...p} />,
-          onPress: () =>
-            notReady(
-              "Privacy policy",
-              "Not written yet. Short version in the meantime: the app stores when you're busy, never what you're doing — no event titles, locations or notes ever leave your phone."
-            ),
+          onPress: () => Linking.openURL("https://untangledlife.com.au/privacy"),
         },
         {
           label: "Follow us",

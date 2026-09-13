@@ -149,6 +149,11 @@ export default function Home() {
           <p className="mt-2 text-[13px] text-text-muted">
             The founders of Untangled Life
           </p>
+          <p className="mt-6 text-[13px]">
+            <a href="/privacy" className="text-text-muted underline underline-offset-2 hover:text-text-secondary">
+              Privacy policy
+            </a>
+          </p>
         </div>
       </footer>
     </>
