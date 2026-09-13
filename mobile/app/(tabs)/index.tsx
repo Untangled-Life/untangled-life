@@ -133,7 +133,11 @@ export default function Home() {
     if (!profile?.couple_id || !session?.user.id) return;
 
     const title = bookingTitle.trim() || "Date night";
-    const start = window.start;
+    // Belt and braces: the window list is already trimmed to the future, but a
+    // screen left open for a while can still hand us a start that has passed,
+    // and an event in the past never reaches the calendar.
+    const now = new Date();
+    const start = window.start < now ? now : window.start;
     const cappedEnd = new Date(start.getTime() + DEFAULT_PLAN_HOURS * 60 * 60 * 1000);
     const end = cappedEnd < window.end ? cappedEnd : window.end;
 

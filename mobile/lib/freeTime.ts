@@ -48,6 +48,15 @@ function freeWindowsForDay(day: Date, busy: Interval[]): Interval[] {
   return free.filter((f) => (f.end.getTime() - f.start.getTime()) / 60000 >= MIN_FREE_MINUTES);
 }
 
+// Round up to the next quarter hour, so today's remaining window starts at a
+// time worth reading ("6:45 pm") rather than whenever the query happened to run.
+function nextQuarterHour(from: Date): Date {
+  const rounded = new Date(from);
+  rounded.setSeconds(0, 0);
+  rounded.setMinutes(Math.ceil(rounded.getMinutes() / 15) * 15);
+  return rounded;
+}
+
 // Combines both partners' busy time (either one busy = not free together)
 // and returns the next few stretches of time you're both actually free,
 // within a waking-hours window each day, over the coming week.
@@ -58,13 +67,23 @@ export function nextSharedFreeWindows(
 ): Interval[] {
   const combinedBusy = [...myBusy, ...partnerBusy];
   const results: Interval[] = [];
+  const now = new Date();
+  const earliestStart = nextQuarterHour(now);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   for (let i = 0; i < LOOKAHEAD_DAYS && results.length < maxResults; i++) {
     const day = new Date(today);
     day.setDate(day.getDate() + i);
-    const windows = freeWindowsForDay(day, combinedBusy).filter((w) => w.end > new Date());
+
+    const windows = freeWindowsForDay(day, combinedBusy)
+      // Today's window runs from 7am, so for most of the day its start is
+      // already in the past. Offering it means booking a slot that has been
+      // and gone -- trim it to the part still ahead of us.
+      .map((w) => (w.start < earliestStart ? { start: earliestStart, end: w.end } : w))
+      // Trimming can leave a sliver (or nothing) once the day is nearly over.
+      .filter((w) => (w.end.getTime() - w.start.getTime()) / 60000 >= MIN_FREE_MINUTES);
+
     results.push(...windows);
   }
 
