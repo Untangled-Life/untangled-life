@@ -82,8 +82,8 @@ export function HourglassIcon(props: SVGProps<SVGSVGElement>) {
     >
       <path d="M6 3h12" />
       <path d="M6 21h12" />
-      <path d="M8 3v3a4 4 0 0 0 8 0V3" />
-      <path d="M8 21v-3a4 4 0 0 1 8 0v3" />
+      <path d="M7.5 3v3.2L12 12l-4.5 5.8V21" />
+      <path d="M16.5 3v3.2L12 12l4.5 5.8V21" />
     </svg>
   );
 }
