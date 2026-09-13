@@ -33,10 +33,19 @@ export async function syncBusyBlocks(coupleId: string, userId: string): Promise<
     // Drop anything that somehow ends before it starts or is already past.
     .filter((b) => new Date(b.end_at) > new Date(b.start_at) && new Date(b.end_at) > now);
 
-  // Simple full-replace sync for this user's upcoming window — no diffing,
-  // just clear what's ahead of "now" and re-insert the current read. Cheap
-  // and correct for a calendar that's read fresh on every app open.
-  await supabase.from("busy_blocks").delete().eq("user_id", userId).gte("start_at", now.toISOString());
+  // Full-replace sync for this user's upcoming window — no diffing, just clear
+  // what we're about to re-insert and write the current read.
+  //
+  // The delete MUST use the same rule as the insert filter above (end_at in
+  // the future), not start_at. Clearing by start_at leaves anything already in
+  // progress behind — its start is in the past — while the insert happily adds
+  // it again, so every sync stacked another copy of the event you're currently
+  // in.
+  await supabase
+    .from("busy_blocks")
+    .delete()
+    .eq("user_id", userId)
+    .gt("end_at", now.toISOString());
 
   if (blocks.length > 0) {
     await supabase.from("busy_blocks").insert(blocks);

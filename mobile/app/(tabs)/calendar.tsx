@@ -308,7 +308,15 @@ export default function CalendarScreen() {
       });
     }
 
+    // Defensive: identical blocks carry no extra information, and a row
+    // repeated a dozen times makes a day unreadable whatever caused it.
+    const seenBusy = new Set<string>();
+
     for (const b of busy) {
+      const fingerprint = `${b.user_id}|${b.start.getTime()}|${b.end.getTime()}`;
+      if (seenBusy.has(fingerprint)) continue;
+      seenBusy.add(fingerprint);
+
       push(toDateKey(b.start), {
         kind: "busy",
         label: `${nameFor(b.user_id)} busy`,
