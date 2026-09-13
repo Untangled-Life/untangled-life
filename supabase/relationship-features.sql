@@ -51,38 +51,54 @@ alter table wishlist_items enable row level security;
 -- Same shape on all four: both partners get full CRUD, scoped to their own
 -- couple via my_couple_id() (defined in couples.sql), never someone else's.
 
+drop policy if exists "Couple can view key dates" on key_dates;
 create policy "Couple can view key dates" on key_dates
   for select to authenticated using (couple_id = my_couple_id());
+drop policy if exists "Couple can add key dates" on key_dates;
 create policy "Couple can add key dates" on key_dates
   for insert to authenticated with check (couple_id = my_couple_id() and created_by = auth.uid());
+drop policy if exists "Couple can update key dates" on key_dates;
 create policy "Couple can update key dates" on key_dates
   for update to authenticated using (couple_id = my_couple_id()) with check (couple_id = my_couple_id());
+drop policy if exists "Couple can delete key dates" on key_dates;
 create policy "Couple can delete key dates" on key_dates
   for delete to authenticated using (couple_id = my_couple_id());
 
+drop policy if exists "Couple can view todos" on todos;
 create policy "Couple can view todos" on todos
   for select to authenticated using (couple_id = my_couple_id());
+drop policy if exists "Couple can add todos" on todos;
 create policy "Couple can add todos" on todos
   for insert to authenticated with check (couple_id = my_couple_id() and created_by = auth.uid());
+drop policy if exists "Couple can update todos" on todos;
 create policy "Couple can update todos" on todos
   for update to authenticated using (couple_id = my_couple_id()) with check (couple_id = my_couple_id());
+drop policy if exists "Couple can delete todos" on todos;
 create policy "Couple can delete todos" on todos
   for delete to authenticated using (couple_id = my_couple_id());
 
+drop policy if exists "Couple can view wishlists" on wishlists;
 create policy "Couple can view wishlists" on wishlists
   for select to authenticated using (couple_id = my_couple_id());
+drop policy if exists "Couple can add wishlists" on wishlists;
 create policy "Couple can add wishlists" on wishlists
   for insert to authenticated with check (couple_id = my_couple_id() and created_by = auth.uid());
+drop policy if exists "Couple can update wishlists" on wishlists;
 create policy "Couple can update wishlists" on wishlists
   for update to authenticated using (couple_id = my_couple_id()) with check (couple_id = my_couple_id());
+drop policy if exists "Couple can delete wishlists" on wishlists;
 create policy "Couple can delete wishlists" on wishlists
   for delete to authenticated using (couple_id = my_couple_id());
 
+drop policy if exists "Couple can view wishlist items" on wishlist_items;
 create policy "Couple can view wishlist items" on wishlist_items
   for select to authenticated using (couple_id = my_couple_id());
+drop policy if exists "Couple can add wishlist items" on wishlist_items;
 create policy "Couple can add wishlist items" on wishlist_items
   for insert to authenticated with check (couple_id = my_couple_id() and added_by = auth.uid());
+drop policy if exists "Couple can update wishlist items" on wishlist_items;
 create policy "Couple can update wishlist items" on wishlist_items
   for update to authenticated using (couple_id = my_couple_id()) with check (couple_id = my_couple_id());
+drop policy if exists "Couple can delete wishlist items" on wishlist_items;
 create policy "Couple can delete wishlist items" on wishlist_items
   for delete to authenticated using (couple_id = my_couple_id());

@@ -14,6 +14,7 @@ alter table waitlist enable row level security;
 -- Allow anonymous inserts only — no select/update/delete for the anon role.
 -- The app's server-side route uses the anon key, so this policy is what
 -- keeps a leaked anon key from being able to read the waitlist back.
+drop policy if exists "Allow anonymous insert" on waitlist;
 create policy "Allow anonymous insert" on waitlist
   for insert
   to anon

@@ -21,18 +21,22 @@ alter table busy_blocks enable row level security;
 -- is how "when are we both free" gets computed), but each person can only
 -- write their own: user_id = auth.uid() on every insert/update/delete.
 
+drop policy if exists "Couple can view busy blocks" on busy_blocks;
 create policy "Couple can view busy blocks" on busy_blocks
   for select to authenticated using (couple_id = my_couple_id());
 
+drop policy if exists "User can add own busy blocks" on busy_blocks;
 create policy "User can add own busy blocks" on busy_blocks
   for insert to authenticated
   with check (couple_id = my_couple_id() and user_id = auth.uid());
 
+drop policy if exists "User can update own busy blocks" on busy_blocks;
 create policy "User can update own busy blocks" on busy_blocks
   for update to authenticated
   using (couple_id = my_couple_id() and user_id = auth.uid())
   with check (couple_id = my_couple_id() and user_id = auth.uid());
 
+drop policy if exists "User can delete own busy blocks" on busy_blocks;
 create policy "User can delete own busy blocks" on busy_blocks
   for delete to authenticated
   using (couple_id = my_couple_id() and user_id = auth.uid());

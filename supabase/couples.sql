@@ -43,18 +43,22 @@ $$;
 revoke all on function my_couple_id() from public;
 grant execute on function my_couple_id() to authenticated;
 
+drop policy if exists "Members can view their couple" on couples;
 create policy "Members can view their couple" on couples
   for select to authenticated
   using (id = my_couple_id());
 
+drop policy if exists "View own or partner profile" on profiles;
 create policy "View own or partner profile" on profiles
   for select to authenticated
   using (id = auth.uid() or (couple_id is not null and couple_id = my_couple_id()));
 
+drop policy if exists "Insert own profile" on profiles;
 create policy "Insert own profile" on profiles
   for insert to authenticated
   with check (id = auth.uid());
 
+drop policy if exists "Update own profile" on profiles;
 create policy "Update own profile" on profiles
   for update to authenticated
   using (id = auth.uid())
