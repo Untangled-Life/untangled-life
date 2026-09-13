@@ -6,12 +6,21 @@ export type KeyDateRow = {
   date: string; // YYYY-MM-DD
   recurring: boolean;
   kind: KeyDateKind;
+  subject_user_id: string | null;
 };
 
-// Anniversary/Misc use their stored title as-is; Birthday is always shown
-// with the partner's current name so it never goes stale if re-paired.
-export function displayTitleFor(kd: Pick<KeyDateRow, "kind" | "title">, partnerName: string): string {
-  if (kd.kind === "birthday") return `${partnerName}'s Birthday`;
+/**
+ * Anniversary and Misc use their stored title as-is. A birthday is labelled
+ * with the name of the person whose birthday it is -- resolved from
+ * subject_user_id, so both partners see the same thing. Labelling it "your
+ * partner's birthday" relative to the viewer meant one shared row read as a
+ * different person's birthday on each phone.
+ */
+export function displayTitleFor(
+  kd: Pick<KeyDateRow, "kind" | "title" | "subject_user_id">,
+  nameFor: (userId: string | null) => string
+): string {
+  if (kd.kind === "birthday") return `${nameFor(kd.subject_user_id)}'s Birthday`;
   return kd.title;
 }
 

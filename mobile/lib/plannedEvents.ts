@@ -42,22 +42,61 @@ export async function cancelPlannedEvent(id: string) {
   return supabase.from("planned_events").update({ cancelled: true }).eq("id", id);
 }
 
+export type PlanSyncResult = {
+  added: number;
+  removed: number;
+  problem?: string;
+};
+
+/**
+ * The phone's default calendar isn't necessarily writable -- it can be a
+ * subscribed or read-only one, in which case creating an event throws. Prefer
+ * the default when it allows modifications, otherwise take the first calendar
+ * that does.
+ */
+async function findWritableCalendarId(): Promise<string | null> {
+  const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+  const writable = calendars.filter((c) => c.allowsModifications);
+
+  if (writable.length === 0) return null;
+
+  try {
+    const preferred = await Calendar.getDefaultCalendarAsync();
+    if (preferred?.id && writable.some((c) => c.id === preferred.id)) {
+      return preferred.id;
+    }
+  } catch {
+    // getDefaultCalendarAsync is iOS-only and can throw; fall through.
+  }
+
+  return writable[0].id;
+}
+
 /**
  * Reconcile this phone's calendar with the couple's plans: add any plan that
  * isn't on this phone yet, remove any that's been cancelled. Safe to call on
  * every app open -- it only touches events it created itself, tracked by the
  * link rows.
+ *
+ * Returns what it did (and what stopped it) rather than failing silently: a
+ * booking that never reaches the calendar is the whole feature not working,
+ * so the caller needs to be able to say so.
  */
-export async function syncPlannedEventsToDevice(userId: string): Promise<void> {
+export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyncResult> {
+  const result: PlanSyncResult = { added: 0, removed: 0 };
+
   const permission = await Calendar.getCalendarPermissionsAsync();
-  if (permission.status !== "granted") return;
+  if (permission.status !== "granted") {
+    result.problem = "Untangled Life doesn't have calendar access on this phone.";
+    return result;
+  }
 
   const { data: events } = await supabase
     .from("planned_events")
     .select("id, title, start_at, end_at, location, notes, cancelled, created_by")
     .gte("end_at", new Date().toISOString());
 
-  if (!events || events.length === 0) return;
+  if (!events || events.length === 0) return result;
 
   const { data: links } = await supabase
     .from("planned_event_calendar_links")
@@ -68,7 +107,7 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<void> {
     (links ?? []).map((l) => [l.planned_event_id as string, l.device_event_id as string])
   );
 
-  let defaultCalendarId: string | null = null;
+  let writableCalendarId: string | null = null;
 
   for (const ev of events as PlannedEvent[]) {
     const existing = linkFor.get(ev.id);
@@ -86,32 +125,56 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<void> {
           .delete()
           .eq("planned_event_id", ev.id)
           .eq("user_id", userId);
+        result.removed += 1;
       }
       continue;
     }
 
     if (existing) continue;
 
-    if (!defaultCalendarId) {
-      const defaultCalendar = await Calendar.getDefaultCalendarAsync();
-      if (!defaultCalendar?.id) return;
-      defaultCalendarId = defaultCalendar.id;
+    if (!writableCalendarId) {
+      writableCalendarId = await findWritableCalendarId();
+      if (!writableCalendarId) {
+        result.problem =
+          "No calendar on this phone allows new events. Check that at least one calendar is writable.";
+        return result;
+      }
     }
 
-    const deviceEventId = await Calendar.createEventAsync(defaultCalendarId, {
-      title: ev.title,
-      startDate: new Date(ev.start_at),
-      endDate: new Date(ev.end_at),
-      location: ev.location ?? undefined,
-      notes: ev.notes ?? undefined,
-    });
+    try {
+      const deviceEventId = await Calendar.createEventAsync(writableCalendarId, {
+        title: ev.title,
+        startDate: new Date(ev.start_at),
+        endDate: new Date(ev.end_at),
+        location: ev.location ?? undefined,
+        notes: ev.notes ?? undefined,
+      });
 
-    await supabase.from("planned_event_calendar_links").insert({
-      planned_event_id: ev.id,
-      user_id: userId,
-      device_event_id: deviceEventId,
-    });
+      const { error: linkError } = await supabase
+        .from("planned_event_calendar_links")
+        .insert({
+          planned_event_id: ev.id,
+          user_id: userId,
+          device_event_id: deviceEventId,
+        });
+
+      if (linkError) {
+        // The event is on the phone but unlinked, so a later sync would add a
+        // duplicate. Better to take it back off and report.
+        await Calendar.deleteEventAsync(deviceEventId).catch(() => {});
+        result.problem = `Saved to the calendar but couldn't record it: ${linkError.message}`;
+        return result;
+      }
+
+      result.added += 1;
+    } catch (e) {
+      result.problem =
+        e instanceof Error ? e.message : "Couldn't write the event to this phone's calendar.";
+      return result;
+    }
   }
+
+  return result;
 }
 
 /** Upcoming, non-cancelled plans for the couple, soonest first. */

@@ -30,7 +30,7 @@ const DEFAULT_PLAN_HOURS = 2;
 
 export default function Home() {
   const { session, profile, signOut } = useAuth();
-  const { partner } = useCoupleMembers();
+  const { me, partner } = useCoupleMembers();
   const [permission, setPermission] = useState<PermissionStatus | null>(null);
   const [calendarCount, setCalendarCount] = useState<number | null>(null);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
@@ -42,11 +42,22 @@ export default function Home() {
   const [booking, setBooking] = useState(false);
 
   const partnerName = partner?.display_name ?? "Partner";
+  const myId = me.id;
+  const partnerId = partner?.id ?? null;
+
+  const nameFor = useCallback(
+    (userId: string | null) => {
+      if (userId && userId === myId) return me.display_name ?? "You";
+      if (userId && userId === partnerId) return partnerName;
+      return partnerName;
+    },
+    [myId, partnerId, me.display_name, partnerName]
+  );
 
   const loadKeyDates = useCallback(async () => {
     const { data } = await supabase
       .from("key_dates")
-      .select("id, title, date, recurring, kind")
+      .select("id, title, date, recurring, kind, subject_user_id")
       .order("date", { ascending: true });
     if (data) setKeyDates(data as KeyDateRow[]);
   }, []);
@@ -83,10 +94,11 @@ export default function Home() {
     setSyncing(true);
     // Pick up anything the partner booked before reading the calendar back,
     // so their plans count as busy time here too.
-    await syncPlannedEventsToDevice(session.user.id);
+    const syncResult = await syncPlannedEventsToDevice(session.user.id);
     await syncBusyBlocks(profile.couple_id, session.user.id);
     await Promise.all([loadFreeWindows(), loadPlans()]);
     setSyncing(false);
+    return syncResult;
   }, [profile?.couple_id, session?.user.id, loadFreeWindows, loadPlans]);
 
   useEffect(() => {
@@ -142,8 +154,20 @@ export default function Home() {
 
     setBookingIndex(null);
     setBookingTitle("");
-    await syncAndLoad();
-    setBooking(false);
+
+    try {
+      const syncResult = await syncAndLoad();
+      if (syncResult?.problem) {
+        Alert.alert("Saved, but not on your calendar", syncResult.problem);
+      }
+    } catch (e) {
+      Alert.alert(
+        "Saved, but not on your calendar",
+        e instanceof Error ? e.message : "Couldn't reach this phone's calendar."
+      );
+    } finally {
+      setBooking(false);
+    }
   }
 
   function confirmCancel(plan: PlannedEvent) {
@@ -195,7 +219,7 @@ export default function Home() {
                   {days === 0 ? "Today" : days === 1 ? "1 day" : `${days} days`}
                 </Text>
                 <Text style={styles.keyDateTitle} numberOfLines={2}>
-                  {displayTitleFor(kd, partnerName)}
+                  {displayTitleFor(kd, nameFor)}
                 </Text>
               </View>
             );

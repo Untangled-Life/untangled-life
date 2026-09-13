@@ -10,52 +10,81 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function KeyDates() {
   const { profile } = useAuth();
-  const { partner } = useCoupleMembers();
+  const { me, partner } = useCoupleMembers();
   const [dates, setDates] = useState<KeyDateRow[]>([]);
   const [anniversaryInput, setAnniversaryInput] = useState("");
-  const [birthdayInput, setBirthdayInput] = useState("");
+  const [myBirthdayInput, setMyBirthdayInput] = useState("");
+  const [partnerBirthdayInput, setPartnerBirthdayInput] = useState("");
   const [miscTitle, setMiscTitle] = useState("");
   const [miscDate, setMiscDate] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const partnerName = partner?.display_name ?? "Partner";
+  const myId = me.id;
+  const partnerId = partner?.id ?? null;
+
+  const nameFor = useCallback(
+    (userId: string | null) => {
+      if (userId && userId === myId) return me.display_name ?? "You";
+      if (userId && userId === partnerId) return partnerName;
+      return partnerName;
+    },
+    [myId, partnerId, me.display_name, partnerName]
+  );
 
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("key_dates")
-      .select("id, title, date, recurring, kind")
+      .select("id, title, date, recurring, kind, subject_user_id")
       .order("date", { ascending: true });
 
     if (data) {
       const rows = data as KeyDateRow[];
       setDates(rows);
       setAnniversaryInput(rows.find((d) => d.kind === "anniversary")?.date ?? "");
-      setBirthdayInput(rows.find((d) => d.kind === "birthday")?.date ?? "");
+      setMyBirthdayInput(
+        rows.find((d) => d.kind === "birthday" && d.subject_user_id === myId)?.date ?? ""
+      );
+      setPartnerBirthdayInput(
+        rows.find((d) => d.kind === "birthday" && d.subject_user_id === partnerId)?.date ?? ""
+      );
 
       await requestNotificationPermission();
       await rescheduleKeyDateReminders(
         rows.map((d) => ({
           id: d.id,
-          displayTitle: displayTitleFor(d, partnerName),
+          displayTitle: displayTitleFor(d, nameFor),
           date: d.date,
           recurring: d.recurring,
         }))
       );
     }
-  }, [partnerName]);
+  }, [myId, partnerId, nameFor]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  async function saveSingleton(kind: "anniversary" | "birthday", date: string, title: string) {
+  async function saveSingleton(
+    kind: "anniversary" | "birthday",
+    date: string,
+    title: string,
+    subjectUserId: string | null = null
+  ) {
     if (!DATE_PATTERN.test(date) || !profile?.couple_id) {
       setError("Enter a date as YYYY-MM-DD.");
       return;
     }
     setError(null);
 
-    const existing = dates.find((d) => d.kind === kind);
+    // A birthday is one per person, so match on the subject too -- otherwise
+    // saving your own birthday would overwrite your partner's.
+    const existing = dates.find(
+      (d) =>
+        d.kind === kind &&
+        (kind !== "birthday" || d.subject_user_id === subjectUserId)
+    );
+
     if (existing) {
       await supabase.from("key_dates").update({ date }).eq("id", existing.id);
     } else {
@@ -66,6 +95,7 @@ export default function KeyDates() {
         title,
         date,
         recurring: true,
+        subject_user_id: subjectUserId,
       });
     }
     load();
@@ -133,13 +163,37 @@ export default function KeyDates() {
           <TextInput
             style={styles.input}
             placeholder="YYYY-MM-DD"
-            value={birthdayInput}
-            onChangeText={setBirthdayInput}
+            value={partnerBirthdayInput}
+            onChangeText={setPartnerBirthdayInput}
             keyboardType="numbers-and-punctuation"
           />
           <Pressable
             style={styles.saveButton}
-            onPress={() => saveSingleton("birthday", birthdayInput, "Birthday")}
+            onPress={() =>
+              saveSingleton("birthday", partnerBirthdayInput, "Birthday", partnerId)
+            }
+          >
+            <Text style={styles.saveButtonText}>Save</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Your Birthday</Text>
+        <Text style={styles.cardHint}>
+          So {partnerName} gets the reminders for yours too.
+        </Text>
+        <View style={styles.row}>
+          <TextInput
+            style={styles.input}
+            placeholder="YYYY-MM-DD"
+            value={myBirthdayInput}
+            onChangeText={setMyBirthdayInput}
+            keyboardType="numbers-and-punctuation"
+          />
+          <Pressable
+            style={styles.saveButton}
+            onPress={() => saveSingleton("birthday", myBirthdayInput, "Birthday", myId)}
           >
             <Text style={styles.saveButtonText}>Save</Text>
           </Pressable>
@@ -184,6 +238,7 @@ const styles = StyleSheet.create({
   error: { color: "#B3261E", fontSize: 13, marginBottom: 12 },
   card: { backgroundColor: "#fff", borderRadius: 16, padding: 18, marginBottom: 16 },
   cardTitle: { fontSize: 15, fontWeight: "600", color: "#14140F", marginBottom: 12 },
+  cardHint: { fontSize: 12, color: "#9A9A9A", marginTop: -6, marginBottom: 12, lineHeight: 16 },
   row: { flexDirection: "row", gap: 8 },
   input: {
     flex: 1,
