@@ -157,8 +157,22 @@ export default function Home() {
 
     try {
       const syncResult = await syncAndLoad();
+
+      // We just created a plan, so exactly one event should have been added to
+      // this phone. Anything else means it didn't land, and the user needs to
+      // hear that rather than trust a calendar entry that isn't there.
       if (syncResult?.problem) {
         Alert.alert("Saved, but not on your calendar", syncResult.problem);
+      } else if (!syncResult) {
+        Alert.alert(
+          "Saved, but not on your calendar",
+          "The calendar sync didn't run. Try reopening the app."
+        );
+      } else if (syncResult.added === 0) {
+        Alert.alert(
+          "Saved, but not on your calendar",
+          "The date was saved but nothing was added to this phone's calendar. It may not have synced back yet — reopen the app to retry."
+        );
       }
     } catch (e) {
       Alert.alert(
