@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const GOAL = 500;
+const GOAL = 100;
 
 export function WaitlistCounter() {
   const [count, setCount] = useState<number | null>(null);
@@ -43,7 +43,7 @@ export function WaitlistCounter() {
       </p>
       {goalReached && (
         <p className="mt-1 text-[13px] font-medium text-brand-green">
-          20% off for the first 10,000 users
+          40% off for the first 10,000 users
         </p>
       )}
     </div>

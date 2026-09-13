@@ -49,7 +49,7 @@ export default function Home() {
             <WaitlistForm />
           </div>
           <p className="mt-3 text-[13px] text-text-muted">
-            Free for the first 500 registered users.
+            Free for the first 100 registered users.
           </p>
           <WaitlistCounter />
         </section>
