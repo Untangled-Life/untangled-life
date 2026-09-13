@@ -31,6 +31,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
+      <Tabs.Screen name="key-dates" options={{ title: "Key Dates" }} />
       <Tabs.Screen name="todos" options={{ title: "To-dos" }} />
       <Tabs.Screen name="wishlists" options={{ title: "Wishlists" }} />
     </Tabs>
