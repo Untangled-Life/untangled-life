@@ -87,13 +87,32 @@ export function cycleWeekFor(day: Date, anchorDate: string, cycleWeeks: number):
  * an 'extra' is added on top. That's what lets a mostly-regular roster absorb
  * the weeks it isn't.
  */
+/**
+ * Where a working-hours interval came from. Deleting one from the calendar
+ * means different things: a one-off shift is a row you remove, while an
+ * occurrence of a recurring pattern isn't a row at all -- cancelling that day
+ * means recording a day off against it.
+ */
+export type WorkSource = { type: "pattern" } | { type: "shift"; id: string };
+
+export type WorkOccurrence = { interval: Interval; source: WorkSource };
+
 export function expandWorkHours(
   pattern: WorkPattern | null,
   oneOffs: WorkShift[],
   rangeStart: Date,
   rangeEnd: Date
 ): Interval[] {
-  const intervals: Interval[] = [];
+  return expandWorkOccurrences(pattern, oneOffs, rangeStart, rangeEnd).map((o) => o.interval);
+}
+
+export function expandWorkOccurrences(
+  pattern: WorkPattern | null,
+  oneOffs: WorkShift[],
+  rangeStart: Date,
+  rangeEnd: Date
+): WorkOccurrence[] {
+  const intervals: WorkOccurrence[] = [];
 
   const offDays = new Set(oneOffs.filter((s) => s.kind === "off").map((s) => s.date));
 
@@ -115,7 +134,7 @@ export function expandWorkHours(
         // A shift ending at or before it starts runs past midnight.
         if (end <= start) end = new Date(end.getTime() + MS_PER_DAY);
 
-        intervals.push({ start, end });
+        intervals.push({ interval: { start, end }, source: { type: "pattern" } });
       }
     }
   }
@@ -128,12 +147,12 @@ export function expandWorkHours(
     let end = atLocalTime(day, s.end_time.slice(0, 5));
     if (end <= start) end = new Date(end.getTime() + MS_PER_DAY);
 
-    intervals.push({ start, end });
+    intervals.push({ interval: { start, end }, source: { type: "shift", id: s.id } });
   }
 
   return intervals
-    .filter((i) => i.end > rangeStart && i.start < rangeEnd)
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
+    .filter((o) => o.interval.end > rangeStart && o.interval.start < rangeEnd)
+    .sort((a, b) => a.interval.start.getTime() - b.interval.start.getTime());
 }
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

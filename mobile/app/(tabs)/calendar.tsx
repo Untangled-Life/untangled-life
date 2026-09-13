@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from "react-native";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
@@ -7,13 +8,25 @@ import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { Interval } from "@/lib/freeTime";
 import { KeyDateRow, displayTitleFor, nextOccurrence } from "@/lib/keyDates";
 import { PlannedEvent, formatPlanWhen } from "@/lib/plannedEvents";
-import { WorkPattern, WorkShift, expandWorkHours, toDateKey } from "@/lib/workHours";
+import { WorkPattern, WorkShift, expandWorkOccurrences, WorkSource, toDateKey } from "@/lib/workHours";
 
 type DayEntry = {
   kind: "plan" | "keydate" | "work" | "busy";
   label: string;
   detail: string;
   whose: string | null;
+  /**
+   * What removing this row actually means. Not every row is a row you can
+   * delete: an occurrence of a recurring work pattern isn't stored anywhere on
+   * its own, and busy time is a reflection of the phone's calendar -- deleting
+   * that here would simply come back on the next sync, so it isn't offered.
+   */
+  action:
+    | { type: "cancelPlan"; id: string }
+    | { type: "deleteKeyDate"; id: string }
+    | { type: "deleteShift"; id: string }
+    | { type: "markDayOff"; date: string }
+    | null;
 };
 
 const WEEK_HEADINGS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -45,8 +58,74 @@ function timeLabel(d: Date): string {
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
+// Structural, rather than importing SwipeableMethods from the library's
+// internal lib/typescript path — that path is an implementation detail and
+// moves between versions.
+type SwipeCloser = { close: () => void };
+
+const ACTION_LABELS: Record<string, string> = {
+  cancelPlan: "Cancel",
+  deleteKeyDate: "Delete",
+  deleteShift: "Delete",
+  markDayOff: "Day off",
+};
+
+function SwipeRow({
+  entry,
+  onAction,
+}: {
+  entry: DayEntry;
+  onAction: (entry: DayEntry) => void;
+}) {
+  const row = (
+    <View style={styles.entryRow}>
+      <View style={[styles.entryBar, styles[`bar_${entry.kind}` as const]]} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.entryLabel}>{entry.label}</Text>
+        <Text style={styles.entryDetail}>{entry.detail}</Text>
+      </View>
+    </View>
+  );
+
+  // Rows with nothing to delete don't swipe at all, rather than swiping to
+  // reveal an action that would fail or silently undo itself.
+  if (!entry.action) return row;
+
+  const label = ACTION_LABELS[entry.action.type] ?? "Delete";
+
+  return (
+    <ReanimatedSwipeable
+      friction={2}
+      rightThreshold={40}
+      renderRightActions={(_progress, _translation, methods: SwipeCloser) => (
+        <Pressable
+          style={[
+            styles.swipeAction,
+            entry.action?.type === "markDayOff" ? styles.swipeActionSoft : null,
+          ]}
+          onPress={() => {
+            methods.close();
+            onAction(entry);
+          }}
+        >
+          <Text
+            style={[
+              styles.swipeActionText,
+              entry.action?.type === "markDayOff" ? styles.swipeActionTextSoft : null,
+            ]}
+          >
+            {label}
+          </Text>
+        </Pressable>
+      )}
+    >
+      {row}
+    </ReanimatedSwipeable>
+  );
+}
+
 export default function CalendarScreen() {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const { me, partner } = useCoupleMembers();
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState<string>(toDateKey(new Date()));
@@ -54,7 +133,7 @@ export default function CalendarScreen() {
   const [plans, setPlans] = useState<PlannedEvent[]>([]);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [busy, setBusy] = useState<{ user_id: string; start: Date; end: Date }[]>([]);
-  const [work, setWork] = useState<{ user_id: string; interval: Interval }[]>([]);
+  const [work, setWork] = useState<{ user_id: string; interval: Interval; source: WorkSource }[]>([]);
 
   const myId = me.id;
   const partnerId = partner?.id ?? null;
@@ -109,12 +188,12 @@ export default function CalendarScreen() {
 
     const patterns = (patternRes.data as WorkPattern[]) ?? [];
     const allShifts = (shiftRes.data as WorkShift[]) ?? [];
-    const expanded: { user_id: string; interval: Interval }[] = [];
+    const expanded: { user_id: string; interval: Interval; source: WorkSource }[] = [];
 
     for (const p of patterns) {
       const mine = allShifts.filter((s) => s.user_id === p.user_id);
-      for (const interval of expandWorkHours(p, mine, rangeStart, rangeEnd)) {
-        expanded.push({ user_id: p.user_id, interval });
+      for (const o of expandWorkOccurrences(p, mine, rangeStart, rangeEnd)) {
+        expanded.push({ user_id: p.user_id, interval: o.interval, source: o.source });
       }
     }
 
@@ -127,8 +206,8 @@ export default function CalendarScreen() {
       byUser.set(s.user_id, [...(byUser.get(s.user_id) ?? []), s]);
     }
     for (const [uid, rows] of byUser) {
-      for (const interval of expandWorkHours(null, rows, rangeStart, rangeEnd)) {
-        expanded.push({ user_id: uid, interval });
+      for (const o of expandWorkOccurrences(null, rows, rangeStart, rangeEnd)) {
+        expanded.push({ user_id: uid, interval: o.interval, source: o.source });
       }
     }
 
@@ -153,6 +232,7 @@ export default function CalendarScreen() {
         label: p.title,
         detail: formatPlanWhen(p.start_at, p.end_at).split(", ").slice(1).join(", "),
         whose: null,
+        action: { type: "cancelPlan", id: p.id },
       });
     }
 
@@ -164,16 +244,26 @@ export default function CalendarScreen() {
           label: displayTitleFor(kd, nameFor),
           detail: "All day",
           whose: null,
+          action: { type: "deleteKeyDate", id: kd.id },
         });
       }
     }
 
     for (const w of work) {
-      push(toDateKey(w.interval.start), {
+      const dayKey = toDateKey(w.interval.start);
+      // Only your own working hours are yours to change -- and RLS agrees, so
+      // offering it on your partner's rows would just produce a failed write.
+      const mine = w.user_id === myId;
+      push(dayKey, {
         kind: "work",
         label: `${nameFor(w.user_id)} working`,
         detail: `${timeLabel(w.interval.start)} – ${timeLabel(w.interval.end)}`,
         whose: w.user_id,
+        action: !mine
+          ? null
+          : w.source.type === "shift"
+            ? { type: "deleteShift", id: w.source.id }
+            : { type: "markDayOff", date: dayKey },
       });
     }
 
@@ -183,15 +273,70 @@ export default function CalendarScreen() {
         label: `${nameFor(b.user_id)} busy`,
         detail: `${timeLabel(b.start)} – ${timeLabel(b.end)}`,
         whose: b.user_id,
+        action: null,
       });
     }
 
     return map;
-  }, [plans, keyDates, work, busy, month, nameFor]);
+  }, [plans, keyDates, work, busy, month, nameFor, myId]);
 
   const cells = useMemo(() => monthGrid(month), [month]);
   const selectedEntries = entriesByDay.get(selected) ?? [];
   const todayKey = toDateKey(new Date());
+
+  async function performAction(entry: DayEntry) {
+    const action = entry.action;
+    if (!action || !session?.user.id || !profile?.couple_id) return;
+
+    let error: { message: string } | null = null;
+
+    if (action.type === "cancelPlan") {
+      ({ error } = await supabase
+        .from("planned_events")
+        .update({ cancelled: true })
+        .eq("id", action.id));
+    } else if (action.type === "deleteKeyDate") {
+      ({ error } = await supabase.from("key_dates").delete().eq("id", action.id));
+    } else if (action.type === "deleteShift") {
+      ({ error } = await supabase.from("work_shifts").delete().eq("id", action.id));
+    } else if (action.type === "markDayOff") {
+      ({ error } = await supabase.from("work_shifts").insert({
+        couple_id: profile.couple_id,
+        user_id: session.user.id,
+        date: action.date,
+        kind: "off",
+      }));
+    }
+
+    if (error) {
+      Alert.alert("Couldn't remove that", error.message);
+      return;
+    }
+
+    load();
+  }
+
+  function confirmAction(entry: DayEntry) {
+    // A cancelled date disappears from both partners' phone calendars, and a
+    // deleted key date takes its reminders with it. Worth one tap of
+    // confirmation; a one-off shift isn't.
+    if (entry.action?.type === "deleteShift") {
+      performAction(entry);
+      return;
+    }
+
+    const message =
+      entry.action?.type === "cancelPlan"
+        ? `"${entry.label}" will come off both your calendars.`
+        : entry.action?.type === "deleteKeyDate"
+          ? `"${entry.label}" and its reminders will be removed for both of you.`
+          : "This day will be marked off, and your working hours won't count against free time.";
+
+    Alert.alert("Are you sure?", message, [
+      { text: "Keep it", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => performAction(entry) },
+    ]);
+  }
 
   function shiftMonth(delta: number) {
     setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
@@ -292,15 +437,19 @@ export default function CalendarScreen() {
         </View>
       ) : (
         selectedEntries.map((e, i) => (
-          <View key={i} style={styles.entryRow}>
-            <View style={[styles.entryBar, styles[`bar_${e.kind}` as const]]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.entryLabel}>{e.label}</Text>
-              <Text style={styles.entryDetail}>{e.detail}</Text>
-            </View>
-          </View>
+          <SwipeRow key={i} entry={e} onAction={confirmAction} />
         ))
       )}
+
+      {selectedEntries.some((e) => e.kind === "busy") ? (
+        <Text style={styles.footnote}>
+          Busy time comes from your phone&apos;s calendar — change it there and it updates here.
+        </Text>
+      ) : null}
+
+      {selectedEntries.some((e) => e.action) ? (
+        <Text style={styles.footnote}>Swipe an entry left to remove it.</Text>
+      ) : null}
     </ScrollView>
   );
 }
@@ -372,5 +521,18 @@ const styles = StyleSheet.create({
   bar_work: { backgroundColor: "#7A8B99" },
   bar_busy: { backgroundColor: "#D6D2C8" },
   entryLabel: { fontSize: 14, fontWeight: "500", color: "#14140F" },
+  swipeAction: {
+    backgroundColor: "#B3261E",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 22,
+    marginBottom: 8,
+    borderRadius: 14,
+    marginLeft: 8,
+  },
+  swipeActionSoft: { backgroundColor: "#E8E4DA" },
+  swipeActionText: { color: "#fff", fontWeight: "600", fontSize: 13 },
+  swipeActionTextSoft: { color: "#6B6B6B" },
+  footnote: { fontSize: 11, color: "#9A9A9A", marginTop: 6, lineHeight: 16 },
   entryDetail: { fontSize: 12, color: "#6B6B6B", marginTop: 2 },
 });
