@@ -55,12 +55,13 @@ export default function Todos() {
   const [filter, setFilter] = useState<Filter>("me");
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTitle, setNewTitle] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
 
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("todos")
       .select("id, title, assigned_to, due_date, completed")
-      .eq("completed", false)
       .order("created_at", { ascending: true });
     if (data) setTodos(data as Todo[]);
   }, []);
@@ -72,9 +73,11 @@ export default function Todos() {
   const assignedIdForFilter =
     filter === "me" ? me.id : filter === "partner" ? partner?.id ?? null : null;
 
-  const visible = todos.filter((t) =>
+  const forFilter = todos.filter((t) =>
     filter === "us" ? t.assigned_to === null : t.assigned_to === assignedIdForFilter
   );
+  const visible = forFilter.filter((t) => !t.completed);
+  const done = forFilter.filter((t) => t.completed);
 
   async function addTodo() {
     if (!newTitle.trim() || !profile?.couple_id || !me.id) return;
@@ -94,13 +97,60 @@ export default function Todos() {
     }
   }
 
-  async function toggleComplete(id: string) {
-    setTodos((prev) => prev.filter((t) => t.id !== id));
-    const { error } = await supabase.from("todos").update({ completed: true }).eq("id", id);
+  // Ticking used to be one-way and the item vanished, so a mis-tap lost it
+  // with no way back. It now toggles, and done items stay visible below.
+  async function toggleComplete(id: string, completed: boolean) {
+    setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !completed } : t)));
+    const { error } = await supabase.from("todos").update({ completed: !completed }).eq("id", id);
     if (error) {
       warned();
-      Alert.alert("Couldn't tick that off", error.message);
+      Alert.alert("Couldn't update that", error.message);
+      load();
     }
+  }
+
+  async function deleteTodo(id: string) {
+    setTodos((prev) => prev.filter((t) => t.id !== id));
+    const { error } = await supabase.from("todos").delete().eq("id", id);
+    if (error) {
+      warned();
+      Alert.alert("Couldn't delete that", error.message);
+      load();
+    }
+  }
+
+  function startEdit(id: string, title: string) {
+    setEditingId(id);
+    setEditingTitle(title);
+  }
+
+  async function saveEdit() {
+    const id = editingId;
+    const title = editingTitle.trim();
+    if (!id) return;
+
+    if (!title) {
+      setEditingId(null);
+      return;
+    }
+
+    setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, title } : t)));
+    setEditingId(null);
+
+    const { error } = await supabase.from("todos").update({ title }).eq("id", id);
+    if (error) {
+      warned();
+      Alert.alert("Couldn't rename that", error.message);
+      load();
+    }
+  }
+
+  function itemActions(id: string, title: string) {
+    Alert.alert(title, undefined, [
+      { text: "Edit", onPress: () => startEdit(id, title) },
+      { text: "Delete", style: "destructive", onPress: () => deleteTodo(id) },
+      { text: "Cancel", style: "cancel" },
+    ]);
   }
 
   return (
@@ -152,18 +202,69 @@ export default function Todos() {
             <View key={bucket} style={{ marginBottom: 20 }}>
               <Text style={styles.bucketTitle}>{bucket}</Text>
               {items.map((item) => (
-                <Pressable
-                  key={item.id}
-                  style={press(styles.todoRow)}
-                  onPress={() => toggleComplete(item.id)}
-                >
-                  <View style={styles.checkbox} />
-                  <Text style={styles.todoText}>{item.title}</Text>
-                </Pressable>
+                <View key={item.id} style={styles.todoRow}>
+                  <Pressable
+                    onPress={() => toggleComplete(item.id, item.completed)}
+                    hitSlop={10}
+                    accessibilityLabel="Tick off"
+                  >
+                    <View style={styles.checkbox} />
+                  </Pressable>
+
+                  {editingId === item.id ? (
+                    <TextInput
+                      style={styles.editInput}
+                      value={editingTitle}
+                      onChangeText={setEditingTitle}
+                      onSubmitEditing={saveEdit}
+                      onBlur={saveEdit}
+                      autoFocus
+                      returnKeyType="done"
+                    />
+                  ) : (
+                    <Pressable
+                      style={{ flex: 1 }}
+                      onPress={() => startEdit(item.id, item.title)}
+                      onLongPress={() => itemActions(item.id, item.title)}
+                    >
+                      <Text style={styles.todoText}>{item.title}</Text>
+                    </Pressable>
+                  )}
+                </View>
               ))}
             </View>
           );
         })}
+        {done.length > 0 ? (
+          <View style={{ marginBottom: 20 }}>
+            <Text style={styles.bucketTitle}>Done</Text>
+            {done.map((item) => (
+              <View key={item.id} style={styles.todoRow}>
+                <Pressable
+                  onPress={() => toggleComplete(item.id, item.completed)}
+                  hitSlop={10}
+                  accessibilityLabel="Put back on the list"
+                >
+                  <View style={[styles.checkbox, styles.checkboxDone]}>
+                    <Text style={styles.checkboxTick}>✓</Text>
+                  </View>
+                </Pressable>
+                <Pressable
+                  style={{ flex: 1 }}
+                  onLongPress={() => itemActions(item.id, item.title)}
+                >
+                  <Text style={[styles.todoText, styles.todoTextDone]}>{item.title}</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {visible.length > 0 || done.length > 0 ? (
+          <Text style={styles.hint}>
+            Tap the circle to tick off · tap the text to rename · hold for more
+          </Text>
+        ) : null}
       </ScrollView>
 
       <View style={styles.addBar}>
@@ -210,6 +311,21 @@ const createStyles = (t: Theme) =>
   chipActive: { backgroundColor: t.accent },
   chipText: { fontSize: 13, fontWeight: "600", color: t.textSecondary },
   chipTextActive: { color: t.surface },
+  editInput: {
+    flex: 1,
+    fontSize: 15,
+    color: t.textPrimary,
+    paddingVertical: 0,
+  },
+  checkboxDone: {
+    backgroundColor: t.accent,
+    borderColor: t.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxTick: { color: t.textOnBrand, fontSize: 13, fontWeight: "700" },
+  todoTextDone: { color: t.textMuted, textDecorationLine: "line-through" },
+  hint: { fontSize: 12, color: t.textMuted, textAlign: "center", marginBottom: 8 },
   bucketTitle: { fontSize: 14, fontWeight: "600", color: t.textPrimary, marginBottom: 8 },
   emptyCard: {
     backgroundColor: t.surface,

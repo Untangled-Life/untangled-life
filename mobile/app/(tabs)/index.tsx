@@ -393,6 +393,9 @@ export default function Home() {
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Free together</Text>
+        <Link href="/work-hours" style={styles.sectionAction}>
+          Your hours
+        </Link>
       </View>
 
       {permission !== PermissionStatus.GRANTED ? (
@@ -459,10 +462,12 @@ export default function Home() {
       )}
 
       <Link href="/work-hours" asChild>
-        <Pressable style={press(styles.card)}>
+        <Pressable style={press(styles.hoursCard)}>
           <View style={styles.cardHeadRow}>
-            <Text style={styles.cardTitle}>Working hours</Text>
-            <Text style={styles.cardAction}>Set up ›</Text>
+            <Text style={styles.hoursTitle}>Your working hours</Text>
+            <Text style={styles.cardAction}>
+              {myPattern && myPattern.shifts.length > 0 ? "Change ›" : "Set up ›"}
+            </Text>
           </View>
           <Text style={styles.cardBody}>{describePattern(myPattern)}</Text>
         </Pressable>
@@ -531,6 +536,16 @@ const createStyles = (t: Theme) =>
     justifyContent: "center",
     ...t.shadow,
   },
+  hoursCard: {
+    backgroundColor: t.surface,
+    borderRadius: t.radius.lg,
+    padding: 20,
+    marginTop: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: t.dotWork,
+    ...t.shadow,
+  },
+  hoursTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary },
   cardHeadRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardAction: { fontSize: 13, color: t.accent, fontWeight: "600" },
   title: { fontSize: 26, fontWeight: "600", marginBottom: 8, color: t.textPrimary },
