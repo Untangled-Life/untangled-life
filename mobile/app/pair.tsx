@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { press } from "@/components/press";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { router } from "expo-router";
@@ -137,7 +138,7 @@ export default function Pair() {
       ) : (
         <>
           <Pressable
-            style={styles.buttonSecondary}
+            style={press(styles.buttonSecondary)}
             onPress={handleCreateInvite}
             disabled={loading}
           >
@@ -156,7 +157,7 @@ export default function Pair() {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Pressable style={styles.button} onPress={handleRedeemInvite} disabled={loading}>
+          <Pressable style={press(styles.button)} onPress={handleRedeemInvite} disabled={loading}>
             {loading ? (
               <ActivityIndicator color={t.surface} />
             ) : (
@@ -168,7 +169,7 @@ export default function Pair() {
 
       {waiting && error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable onPress={() => signOut()} style={{ marginTop: 24 }}>
+      <Pressable onPress={() => signOut()} style={press({ marginTop: 24 })}>
         <Text style={styles.link}>Signed in as {session?.user.email}. Sign out</Text>
       </Pressable>
     </View>

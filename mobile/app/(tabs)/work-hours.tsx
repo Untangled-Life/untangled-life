@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { RefreshControl,
   View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert } from "react-native";
+import { press } from "@/components/press";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -192,7 +193,7 @@ export default function WorkHours() {
         never what you&apos;re doing.
       </Text>
 
-      <Pressable style={styles.importCard} onPress={() => router.push("/roster-import")}>
+      <Pressable style={press(styles.importCard)} onPress={() => router.push("/roster-import")}>
         <View style={{ flex: 1 }}>
           <Text style={styles.importTitle}>Paste a roster instead</Text>
           <Text style={styles.importBody}>
@@ -208,7 +209,7 @@ export default function WorkHours() {
         {MODES.map((m) => (
           <Pressable
             key={m.key}
-            style={[styles.modeRow, mode === m.key ? styles.modeRowActive : null]}
+            style={press([styles.modeRow, mode === m.key ? styles.modeRowActive : null])}
             onPress={() => {
               setMode(m.key);
               persist({ mode: m.key });
@@ -233,7 +234,7 @@ export default function WorkHours() {
             {[2, 3, 4, 5, 6].map((n) => (
               <Pressable
                 key={n}
-                style={[styles.chip, cycleWeeks === n ? styles.chipActive : null]}
+                style={press([styles.chip, cycleWeeks === n ? styles.chipActive : null])}
                 onPress={() => {
                   setCycleWeeks(n);
                   persist({ cycleWeeks: n });
@@ -268,7 +269,7 @@ export default function WorkHours() {
             <Text style={styles.empty}>None yet — add your first below.</Text>
           ) : (
             shifts.map((s, i) => (
-              <Pressable key={i} style={styles.shiftRow} onLongPress={() => removeShift(i)}>
+              <Pressable key={i} style={press(styles.shiftRow)} onLongPress={() => removeShift(i)}>
                 <Text style={styles.shiftDay}>
                   {mode === "rotating" ? `Wk ${s.week + 1} · ` : ""}
                   {weekdayLabel(s.weekday)}
@@ -294,7 +295,7 @@ export default function WorkHours() {
                 {weekOptions.map((w) => (
                   <Pressable
                     key={w}
-                    style={[styles.chip, draftWeek === w ? styles.chipActive : null]}
+                    style={press([styles.chip, draftWeek === w ? styles.chipActive : null])}
                     onPress={() => setDraftWeek(w)}
                   >
                     <Text style={[styles.chipText, draftWeek === w ? styles.chipTextActive : null]}>
@@ -311,7 +312,7 @@ export default function WorkHours() {
             {[1, 2, 3, 4, 5, 6, 0].map((d) => (
               <Pressable
                 key={d}
-                style={[styles.chip, draftDay === d ? styles.chipActive : null]}
+                style={press([styles.chip, draftDay === d ? styles.chipActive : null])}
                 onPress={() => setDraftDay(d)}
               >
                 <Text style={[styles.chipText, draftDay === d ? styles.chipTextActive : null]}>
@@ -325,7 +326,7 @@ export default function WorkHours() {
             <TimeField label="Starts" value={draftStart} onChange={setDraftStart} />
             <TimeField label="Ends" value={draftEnd} onChange={setDraftEnd} />
           </View>
-          <Pressable style={[styles.saveButton, { marginTop: 12 }]} onPress={addShift}>
+          <Pressable style={press([styles.saveButton, { marginTop: 12 }])} onPress={addShift}>
             <Text style={styles.saveButtonText}>Add shift</Text>
           </Pressable>
           <Text style={styles.hint}>
@@ -345,7 +346,7 @@ export default function WorkHours() {
         </Text>
 
         {oneOffs.map((o) => (
-          <Pressable key={o.id} style={styles.shiftRow} onLongPress={() => removeOneOff(o.id)}>
+          <Pressable key={o.id} style={press(styles.shiftRow)} onLongPress={() => removeOneOff(o.id)}>
             <Text style={styles.shiftDay}>{toFriendlyDate(o.date, false)}</Text>
             <Text style={styles.shiftTime}>
               {o.kind === "off"
@@ -364,11 +365,11 @@ export default function WorkHours() {
         </View>
 
         <View style={[styles.row, { marginTop: 10 }]}>
-          <Pressable style={[styles.saveButton, { flex: 1 }]} onPress={() => addOneOff("extra")}>
+          <Pressable style={press([styles.saveButton, { flex: 1 }])} onPress={() => addOneOff("extra")}>
             <Text style={styles.saveButtonText}>+ Add shift</Text>
           </Pressable>
           {showsPattern ? (
-            <Pressable style={[styles.offButton, { flex: 1 }]} onPress={() => addOneOff("off")}>
+            <Pressable style={press([styles.offButton, { flex: 1 }])} onPress={() => addOneOff("off")}>
               <Text style={styles.offButtonText}>Mark day off</Text>
             </Pressable>
           ) : null}

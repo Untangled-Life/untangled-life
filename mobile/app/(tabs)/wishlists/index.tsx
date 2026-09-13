@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { RefreshControl,
   View, Text, StyleSheet, Pressable, ScrollView, TextInput, Modal } from "react-native";
+import { press } from "@/components/press";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -79,7 +80,7 @@ export default function Wishlists() {
         wishlists.map((w) => (
           <Pressable
             key={w.id}
-            style={styles.card}
+            style={press(styles.card)}
             onPress={() => router.push(`/wishlists/${w.id}?name=${encodeURIComponent(w.name)}`)}
           >
             <Text style={styles.cardTitle}>{w.name}</Text>
@@ -100,12 +101,12 @@ export default function Wishlists() {
             />
             <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
               <Pressable
-                style={[styles.button, { flex: 1, backgroundColor: t.border }]}
+                style={press([styles.button, { flex: 1, backgroundColor: t.border }])}
                 onPress={() => setModalVisible(false)}
               >
                 <Text style={[styles.buttonText, { color: t.textPrimary }]}>Cancel</Text>
               </Pressable>
-              <Pressable style={[styles.button, { flex: 1 }]} onPress={createWishlist} disabled={saving}>
+              <Pressable style={press([styles.button, { flex: 1 }])} onPress={createWishlist} disabled={saving}>
                 <Text style={styles.buttonText}>{saving ? "Saving..." : "Create"}</Text>
               </Pressable>
             </View>

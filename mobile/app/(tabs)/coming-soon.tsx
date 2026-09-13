@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import { press } from "@/components/press";
 import { router } from "expo-router";
 import { useThemedStyles } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -12,7 +13,7 @@ export default function ComingSoon() {
         This one&apos;s on the list rather than in the app. Nothing here is hiding behind a
         placeholder — when it works, it&apos;ll work.
       </Text>
-      <Pressable onPress={() => router.back()} style={styles.button}>
+      <Pressable onPress={() => router.back()} style={press(styles.button)}>
         <Text style={styles.buttonText}>Back</Text>
       </Pressable>
     </View>

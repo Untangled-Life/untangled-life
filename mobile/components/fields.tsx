@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, StyleSheet, Pressable, Platform, Modal } from "react-native";
+import { press } from "@/components/press";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -89,7 +90,7 @@ export function DateField({
 
       {Platform.OS === "ios" ? (
         <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
+          <Pressable style={press(styles.backdrop)} onPress={() => setOpen(false)} />
           <View style={styles.sheet}>
             <View style={styles.sheetBar}>
               <Pressable onPress={() => setOpen(false)} hitSlop={8}>
@@ -165,7 +166,7 @@ export function TimeField({ label, value, onChange }: TimeFieldProps) {
 
       {Platform.OS === "ios" ? (
         <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
+          <Pressable style={press(styles.backdrop)} onPress={() => setOpen(false)} />
           <View style={styles.sheet}>
             <View style={styles.sheetBar}>
               <Pressable onPress={() => setOpen(false)} hitSlop={8}>

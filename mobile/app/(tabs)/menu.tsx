@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert, Linking } from "react-native";
+import { press } from "@/components/press";
 import { router } from "expo-router";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -122,7 +123,7 @@ export default function Menu() {
     <View style={styles.screen}>
       <View style={styles.header}>
         <Text style={styles.title}>Menu</Text>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.close}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={press(styles.close)}>
           <CloseIcon size={22} color={t.textSecondary} />
         </Pressable>
       </View>

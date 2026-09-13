@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { press } from "@/components/press";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { Link, router } from "expo-router";
@@ -52,7 +53,7 @@ export default function SignIn() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable style={styles.button} onPress={handleSignIn} disabled={loading}>
+      <Pressable style={press(styles.button)} onPress={handleSignIn} disabled={loading}>
         {loading ? <ActivityIndicator color={t.surface} /> : <Text style={styles.buttonText}>Sign in</Text>}
       </Pressable>
 

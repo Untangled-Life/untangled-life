@@ -10,6 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { press } from "@/components/press";
+import { succeeded, warned } from "@/lib/haptics";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
@@ -87,9 +89,12 @@ export default function RosterImport() {
     setSaving(false);
 
     if (error) {
+      warned();
       Alert.alert("Couldn't save", error.message);
       return;
     }
+
+    succeeded();
 
     Alert.alert(
       "Roster saved",
@@ -108,7 +113,7 @@ export default function RosterImport() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.title}>Import a roster</Text>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.close}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={press(styles.close)}>
             <CloseIcon size={20} color={t.textSecondary} />
           </Pressable>
         </View>
@@ -131,7 +136,7 @@ export default function RosterImport() {
             />
 
             <Pressable
-              style={[styles.primary, !text.trim() ? styles.primaryDisabled : null]}
+              style={press([styles.primary, !text.trim() ? styles.primaryDisabled : null])}
               onPress={runParse}
               disabled={!text.trim()}
             >
@@ -207,7 +212,7 @@ export default function RosterImport() {
             ) : null}
 
             <Pressable
-              style={[styles.primary, saving ? styles.primaryDisabled : null]}
+              style={press([styles.primary, saving ? styles.primaryDisabled : null])}
               onPress={save}
               disabled={saving}
             >
@@ -216,7 +221,7 @@ export default function RosterImport() {
               </Text>
             </Pressable>
 
-            <Pressable onPress={() => setParsed(null)} style={styles.secondary}>
+            <Pressable onPress={() => setParsed(null)} style={press(styles.secondary)}>
               <Text style={styles.secondaryText}>Back to the paste</Text>
             </Pressable>
 

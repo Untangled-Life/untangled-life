@@ -9,6 +9,8 @@ import {
   Alert,
   RefreshControl,
 } from "react-native";
+import { press } from "@/components/press";
+import { succeeded } from "@/lib/haptics";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { CalendarIcon, MenuIcon } from "@/components/icons";
@@ -209,6 +211,7 @@ export default function Home() {
       return;
     }
 
+    succeeded();
     setBookingIndex(null);
     setBookingTitle("");
 
@@ -268,12 +271,12 @@ export default function Home() {
     >
       <View style={styles.topBar}>
         <Link href="/menu" asChild>
-          <Pressable style={styles.iconButton} hitSlop={8} accessibilityLabel="Menu">
+          <Pressable style={press(styles.iconButton)} hitSlop={8} accessibilityLabel="Menu">
             <MenuIcon size={22} color={t.textPrimary} />
           </Pressable>
         </Link>
         <Link href="/calendar" asChild>
-          <Pressable style={styles.iconButton} hitSlop={8} accessibilityLabel="Shared calendar">
+          <Pressable style={press(styles.iconButton)} hitSlop={8} accessibilityLabel="Shared calendar">
             <CalendarIcon size={22} color={t.brand} />
           </Pressable>
         </Link>
@@ -388,7 +391,7 @@ export default function Home() {
                   </Text>
                   <View style={styles.bookingActions}>
                     <Pressable
-                      style={[styles.smallButton, booking ? styles.smallButtonDisabled : null]}
+                      style={press([styles.smallButton, booking ? styles.smallButtonDisabled : null])}
                       onPress={() => confirmBooking(w)}
                       disabled={booking}
                     >
@@ -408,7 +411,7 @@ export default function Home() {
       )}
 
       <Link href="/work-hours" asChild>
-        <Pressable style={styles.card}>
+        <Pressable style={press(styles.card)}>
           <View style={styles.cardHeadRow}>
             <Text style={styles.cardTitle}>Working hours</Text>
             <Text style={styles.cardAction}>Set up ›</Text>
@@ -425,13 +428,13 @@ export default function Home() {
             : "Not connected yet. We read the calendars already synced to your phone, so this covers Google and Apple/iCloud without a separate sign-in for each."}
         </Text>
         {permission !== PermissionStatus.GRANTED ? (
-          <Pressable style={styles.button} onPress={requestAccess}>
+          <Pressable style={press(styles.button)} onPress={requestAccess}>
             <Text style={styles.buttonText}>Connect my calendar</Text>
           </Pressable>
         ) : null}
       </View>
 
-      <Pressable onPress={() => signOut()} style={{ marginTop: 32 }}>
+      <Pressable onPress={() => signOut()} style={press({ marginTop: 32 })}>
         <Text style={styles.link}>Signed in as {profile?.display_name ?? "you"}. Sign out</Text>
       </Pressable>
     </ScrollView>

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { RefreshControl,
   View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
+import { press } from "@/components/press";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -58,7 +59,7 @@ export default function WishlistDetail() {
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
       } contentContainerStyle={styles.container}>
-        <Pressable onPress={() => router.back()} style={{ marginBottom: 16 }}>
+        <Pressable onPress={() => router.back()} style={press({ marginBottom: 16 })}>
           <Text style={styles.back}>{"‹ Wishlists"}</Text>
         </Pressable>
         <Text style={styles.title}>{name ?? "Wishlist"}</Text>
@@ -69,7 +70,7 @@ export default function WishlistDetail() {
           </View>
         ) : (
           items.map((item) => (
-            <Pressable key={item.id} style={styles.itemRow} onLongPress={() => removeItem(item.id)}>
+            <Pressable key={item.id} style={press(styles.itemRow)} onLongPress={() => removeItem(item.id)}>
               <Text style={styles.itemText}>{item.title}</Text>
             </Pressable>
           ))
@@ -85,7 +86,7 @@ export default function WishlistDetail() {
           onSubmitEditing={addItem}
           returnKeyType="done"
         />
-        <Pressable style={styles.addButton} onPress={addItem}>
+        <Pressable style={press(styles.addButton)} onPress={addItem}>
           <Text style={styles.addButtonText}>Add</Text>
         </Pressable>
       </View>

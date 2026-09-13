@@ -11,6 +11,8 @@ import {
   Animated,
   PanResponder,
 } from "react-native";
+import { press } from "@/components/press";
+import { succeeded, warned } from "@/lib/haptics";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -153,7 +155,7 @@ function SwipeRow({
     <View style={styles.swipeWrap}>
       <View style={styles.swipeActionLayer}>
         <Pressable
-          style={[styles.swipeAction, soft ? styles.swipeActionSoft : null]}
+          style={press([styles.swipeAction, soft ? styles.swipeActionSoft : null])}
           onPress={() => {
             settle(0);
             onAction(entry);
@@ -368,9 +370,12 @@ export default function CalendarScreen() {
     }
 
     if (error) {
+      warned();
       Alert.alert("Couldn't remove that", error.message);
       return;
     }
+
+    succeeded();
 
     load();
   }
@@ -444,7 +449,7 @@ export default function CalendarScreen() {
           return (
             <Pressable
               key={i}
-              style={[styles.cell, isSelected ? styles.cellSelected : null]}
+              style={press([styles.cell, isSelected ? styles.cellSelected : null])}
               onPress={() => setSelected(key)}
             >
               <Text

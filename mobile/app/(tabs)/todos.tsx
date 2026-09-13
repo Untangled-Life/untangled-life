@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { press } from "@/components/press";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -128,7 +129,7 @@ export default function Todos() {
                 </View>
               ) : (
                 items.map((item) => (
-                  <Pressable key={item.id} style={styles.todoRow} onPress={() => toggleComplete(item.id)}>
+                  <Pressable key={item.id} style={press(styles.todoRow)} onPress={() => toggleComplete(item.id)}>
                     <View style={styles.checkbox} />
                     <Text style={styles.todoText}>{item.title}</Text>
                   </Pressable>
@@ -148,7 +149,7 @@ export default function Todos() {
           onSubmitEditing={addTodo}
           returnKeyType="done"
         />
-        <Pressable style={styles.addButton} onPress={addTodo}>
+        <Pressable style={press(styles.addButton)} onPress={addTodo}>
           <Text style={styles.addButtonText}>Add</Text>
         </Pressable>
       </View>
@@ -160,7 +161,7 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
   const styles = useThemedStyles(createStyles);
 
   return (
-    <Pressable style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
+    <Pressable style={press([styles.chip, active && styles.chipActive])} onPress={onPress}>
       <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
         {label}
       </Text>

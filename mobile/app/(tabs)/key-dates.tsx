@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { RefreshControl,
   View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
+import { press } from "@/components/press";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -193,7 +194,7 @@ export default function KeyDates() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Misc</Text>
         {miscDates.map((d) => (
-          <Pressable key={d.id} style={styles.miscRow} onLongPress={() => removeMisc(d.id)}>
+          <Pressable key={d.id} style={press(styles.miscRow)} onLongPress={() => removeMisc(d.id)}>
             <Text style={styles.miscTitle}>{d.title}</Text>
             <Text style={styles.miscDate}>{toFriendlyDate(d.date)}</Text>
           </Pressable>
@@ -212,7 +213,7 @@ export default function KeyDates() {
             onChange={setMiscDate}
           />
         </View>
-        <Pressable style={[styles.saveButton, { alignSelf: "flex-start", marginTop: 8 }]} onPress={addMisc}>
+        <Pressable style={press([styles.saveButton, { alignSelf: "flex-start", marginTop: 8 }])} onPress={addMisc}>
           <Text style={styles.saveButtonText}>+ Add another</Text>
         </Pressable>
       </View>

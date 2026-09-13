@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import { press } from "@/components/press";
 import { router } from "expo-router";
 import { useThemedStyles, useTheme, useThemeMode } from "@/contexts/theme";
 import { Theme, ThemeMode } from "@/theme/tokens";
@@ -29,7 +30,7 @@ export default function Settings() {
           <Pressable
             key={m.key}
             onPress={() => setMode(m.key)}
-            style={[styles.row, i > 0 ? styles.rowDivider : null]}
+            style={press([styles.row, i > 0 ? styles.rowDivider : null])}
           >
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowLabel, mode === m.key ? styles.rowLabelActive : null]}>
@@ -47,7 +48,7 @@ export default function Settings() {
       </Text>
 
       <Text style={styles.groupTitle}>Account</Text>
-      <Pressable style={styles.card} onPress={() => router.push("/work-hours")}>
+      <Pressable style={press(styles.card)} onPress={() => router.push("/work-hours")}>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
             <Text style={styles.rowLabel}>Working hours</Text>
