@@ -4,7 +4,7 @@ Things that must be real before Untangled Life goes to the App Store and Play
 Store. Anything listed here currently exists as a placeholder, a stub, or not
 at all — the app says so honestly rather than pretending.
 
-Last reviewed: 2026-09-13
+Last reviewed: 2026-09-13 (updated after overnight work)
 
 ---
 
@@ -69,9 +69,12 @@ Full detail in `supabase/functions/README.md`. In order:
 
 ## Product gaps worth closing before launch
 
-- [ ] **Roster import** — manual entry works; importing from a pasted roster,
-      photo or PDF is the agreed next feature. Needs a confirm-before-save
-      step, since parsing will sometimes be wrong.
+- [x] **Roster import (paste)** — done. Paste a roster, it reads the shifts,
+      you confirm and edit before anything saves. Ambiguous rows are flagged.
+      **Untested on a device.**
+- [ ] **Roster import (photo / PDF)** — not started. Needs either an on-device
+      ML kit (a native module Expo Go won't have) or a vision API (cost, keys,
+      an Edge Function). Worth doing only if pasting proves not to be enough.
 - [ ] **Timezone handling** — the `notify-partner` Edge Function formats times
       in `Australia/Sydney`. Store a per-user timezone before shipping outside
       AU.
@@ -84,8 +87,12 @@ Full detail in `supabase/functions/README.md`. In order:
 
 ## Known rough edges
 
-- Dates and times are typed as text (`YYYY-MM-DD`, `HH:MM`) rather than picked
-  from a native picker. Works, but feels unfinished — a date/time picker is the
-  single biggest perceived-quality win available.
 - Everything is verified on two iPhones only, with one couple, on one Supabase
-  project. No load, no edge cases, no second couple.
+  project. No load, no edge cases, no second couple. **Nothing built overnight
+  on 13 Sep has run on a device at all.**
+- To-do filters are Me / Partner / Us with no "everything" option, so there's
+  no way to see the whole list at once. A product decision rather than a bug.
+- Key-date reminders reschedule every time the tab is focused. Harmless now,
+  but wasteful once a couple has many dates.
+- No Android testing whatsoever. The date pickers in particular behave
+  differently there — Android's dialog confirms itself, iOS uses a sheet.
