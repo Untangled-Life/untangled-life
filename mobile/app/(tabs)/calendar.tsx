@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from "react-native";
-import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import { useRef } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Alert,
+  Animated,
+  PanResponder,
+} from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
@@ -58,10 +67,8 @@ function timeLabel(d: Date): string {
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-// Structural, rather than importing SwipeableMethods from the library's
-// internal lib/typescript path — that path is an implementation detail and
-// moves between versions.
-type SwipeCloser = { close: () => void };
+const ACTION_WIDTH = 96;
+const OPEN_THRESHOLD = 40;
 
 const ACTION_LABELS: Record<string, string> = {
   cancelPlan: "Cancel",
@@ -70,6 +77,15 @@ const ACTION_LABELS: Record<string, string> = {
   markDayOff: "Day off",
 };
 
+/**
+ * Swipe-to-reveal built on React Native's own Animated + PanResponder.
+ *
+ * Deliberately not react-native-gesture-handler's Swipeable: that pulls in
+ * Reanimated, whose worklets runtime needs a native module matching the one
+ * Expo Go ships. Reanimated 4 wants worklets 0.12 while Expo Go SDK 57 has
+ * 0.10, so importing it crashes the app at startup. A swipe affordance isn't
+ * worth a native dependency and a version matrix.
+ */
 function SwipeRow({
   entry,
   onAction,
@@ -77,6 +93,38 @@ function SwipeRow({
   entry: DayEntry;
   onAction: (entry: DayEntry) => void;
 }) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const openRef = useRef(false);
+
+  const settle = (toValue: number) => {
+    openRef.current = toValue !== 0;
+    Animated.spring(translateX, {
+      toValue,
+      useNativeDriver: true,
+      bounciness: 0,
+      speed: 18,
+    }).start();
+  };
+
+  const responder = useRef(
+    PanResponder.create({
+      // Only claim clearly horizontal drags, so the month list still scrolls.
+      onMoveShouldSetPanResponder: (_e, g) =>
+        Math.abs(g.dx) > Math.abs(g.dy) * 1.5 && Math.abs(g.dx) > 6,
+      onPanResponderMove: (_e, g) => {
+        const base = openRef.current ? -ACTION_WIDTH : 0;
+        const next = Math.min(0, Math.max(-ACTION_WIDTH, base + g.dx));
+        translateX.setValue(next);
+      },
+      onPanResponderRelease: (_e, g) => {
+        const base = openRef.current ? -ACTION_WIDTH : 0;
+        const finalX = base + g.dx;
+        settle(finalX < -OPEN_THRESHOLD ? -ACTION_WIDTH : 0);
+      },
+      onPanResponderTerminate: () => settle(openRef.current ? -ACTION_WIDTH : 0),
+    })
+  ).current;
+
   const row = (
     <View style={styles.entryRow}>
       <View style={[styles.entryBar, styles[`bar_${entry.kind}` as const]]} />
@@ -92,35 +140,28 @@ function SwipeRow({
   if (!entry.action) return row;
 
   const label = ACTION_LABELS[entry.action.type] ?? "Delete";
+  const soft = entry.action.type === "markDayOff";
 
   return (
-    <ReanimatedSwipeable
-      friction={2}
-      rightThreshold={40}
-      renderRightActions={(_progress, _translation, methods: SwipeCloser) => (
+    <View style={styles.swipeWrap}>
+      <View style={styles.swipeActionLayer}>
         <Pressable
-          style={[
-            styles.swipeAction,
-            entry.action?.type === "markDayOff" ? styles.swipeActionSoft : null,
-          ]}
+          style={[styles.swipeAction, soft ? styles.swipeActionSoft : null]}
           onPress={() => {
-            methods.close();
+            settle(0);
             onAction(entry);
           }}
         >
-          <Text
-            style={[
-              styles.swipeActionText,
-              entry.action?.type === "markDayOff" ? styles.swipeActionTextSoft : null,
-            ]}
-          >
+          <Text style={[styles.swipeActionText, soft ? styles.swipeActionTextSoft : null]}>
             {label}
           </Text>
         </Pressable>
-      )}
-    >
-      {row}
-    </ReanimatedSwipeable>
+      </View>
+
+      <Animated.View style={{ transform: [{ translateX }] }} {...responder.panHandlers}>
+        {row}
+      </Animated.View>
+    </View>
   );
 }
 
@@ -521,12 +562,20 @@ const styles = StyleSheet.create({
   bar_work: { backgroundColor: "#7A8B99" },
   bar_busy: { backgroundColor: "#D6D2C8" },
   entryLabel: { fontSize: 14, fontWeight: "500", color: "#14140F" },
+  swipeWrap: { position: "relative" },
+  swipeActionLayer: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 8,
+    width: ACTION_WIDTH,
+    flexDirection: "row",
+  },
   swipeAction: {
+    flex: 1,
     backgroundColor: "#B3261E",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 22,
-    marginBottom: 8,
     borderRadius: 14,
     marginLeft: 8,
   },
