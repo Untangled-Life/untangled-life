@@ -123,11 +123,16 @@ export function expandWorkOccurrences(
     for (let day = cursor; day <= last; day = new Date(day.getTime() + MS_PER_DAY)) {
       if (offDays.has(toDateKey(day))) continue;
 
-      const week = cycleWeekFor(day, pattern.anchor_date, pattern.cycle_weeks);
+      // Mode is the authority, not cycle_weeks. A weekly pattern repeats every
+      // week whatever number happens to be stored alongside it -- otherwise a
+      // stray cycle length silently turns "every Monday" into "every second
+      // Monday", which looks like the roster working rather than a bug.
+      const rotating = pattern.mode === "rotating" && pattern.cycle_weeks > 1;
+      const week = rotating ? cycleWeekFor(day, pattern.anchor_date, pattern.cycle_weeks) : 0;
 
       for (const shift of pattern.shifts) {
         if (shift.weekday !== day.getDay()) continue;
-        if (pattern.cycle_weeks > 1 && shift.week !== week) continue;
+        if (rotating && shift.week !== week) continue;
 
         const start = atLocalTime(day, shift.start);
         let end = atLocalTime(day, shift.end);
@@ -171,7 +176,7 @@ export function describePattern(pattern: WorkPattern | null): string {
     .map(weekdayLabel)
     .join(", ");
 
-  if (pattern.cycle_weeks > 1) {
+  if (pattern.mode === "rotating" && pattern.cycle_weeks > 1) {
     return `${pattern.cycle_weeks}-week rotation · ${pattern.shifts.length} shifts · ${days}`;
   }
 

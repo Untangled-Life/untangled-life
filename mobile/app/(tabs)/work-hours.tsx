@@ -82,11 +82,16 @@ export default function WorkHours() {
   }) {
     if (!userId || !profile?.couple_id) return;
 
+    const nextMode = next.mode ?? mode;
+
     const payload = {
       couple_id: profile.couple_id,
       user_id: userId,
-      mode: next.mode ?? mode,
-      cycle_weeks: next.cycleWeeks ?? cycleWeeks,
+      mode: nextMode,
+      // Only a rotating pattern has a cycle. The picker defaults to 2 so that
+      // choosing "rotating" starts somewhere sensible, but writing that on a
+      // weekly pattern makes every shift land on alternate weeks.
+      cycle_weeks: nextMode === "rotating" ? (next.cycleWeeks ?? cycleWeeks) : 1,
       anchor_date: next.anchorDate ?? anchorDate,
       shifts: next.shifts ?? shifts,
       updated_at: new Date().toISOString(),
