@@ -51,3 +51,76 @@ export function HeartIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function BellIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M6 8a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6Z" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </svg>
+  );
+}
+
+export function HourglassIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M6 3h12" />
+      <path d="M6 21h12" />
+      <path d="M8 3v3a4 4 0 0 0 8 0V3" />
+      <path d="M8 21v-3a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
+export function GiftIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <rect x="3" y="8" width="18" height="4" />
+      <rect x="5" y="12" width="14" height="9" />
+      <path d="M12 8v13" />
+      <path d="M12 8c-1.5-4-6-4-6-1.5S9 8 12 8Z" />
+      <path d="M12 8c1.5-4 6-4 6-1.5S15 8 12 8Z" />
+    </svg>
+  );
+}
+
+export function CheckSquareIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M8 12l3 3 5-6" />
+    </svg>
+  );
+}

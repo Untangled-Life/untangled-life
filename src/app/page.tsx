@@ -1,7 +1,15 @@
 import { Logo, HeroMark } from "@/components/logo";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { WaitlistCounter } from "@/components/waitlist-counter";
-import { CalendarIcon, ClockIcon, HeartIcon } from "@/components/icons";
+import {
+  CalendarIcon,
+  ClockIcon,
+  HeartIcon,
+  BellIcon,
+  HourglassIcon,
+  GiftIcon,
+  CheckSquareIcon,
+} from "@/components/icons";
 
 const features = [
   {
@@ -21,6 +29,33 @@ const features = [
     color: "text-brand-green",
     title: "Book it on both phones",
     body: "Add a date once. It lands in both your calendars, with a nudge if it's been a while.",
+  },
+];
+
+const moreFeatures = [
+  {
+    Icon: BellIcon,
+    color: "text-brand-orange",
+    title: "Key dates remembered, for you",
+    body: "Anniversaries and birthdays, saved once. A nudge two weeks out gives you time for a proper card, not a rushed one.",
+  },
+  {
+    Icon: HourglassIcon,
+    color: "text-brand-green",
+    title: "Countdowns for upcoming dates & trips",
+    body: "Every important day sits right on your home screen, ticking down together. Nothing sneaks up on either of you.",
+  },
+  {
+    Icon: GiftIcon,
+    color: "text-brand-orange",
+    title: "Wishlists for Christmas & birthdays",
+    body: "Drop in ideas as they come to you, all year round. When the date rolls around, the guessing is already done.",
+  },
+  {
+    Icon: CheckSquareIcon,
+    color: "text-brand-green",
+    title: "To-dos, split fairly",
+    body: "Mine, yours and ours, in one shared list. Nothing falls through the cracks between two calendars.",
   },
 ];
 
@@ -74,6 +109,31 @@ export default function Home() {
                 </p>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="py-14">
+          <div className="mx-auto max-w-5xl px-6">
+            <div className="mx-auto max-w-xl text-center">
+              <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
+                More than just a shared calendar
+              </h2>
+              <p className="mt-2 text-[14px] leading-6 text-text-secondary">
+                The little things that keep a relationship running, all in
+                one place.
+              </p>
+            </div>
+            <div className="mt-8 grid gap-6 sm:grid-cols-2">
+              {moreFeatures.map(({ Icon, color, title, body }) => (
+                <div key={title} className="rounded-xl bg-surface-card p-5">
+                  <Icon className={`h-5 w-5 ${color}`} />
+                  <p className="mt-3 text-[15px] font-medium">{title}</p>
+                  <p className="mt-1 text-[13px] leading-6 text-text-secondary">
+                    {body}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </main>
