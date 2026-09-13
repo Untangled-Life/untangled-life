@@ -121,6 +121,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="menu" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="coming-soon" options={{ href: null }} />
+      <Tabs.Screen name="roster-import" options={{ href: null }} />
     </Tabs>
   );
 }

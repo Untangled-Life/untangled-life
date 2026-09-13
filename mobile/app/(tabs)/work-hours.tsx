@@ -186,6 +186,17 @@ export default function WorkHours() {
         never what you&apos;re doing.
       </Text>
 
+      <Pressable style={styles.importCard} onPress={() => router.push("/roster-import")}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.importTitle}>Paste a roster instead</Text>
+          <Text style={styles.importBody}>
+            Paste it from an email or a message and we&apos;ll read the shifts out. You check them
+            before anything saves.
+          </Text>
+        </View>
+        <Text style={styles.importChevron}>›</Text>
+      </Pressable>
+
       <View style={styles.card}>
         <Text style={styles.cardTitle}>How do your hours work?</Text>
         {MODES.map((m) => (
@@ -370,6 +381,18 @@ const createStyles = (t: Theme) =>
   title: { fontSize: 26, fontWeight: "600", color: t.textPrimary, marginBottom: 8 },
   subtitle: { fontSize: 13, color: t.textSecondary, lineHeight: 19, marginBottom: 20 },
   card: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 18, marginBottom: 16 },
+  importCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: t.space(3),
+    backgroundColor: t.accentSoft,
+    borderRadius: t.radius.lg,
+    padding: 18,
+    marginBottom: 16,
+  },
+  importTitle: { fontSize: 15, fontWeight: "700", color: t.accent, marginBottom: 4 },
+  importBody: { fontSize: 13, color: t.textSecondary, lineHeight: 18 },
+  importChevron: { fontSize: 24, color: t.accent },
   cardTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary, marginBottom: 12 },
   fieldLabel: { fontSize: 12, color: t.textSecondary, marginBottom: 8 },
   modeRow: {
