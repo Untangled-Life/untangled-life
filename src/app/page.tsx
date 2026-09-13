@@ -1,5 +1,6 @@
 import { Logo, HeroMark } from "@/components/logo";
 import { WaitlistForm } from "@/components/waitlist-form";
+import { WaitlistCounter } from "@/components/waitlist-counter";
 import { CalendarIcon, ClockIcon, HeartIcon } from "@/components/icons";
 
 const features = [
@@ -48,8 +49,9 @@ export default function Home() {
             <WaitlistForm />
           </div>
           <p className="mt-3 text-[13px] text-text-muted">
-            Free for early couples. iPhone and Android.
+            Free for the first 500 registered users.
           </p>
+          <WaitlistCounter />
         </section>
 
         <section className="grid gap-3 px-6 pb-6 sm:grid-cols-3 sm:px-10">

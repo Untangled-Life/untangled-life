@@ -18,6 +18,28 @@ function getSupabase() {
   });
 }
 
+export async function GET() {
+  let supabase;
+  try {
+    supabase = getSupabase();
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ count: 0 }, { status: 200 });
+  }
+
+  const { data, error } = await supabase.rpc("waitlist_count");
+
+  if (error) {
+    console.error("Supabase waitlist_count RPC failed:", error);
+    return NextResponse.json({ count: 0 }, { status: 200 });
+  }
+
+  return NextResponse.json(
+    { count: typeof data === "number" ? data : 0 },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
