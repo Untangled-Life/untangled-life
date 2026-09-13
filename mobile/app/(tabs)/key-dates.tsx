@@ -94,19 +94,23 @@ export default function KeyDates() {
         (kind !== "birthday" || d.subject_user_id === subjectUserId)
     );
 
-    if (existing) {
-      await supabase.from("key_dates").update({ date }).eq("id", existing.id);
-    } else {
-      await supabase.from("key_dates").insert({
-        couple_id: profile.couple_id,
-        created_by: profile.id,
-        kind,
-        title,
-        date,
-        recurring: true,
-        subject_user_id: subjectUserId,
-      });
+    const { error: saveError } = existing
+      ? await supabase.from("key_dates").update({ date }).eq("id", existing.id)
+      : await supabase.from("key_dates").insert({
+          couple_id: profile.couple_id,
+          created_by: profile.id,
+          kind,
+          title,
+          date,
+          recurring: true,
+          subject_user_id: subjectUserId,
+        });
+
+    if (saveError) {
+      setError(saveError.message);
+      return;
     }
+
     load();
   }
 
@@ -116,7 +120,7 @@ export default function KeyDates() {
       return;
     }
     setError(null);
-    await supabase.from("key_dates").insert({
+    const { error: addError } = await supabase.from("key_dates").insert({
       couple_id: profile.couple_id,
       created_by: profile.id,
       kind: "misc",
@@ -124,14 +128,23 @@ export default function KeyDates() {
       date: miscDate,
       recurring: true,
     });
+
+    if (addError) {
+      setError(addError.message);
+      return;
+    }
+
     setMiscTitle("");
     setMiscDate("");
     load();
   }
 
   async function removeMisc(id: string) {
+    // Removed from the list first so it feels instant; if the delete fails the
+    // reload below puts it back, which would otherwise look like a ghost.
     setDates((prev) => prev.filter((d) => d.id !== id));
-    await supabase.from("key_dates").delete().eq("id", id);
+    const { error: deleteError } = await supabase.from("key_dates").delete().eq("id", id);
+    if (deleteError) setError(deleteError.message);
     load();
   }
 

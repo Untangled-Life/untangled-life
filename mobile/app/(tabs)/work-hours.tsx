@@ -170,7 +170,8 @@ export default function WorkHours() {
 
   async function removeOneOff(id: string) {
     setOneOffs((prev) => prev.filter((o) => o.id !== id));
-    await supabase.from("work_shifts").delete().eq("id", id);
+    const { error } = await supabase.from("work_shifts").delete().eq("id", id);
+    if (error) Alert.alert("Couldn't remove that", error.message);
     load();
   }
 

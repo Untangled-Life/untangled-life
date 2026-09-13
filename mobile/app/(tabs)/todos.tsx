@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import {
   RefreshControl,
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { press } from "@/components/press";
+import { warned } from "@/lib/haptics";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -94,7 +96,11 @@ export default function Todos() {
 
   async function toggleComplete(id: string) {
     setTodos((prev) => prev.filter((t) => t.id !== id));
-    await supabase.from("todos").update({ completed: true }).eq("id", id);
+    const { error } = await supabase.from("todos").update({ completed: true }).eq("id", id);
+    if (error) {
+      warned();
+      Alert.alert("Couldn't tick that off", error.message);
+    }
   }
 
   return (

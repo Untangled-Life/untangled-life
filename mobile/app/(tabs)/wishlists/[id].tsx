@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
-import { RefreshControl,
+import { Alert, RefreshControl,
   View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
 import { press } from "@/components/press";
+import { warned } from "@/lib/haptics";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -50,7 +51,11 @@ export default function WishlistDetail() {
 
   async function removeItem(itemId: string) {
     setItems((prev) => prev.filter((i) => i.id !== itemId));
-    await supabase.from("wishlist_items").delete().eq("id", itemId);
+    const { error } = await supabase.from("wishlist_items").delete().eq("id", itemId);
+    if (error) {
+      warned();
+      Alert.alert("Couldn't remove that", error.message);
+    }
   }
 
   return (

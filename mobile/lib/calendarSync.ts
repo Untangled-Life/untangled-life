@@ -48,6 +48,12 @@ export async function syncBusyBlocks(coupleId: string, userId: string): Promise<
     .gt("end_at", now.toISOString());
 
   if (blocks.length > 0) {
-    await supabase.from("busy_blocks").insert(blocks);
+    const { error } = await supabase.from("busy_blocks").insert(blocks);
+    if (error) {
+      // Nothing to alert here — this runs in the background — but a silent
+      // failure means free time is computed as if both diaries were empty,
+      // which looks like working software.
+      console.warn("[calendarSync] couldn't store busy blocks:", error.message);
+    }
   }
 }
