@@ -142,26 +142,25 @@ export default function Todos() {
           </View>
         ) : null}
 
-        {visible.length === 0
-          ? null
-          : BUCKETS.map((bucket) => {
+        {BUCKETS.map((bucket) => {
           const items = visible.filter((t) => bucketFor(t.due_date) === bucket);
+          // An empty bucket is hidden rather than labelled: the one empty
+          // state above already says there's nothing on this list.
           if (items.length === 0) return null;
+
           return (
             <View key={bucket} style={{ marginBottom: 20 }}>
               <Text style={styles.bucketTitle}>{bucket}</Text>
-              {false ? (
-                <View style={styles.emptyRow}>
-                  <Text style={styles.emptyText}>Nothing here</Text>
-                </View>
-              ) : (
-                items.map((item) => (
-                  <Pressable key={item.id} style={press(styles.todoRow)} onPress={() => toggleComplete(item.id)}>
-                    <View style={styles.checkbox} />
-                    <Text style={styles.todoText}>{item.title}</Text>
-                  </Pressable>
-                ))
-              )}
+              {items.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={press(styles.todoRow)}
+                  onPress={() => toggleComplete(item.id)}
+                >
+                  <View style={styles.checkbox} />
+                  <Text style={styles.todoText}>{item.title}</Text>
+                </Pressable>
+              ))}
             </View>
           );
         })}
@@ -221,8 +220,6 @@ const createStyles = (t: Theme) =>
   },
   emptyTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary, marginBottom: t.space(1.5) },
   emptyBody: { fontSize: 13, color: t.textSecondary, lineHeight: 19 },
-  emptyRow: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 14 },
-  emptyText: { fontSize: 13, color: t.textMuted },
   todoRow: {
     flexDirection: "row",
     alignItems: "center",
