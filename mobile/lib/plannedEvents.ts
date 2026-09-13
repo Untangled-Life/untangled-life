@@ -1,4 +1,4 @@
-import * as Calendar from "expo-calendar";
+import * as Calendar from "expo-calendar/legacy";
 import { supabase } from "@/lib/supabase";
 
 export type PlannedEvent = {

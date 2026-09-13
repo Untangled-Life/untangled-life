@@ -9,7 +9,7 @@ import {
   Alert,
 } from "react-native";
 import { Link } from "expo-router";
-import * as Calendar from "expo-calendar";
+import * as Calendar from "expo-calendar/legacy";
 import { PermissionStatus } from "expo";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
