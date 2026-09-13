@@ -30,7 +30,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("id", userId)
       .maybeSingle();
 
-    if (!error && data) {
+    if (error) {
+      // Swallowing this silently leaves profile null, which every gate reads
+      // as "not signed up / not paired" — a confusing way to surface what is
+      // usually an RLS or network problem.
+      console.warn("[auth] profile load failed:", error.message);
+      return;
+    }
+
+    if (data) {
       setProfile(data);
     }
   }
