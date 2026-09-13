@@ -7,13 +7,17 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { KeyDateRow, daysUntil, displayTitleFor } from "@/lib/keyDates";
+import { syncBusyBlocks } from "@/lib/calendarSync";
+import { Interval, nextSharedFreeWindows, formatWindow } from "@/lib/freeTime";
 
 export default function Home() {
-  const { profile, signOut } = useAuth();
+  const { session, profile, signOut } = useAuth();
   const { partner } = useCoupleMembers();
   const [permission, setPermission] = useState<PermissionStatus | null>(null);
   const [calendarCount, setCalendarCount] = useState<number | null>(null);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
+  const [freeWindows, setFreeWindows] = useState<Interval[]>([]);
+  const [syncing, setSyncing] = useState(false);
 
   const partnerName = partner?.display_name ?? "Partner";
 
@@ -25,9 +29,47 @@ export default function Home() {
     if (data) setKeyDates(data as KeyDateRow[]);
   }, []);
 
+  const loadFreeWindows = useCallback(async () => {
+    if (!session?.user.id) return;
+    const windowEnd = new Date();
+    windowEnd.setDate(windowEnd.getDate() + 8);
+
+    const { data } = await supabase
+      .from("busy_blocks")
+      .select("user_id, start_at, end_at")
+      .lte("start_at", windowEnd.toISOString())
+      .gte("end_at", new Date().toISOString());
+
+    if (!data) return;
+
+    const toInterval = (b: { start_at: string; end_at: string }): Interval => ({
+      start: new Date(b.start_at),
+      end: new Date(b.end_at),
+    });
+
+    const mine = data.filter((b) => b.user_id === session.user.id).map(toInterval);
+    const theirs = data.filter((b) => b.user_id !== session.user.id).map(toInterval);
+    setFreeWindows(nextSharedFreeWindows(mine, theirs));
+  }, [session?.user.id]);
+
+  const syncAndLoad = useCallback(async () => {
+    if (!profile?.couple_id || !session?.user.id) return;
+    setSyncing(true);
+    await syncBusyBlocks(profile.couple_id, session.user.id);
+    await loadFreeWindows();
+    setSyncing(false);
+  }, [profile?.couple_id, session?.user.id, loadFreeWindows]);
+
   useEffect(() => {
-    Calendar.getCalendarPermissionsAsync().then((result) => setPermission(result.status));
+    Calendar.getCalendarPermissionsAsync().then((result) => {
+      setPermission(result.status);
+      if (result.status === PermissionStatus.GRANTED) {
+        syncAndLoad();
+      }
+    });
     loadKeyDates();
+    loadFreeWindows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadKeyDates]);
 
   async function requestAccess() {
@@ -36,6 +78,7 @@ export default function Home() {
     if (result.status === PermissionStatus.GRANTED) {
       const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
       setCalendarCount(calendars.length);
+      syncAndLoad();
     }
   }
 
@@ -65,7 +108,7 @@ export default function Home() {
           </Text>
         </View>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
           {upcoming.map((kd) => {
             const days = daysUntil(kd.date, kd.recurring);
             return (
@@ -80,6 +123,34 @@ export default function Home() {
             );
           })}
         </ScrollView>
+      )}
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Free together</Text>
+      </View>
+
+      {permission !== PermissionStatus.GRANTED ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyText}>Connect your calendar below to see this.</Text>
+        </View>
+      ) : syncing && freeWindows.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyText}>Checking both your calendars...</Text>
+        </View>
+      ) : freeWindows.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyText}>
+            No shared free time found in the next week — both calendars look packed.
+          </Text>
+        </View>
+      ) : (
+        <View style={{ marginBottom: 8 }}>
+          {freeWindows.map((w, i) => (
+            <View key={i} style={styles.freeRow}>
+              <Text style={styles.freeText}>{formatWindow(w)}</Text>
+            </View>
+          ))}
+        </View>
       )}
 
       <View style={styles.card}>
@@ -121,7 +192,9 @@ const styles = StyleSheet.create({
   },
   keyDateDays: { fontSize: 20, fontWeight: "700", color: "#D85A30", marginBottom: 6 },
   keyDateTitle: { fontSize: 13, color: "#14140F" },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 20, marginTop: 8 },
+  freeRow: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 8 },
+  freeText: { fontSize: 14, color: "#14140F", fontWeight: "500" },
+  card: { backgroundColor: "#fff", borderRadius: 16, padding: 20, marginTop: 16 },
   cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 8, color: "#14140F" },
   cardBody: { fontSize: 14, color: "#6B6B6B", lineHeight: 20, marginBottom: 16 },
   button: { backgroundColor: "#1D9E75", borderRadius: 999, paddingVertical: 12, alignItems: "center" },
