@@ -36,7 +36,7 @@ export default function Pair() {
       return;
     }
     await refreshProfile();
-    router.replace("/home");
+    router.replace("/");
   }
 
   return (
