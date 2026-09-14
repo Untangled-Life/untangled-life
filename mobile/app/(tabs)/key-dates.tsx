@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { RefreshControl, Alert,
+import { RefreshControl, Alert, Switch,
   View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
 import { press } from "@/components/press";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
@@ -15,6 +15,8 @@ import {
   displayTitleFor,
   describeReminders,
   reminderLabel,
+  countdownLabel,
+  tripNights,
   REMINDER_CHOICES,
   DEFAULT_REMINDER_DAYS,
 } from "@/lib/keyDates";
@@ -33,10 +35,14 @@ function DetailsPanel({
   row,
   onToggle,
   onSaveNotes,
+  onTogglePin,
+  onSetEndDate,
 }: {
   row: KeyDateRow;
   onToggle: (row: KeyDateRow, offset: number) => void;
   onSaveNotes: (row: KeyDateRow, notes: string) => void;
+  onTogglePin: (row: KeyDateRow) => void;
+  onSetEndDate: (row: KeyDateRow, endDate: string | null) => void;
 }) {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
@@ -66,6 +72,46 @@ function DetailsPanel({
       </View>
       <Text style={styles.detailsHint}>{describeReminders(selected)}. 9am, on your phone only.</Text>
 
+      {/* Only misc dates can run over days -- an anniversary is one day by
+          definition, and the database constraint agrees. */}
+      {row.kind === "misc" ? (
+        <>
+          <Text style={[styles.detailsLabel, { marginTop: 16 }]}>Runs until (optional)</Text>
+          <DateField
+            value={row.end_date}
+            placeholder="Same day"
+            minimumDate={fromISODate(row.date) ?? undefined}
+            onChange={(iso) => onSetEndDate(row, iso)}
+          />
+          {row.end_date ? (
+            <View style={styles.detailsRow}>
+              <Text style={styles.detailsHint}>
+                {tripNights(row) === 0
+                  ? "A day out."
+                  : `${tripNights(row)} night${tripNights(row) === 1 ? "" : "s"} away.`}
+              </Text>
+              <Pressable onPress={() => onSetEndDate(row, null)} hitSlop={8}>
+                <Text style={styles.clear}>Make it one day</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </>
+      ) : null}
+
+      <Pressable style={press(styles.pinRow)} onPress={() => onTogglePin(row)}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.detailsLabel}>Pin to Home</Text>
+          <Text style={styles.detailsHint}>
+            A big countdown at the top, instead of one card in the row.
+          </Text>
+        </View>
+        <Switch
+          value={row.pinned}
+          onValueChange={() => onTogglePin(row)}
+          trackColor={{ true: t.brand, false: t.surfaceSunken }}
+        />
+      </Pressable>
+
       <Text style={[styles.detailsLabel, { marginTop: 16 }]}>Notes and gift ideas</Text>
       <TextInput
         style={[styles.input, styles.notesInput]}
@@ -93,6 +139,7 @@ export default function KeyDates() {
   const [partnerBirthdayInput, setPartnerBirthdayInput] = useState("");
   const [miscTitle, setMiscTitle] = useState("");
   const [miscDate, setMiscDate] = useState("");
+  const [miscEnd, setMiscEnd] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   // Which misc date is open for editing, and the draft title while it is.
@@ -121,7 +168,7 @@ export default function KeyDates() {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("key_dates")
-      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes")
+      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes, end_date, pinned")
       .order("date", { ascending: true });
 
     if (data) {
@@ -198,13 +245,19 @@ export default function KeyDates() {
       return;
     }
     setError(null);
+
+    // An end date makes it a trip, and a trip is a specific one. "Bali 2026"
+    // coming round again in 2027 is not what anyone meant.
+    const isTrip = Boolean(miscEnd);
+
     const { error: addError } = await supabase.from("key_dates").insert({
       couple_id: profile.couple_id,
       created_by: profile.id,
       kind: "misc",
       title: miscTitle.trim(),
       date: miscDate,
-      recurring: true,
+      end_date: isTrip ? miscEnd : null,
+      recurring: !isTrip,
     });
 
     if (addError) {
@@ -214,6 +267,7 @@ export default function KeyDates() {
 
     setMiscTitle("");
     setMiscDate("");
+    setMiscEnd("");
     load();
   }
 
@@ -312,6 +366,41 @@ export default function KeyDates() {
     load();
   }
 
+  async function togglePin(row: KeyDateRow) {
+    tapped();
+    setDates((prev) => prev.map((d) => (d.id === row.id ? { ...d, pinned: !d.pinned } : d)));
+
+    const { error: pinError } = await supabase
+      .from("key_dates")
+      .update({ pinned: !row.pinned })
+      .eq("id", row.id);
+
+    if (pinError) {
+      warned();
+      setError(pinError.message);
+    }
+    load();
+  }
+
+  async function setEndDate(row: KeyDateRow, endDate: string | null) {
+    // Turning a date into a trip means it is a specific trip, not something
+    // that happens every year. "Bali 2026" recurring in 2027 is not what
+    // anyone meant, and the countdown would be wrong from the day it ended.
+    const patch = endDate
+      ? { end_date: endDate, recurring: false }
+      : { end_date: null };
+
+    const { error: tripError } = await supabase.from("key_dates").update(patch).eq("id", row.id);
+
+    if (tripError) {
+      warned();
+      setError(tripError.message);
+      return;
+    }
+    succeeded();
+    load();
+  }
+
   function startEditing(row: KeyDateRow) {
     setEditingId(row.id);
     setEditTitle(row.title);
@@ -391,7 +480,13 @@ export default function KeyDates() {
           </Text>
         </Pressable>
         {open ? (
-          <DetailsPanel row={row} onToggle={toggleReminder} onSaveNotes={saveNotes} />
+          <DetailsPanel
+            row={row}
+            onToggle={toggleReminder}
+            onSaveNotes={saveNotes}
+            onTogglePin={togglePin}
+            onSetEndDate={setEndDate}
+          />
         ) : null}
       </>
     );
@@ -476,7 +571,11 @@ export default function KeyDates() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Misc</Text>
+        <Text style={styles.cardTitle}>Anything else</Text>
+        <Text style={styles.cardHint}>
+          One-off dates, trips, anniversaries of other things. Give it an end date and it becomes a
+          trip.
+        </Text>
         {miscDates.map((d) =>
           editingId === d.id ? (
             <View key={d.id} style={styles.miscEditor}>
@@ -499,7 +598,13 @@ export default function KeyDates() {
                   onChange={(iso) => saveEdit(d, { title: editTitle, date: iso })}
                 />
               </View>
-              <DetailsPanel row={d} onToggle={toggleReminder} onSaveNotes={saveNotes} />
+              <DetailsPanel
+                row={d}
+                onToggle={toggleReminder}
+                onSaveNotes={saveNotes}
+                onTogglePin={togglePin}
+                onSetEndDate={setEndDate}
+              />
               <View style={styles.miscEditorActions}>
                 <Pressable
                   onPress={() => {
@@ -530,7 +635,17 @@ export default function KeyDates() {
                   </Text>
                 ) : null}
               </View>
-              <Text style={styles.miscDate}>{toFriendlyDate(d.date)}</Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={styles.miscDate}>
+                  {d.end_date
+                    ? `${toFriendlyDate(d.date)} – ${toFriendlyDate(d.end_date)}`
+                    : toFriendlyDate(d.date)}
+                </Text>
+                <Text style={styles.miscCountdown}>
+                  {d.pinned ? "Pinned · " : ""}
+                  {countdownLabel(d)}
+                </Text>
+              </View>
             </Pressable>
           )
         )}
@@ -551,6 +666,22 @@ export default function KeyDates() {
             onChange={setMiscDate}
           />
         </View>
+        {miscDate ? (
+          <View style={{ marginTop: 8 }}>
+            <DateField
+              value={miscEnd || null}
+              placeholder="Runs until (optional)"
+              minimumDate={fromISODate(miscDate) ?? undefined}
+              onChange={setMiscEnd}
+            />
+          </View>
+        ) : null}
+        {miscEnd ? (
+          <Text style={styles.detailsHint}>
+            A trip — it won&apos;t repeat next year, and it&apos;ll show across the whole stretch on
+            your calendar.
+          </Text>
+        ) : null}
         <Pressable style={press([styles.saveButton, { alignSelf: "flex-start", marginTop: 8 }])} onPress={addMisc}>
           <Text style={styles.saveButtonText}>+ Add another</Text>
         </Pressable>
@@ -606,6 +737,19 @@ const createStyles = (t: Theme) =>
   },
   miscTitle: { fontSize: 14, color: t.textPrimary },
   miscNotes: { fontSize: 12, color: t.textMuted, marginTop: 2 },
+  miscCountdown: { fontSize: 11, color: t.textMuted, marginTop: 2 },
+  detailsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 6,
+  },
+  pinRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 16,
+  },
   detailsToggle: {
     marginTop: 14,
     paddingTop: 12,

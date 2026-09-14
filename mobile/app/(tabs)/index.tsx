@@ -21,7 +21,7 @@ import { PermissionStatus } from "expo";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
-import { KeyDateRow, daysUntil, displayTitleFor } from "@/lib/keyDates";
+import { KeyDateRow, daysUntil, displayTitleFor, countdownLabel } from "@/lib/keyDates";
 import { Image } from "expo-image";
 import { Avatar } from "@/components/avatar";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
@@ -78,7 +78,7 @@ export default function Home() {
   const loadKeyDates = useCallback(async () => {
     const { data } = await supabase
       .from("key_dates")
-      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes")
+      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes, end_date, pinned")
       .order("date", { ascending: true });
     if (data) setKeyDates(data as KeyDateRow[]);
   }, []);
@@ -356,6 +356,20 @@ export default function Home() {
     (a, b) => daysUntil(a.date, a.recurring) - daysUntil(b.date, b.recurring)
   );
 
+  // A one-off date that has been and gone stops being news. It stays on the
+  // calendar and in Key Dates -- it happened -- but a countdown reading "-30
+  // days" is just clutter. Recurring dates never expire; daysUntil rolls them
+  // to next year. A trip counts as live until its LAST day, so a week in Bali
+  // keeps its countdown for the whole week rather than vanishing on arrival.
+  const live = upcoming.filter(
+    (kd) => kd.recurring || daysUntil(kd.end_date ?? kd.date, false) >= 0
+  );
+
+  // Pinned dates get the big treatment at the top.
+  const pinned = live.filter((kd) => kd.pinned);
+  const pinnedIds = new Set(pinned.map((kd) => kd.id));
+  const carousel = live.filter((kd) => !pinnedIds.has(kd.id));
+
   return (
     <ScrollView
       contentContainerStyle={styles.container}
@@ -404,6 +418,20 @@ export default function Home() {
       </Text>
       <Text style={styles.subtitle}>Here&apos;s what&apos;s coming up together.</Text>
 
+      {pinned.map((kd) => (
+        <Link key={kd.id} href="/key-dates" asChild>
+          <Pressable style={press(styles.hero)}>
+            <Text style={styles.heroCountdown}>{countdownLabel(kd)}</Text>
+            <Text style={styles.heroTitle}>{displayTitleFor(kd, nameFor)}</Text>
+            {kd.notes ? (
+              <Text style={styles.heroNote} numberOfLines={2}>
+                {kd.notes}
+              </Text>
+            ) : null}
+          </Pressable>
+        </Link>
+      ))}
+
       {/* A brand-new couple lands here with nothing and no idea what to do
           first. This says so, in order, and disappears as each is done —
           rather than leaving three empty sections to interpret. */}
@@ -435,16 +463,17 @@ export default function Home() {
         </Link>
       </View>
 
-      {upcoming.length === 0 ? (
+      {carousel.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyText}>
-            No key dates yet — add {partnerName}&apos;s birthday or your anniversary to start a
-            countdown.
+            {pinned.length > 0
+              ? "Nothing else coming up — the one that matters is pinned above."
+              : `No key dates yet — add ${partnerName}'s birthday or your anniversary to start a countdown.`}
           </Text>
         </View>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
-          {upcoming.map((kd) => {
+          {carousel.map((kd) => {
             const days = daysUntil(kd.date, kd.recurring);
             return (
               <View key={kd.id} style={styles.keyDateCard}>
@@ -707,6 +736,15 @@ const createStyles = (t: Theme) =>
   keyDateDays: { fontSize: 20, fontWeight: "700", color: t.brand, marginBottom: 6 },
   keyDateTitle: { fontSize: 13, color: t.textPrimary },
   keyDateNote: { fontSize: 11, color: t.textMuted, marginTop: 4, lineHeight: 15 },
+  hero: {
+    backgroundColor: t.accentSoft,
+    borderRadius: t.radius.lg,
+    padding: t.space(5),
+    marginBottom: t.space(4),
+  },
+  heroCountdown: { fontSize: 30, fontWeight: "800", color: t.accent, letterSpacing: -0.5 },
+  heroTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary, marginTop: 2 },
+  heroNote: { fontSize: 12, color: t.textSecondary, marginTop: t.space(2), lineHeight: 17 },
   planRow: {
     backgroundColor: t.surface,
     borderRadius: t.radius.md,

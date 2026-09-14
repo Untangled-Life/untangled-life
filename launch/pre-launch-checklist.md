@@ -129,6 +129,12 @@ reach Google's verification team unnoticed.
 - [ ] **Per-date reminders.** Change a date's reminder chips, then check the
       old notification is gone and the new one is scheduled — rescheduling
       cancels by `keydate-` prefix, so a stale offset should not survive.
+- [ ] **Run `supabase/trips-and-pins.sql`** — end dates and the pinned flag.
+- [ ] **Trips.** Add a misc date with an end date; check it shows across every
+      day on the calendar, that the countdown switches to "4 days left" once it
+      starts, and that it disappears from Home the day after it ends.
+- [ ] **Pinning.** Pin something, check the hero countdown appears on Home for
+      both of you and the date leaves the horizontal row.
 - [ ] **Notes.** Type a gift idea, leave the field, come back. It should also
       appear under the countdown on Home and be visible on the other phone.
 - [ ] **Busy-only really is busy-only.** Set a calendar to Busy only, sync, and

@@ -10,7 +10,54 @@ export type KeyDateRow = {
   /** Days before the date to be reminded. Empty means don't remind me. */
   reminder_days: number[];
   notes: string | null;
+  /** Last day of a multi-day date. Null means it's a single day. */
+  end_date: string | null;
+  /** Show it large at the top of Home. */
+  pinned: boolean;
 };
+
+export function isTrip(kd: Pick<KeyDateRow, "end_date">): boolean {
+  return Boolean(kd.end_date);
+}
+
+/**
+ * How many nights a trip runs for. A trip that starts and ends on the same day
+ * is a day out, not a night away, so this can legitimately be 0.
+ */
+export function tripNights(kd: Pick<KeyDateRow, "date" | "end_date">): number {
+  if (!kd.end_date) return 0;
+  const start = new Date(kd.date + "T00:00:00");
+  const end = new Date(kd.end_date + "T00:00:00");
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * The countdown line: "47 days to go", "Tomorrow", "Today", or -- once a trip
+ * has started -- how much of it is left. A trip that says "0 days to go" on
+ * day three of a week in Bali is worse than saying nothing.
+ */
+export function countdownLabel(kd: Pick<KeyDateRow, "date" | "end_date" | "recurring">): string {
+  const days = daysUntil(kd.date, kd.recurring);
+
+  if (days > 1) return `${days} days to go`;
+  if (days === 1) return "Tomorrow";
+  if (days === 0) return "Today";
+
+  // Only a non-recurring date can be in the past -- daysUntil rolls a
+  // recurring one forward to next year.
+  if (kd.end_date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(kd.end_date + "T00:00:00");
+    const left = Math.round((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (left > 1) return `${left} days left`;
+    if (left === 1) return "Last day tomorrow";
+    if (left === 0) return "Last day";
+  }
+
+  return "Been and gone";
+}
 
 /** The reminder offsets offered in the UI, in the order they're shown. */
 export const REMINDER_CHOICES = [30, 14, 7, 3, 1, 0] as const;

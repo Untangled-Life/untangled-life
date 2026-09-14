@@ -4,6 +4,8 @@ import {
   daysUntil,
   describeReminders,
   reminderLabel,
+  tripNights,
+  countdownLabel,
   KeyDateRow,
 } from "@/lib/keyDates";
 
@@ -16,7 +18,69 @@ const row = (over: Partial<KeyDateRow> = {}): KeyDateRow => ({
   subject_user_id: null,
   reminder_days: [14, 7, 3],
   notes: null,
+  end_date: null,
+  pinned: false,
   ...over,
+});
+
+// Fixed "today" so the countdown tests don't drift. Jest's fake timers move
+// Date.now and `new Date()` together, which is what these read.
+function on(day: string, fn: () => void) {
+  jest.useFakeTimers().setSystemTime(new Date(day + "T09:00:00"));
+  try {
+    fn();
+  } finally {
+    jest.useRealTimers();
+  }
+}
+
+describe("tripNights", () => {
+  it("counts nights, not days", () => {
+    expect(tripNights({ date: "2026-10-01", end_date: "2026-10-08" })).toBe(7);
+  });
+
+  // A day out is a legitimate zero, not a missing end date.
+  it("is zero for a same-day range", () => {
+    expect(tripNights({ date: "2026-10-01", end_date: "2026-10-01" })).toBe(0);
+  });
+
+  it("is zero when there's no end date at all", () => {
+    expect(tripNights({ date: "2026-10-01", end_date: null })).toBe(0);
+  });
+});
+
+describe("countdownLabel", () => {
+  const trip = { date: "2026-10-10", end_date: "2026-10-17", recurring: false };
+
+  it("counts down in days", () => {
+    on("2026-09-23", () => expect(countdownLabel(trip)).toBe("17 days to go"));
+  });
+
+  it("names tomorrow and today", () => {
+    on("2026-10-09", () => expect(countdownLabel(trip)).toBe("Tomorrow"));
+    on("2026-10-10", () => expect(countdownLabel(trip)).toBe("Today"));
+  });
+
+  // The whole reason this function exists: mid-trip, "0 days to go" is worse
+  // than saying nothing.
+  it("switches to time remaining once a trip has started", () => {
+    on("2026-10-13", () => expect(countdownLabel(trip)).toBe("4 days left"));
+    on("2026-10-16", () => expect(countdownLabel(trip)).toBe("Last day tomorrow"));
+    on("2026-10-17", () => expect(countdownLabel(trip)).toBe("Last day"));
+  });
+
+  it("says so once it is over", () => {
+    on("2026-10-18", () => expect(countdownLabel(trip)).toBe("Been and gone"));
+  });
+
+  // A recurring date never goes past -- daysUntil rolls it to next year.
+  it("never reports a recurring date as gone", () => {
+    on("2026-11-04", () =>
+      expect(countdownLabel({ date: "2026-11-03", end_date: null, recurring: true })).toBe(
+        "364 days to go"
+      )
+    );
+  });
 });
 
 describe("reminderLabel", () => {

@@ -23,7 +23,7 @@ import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { Avatar } from "@/components/avatar";
 import { Interval } from "@/lib/freeTime";
-import { KeyDateRow, displayTitleFor, nextOccurrence } from "@/lib/keyDates";
+import { KeyDateRow, displayTitleFor, nextOccurrence, tripNights } from "@/lib/keyDates";
 import { PlannedEvent, formatPlanWhen } from "@/lib/plannedEvents";
 import { WorkPattern, WorkShift, expandWorkOccurrences, WorkSource, toDateKey } from "@/lib/workHours";
 
@@ -243,7 +243,7 @@ export default function CalendarScreen() {
         .eq("cancelled", false)
         .gte("end_at", rangeStart.toISOString())
         .lte("start_at", rangeEnd.toISOString()),
-      supabase.from("key_dates").select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes"),
+      supabase.from("key_dates").select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes, end_date, pinned"),
       supabase
         .from("busy_blocks")
         .select("user_id, start_at, end_at, title, location, notes, all_day")
@@ -323,13 +323,33 @@ export default function CalendarScreen() {
 
     for (const kd of keyDates) {
       const occurrence = nextOccurrence(kd.date, kd.recurring);
-      if (occurrence >= startOfMonth(month) && occurrence <= endOfMonth(month)) {
-        push(toDateKey(occurrence), {
+      const nights = tripNights(kd);
+
+      // A trip belongs on every day it covers, not just the day it starts.
+      // Anyone looking at the 14th wants to know they're in Bali, and a single
+      // dot on the 10th doesn't tell them that.
+      for (let offset = 0; offset <= nights; offset++) {
+        const day = new Date(occurrence);
+        day.setDate(day.getDate() + offset);
+        if (day < startOfMonth(month) || day > endOfMonth(month)) continue;
+
+        push(toDateKey(day), {
           kind: "keydate",
           label: displayTitleFor(kd, nameFor),
-          detail: "All day",
+          detail:
+            nights === 0
+              ? "All day"
+              : offset === 0
+                ? `Starts today · ${nights} night${nights === 1 ? "" : "s"}`
+                : offset === nights
+                  ? "Last day"
+                  : `Day ${offset + 1} of ${nights + 1}`,
+          note: kd.notes,
           whose: null,
-          action: { type: "deleteKeyDate", id: kd.id },
+          // Deleting a trip from the middle of it would be deleting the whole
+          // trip from a row that says "Day 3 of 8", which is not what the
+          // swipe looks like it does. Only the first day offers it.
+          action: offset === 0 ? { type: "deleteKeyDate", id: kd.id } : null,
         });
       }
     }
