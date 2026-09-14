@@ -26,4 +26,19 @@ alter table couples
     and min_free_minutes between 15 and 480
   );
 
+-- Narrow what a member may write on couples.
+--
+-- The RLS policy in photos.sql says WHICH ROW you may update; this says WHICH
+-- COLUMNS. Without it, being a member of a couple means write access through
+-- PostgREST to every column of that table, present and future -- so anything
+-- added later (a join code, a plan, a flag) would silently become
+-- member-writable the moment it exists.
+--
+-- This is the last file that adds a member-writable column to couples, which
+-- is why the grant lives here. Anything added after this must be appended to
+-- the list, or the app will save nothing and report a permission error.
+revoke update on couples from authenticated;
+grant update (cover_path, day_start_hour, day_end_hour, min_free_minutes)
+  on couples to authenticated;
+
 notify pgrst, 'reload schema';

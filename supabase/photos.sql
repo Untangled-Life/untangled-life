@@ -21,15 +21,34 @@ alter table couples add column if not exists cover_path text;
 
 -- Either partner can set the couple's cover photo. couples had no update
 -- policy at all before this, so nothing could be written to the row.
+--
+-- This grants the row, not the columns. Narrowing to specific columns happens
+-- in free-time-prefs.sql, which is the last file to add a member-writable
+-- column to couples -- doing it here would either fail (those columns don't
+-- exist yet) or be undone by re-running this file afterwards.
 drop policy if exists "Members can update their couple" on couples;
 create policy "Members can update their couple" on couples
   for update to authenticated
   using (id = my_couple_id())
   with check (id = my_couple_id());
 
-insert into storage.buckets (id, name, public)
-values ('photos', 'photos', false)
-on conflict (id) do nothing;
+
+-- `do update`, not `do nothing`. The whole premise of this file is a PRIVATE
+-- bucket; if a `photos` bucket already exists and is public -- created in the
+-- dashboard, or flipped public during an experiment -- `do nothing` would
+-- leave it public and report success. Every avatar and cover photo would then
+-- be readable by anyone with the URL, and the policies below would be
+-- decorative, because a public bucket serves objects without consulting them.
+--
+-- The limits are enforcement, not validation: the app resizes before upload,
+-- but storage is reachable directly with any user's JWT, so the size and type
+-- caps have to live here.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('photos', 'photos', false, 8388608, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+set public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 -- storage.objects policies. name is the full path inside the bucket, so
 -- (storage.foldername(name))[1] is 'avatars' or 'covers' and [2] is the id.

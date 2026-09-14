@@ -25,13 +25,18 @@ const RETENTION_DAYS = 7;
  * and only the second one is worth making.
  */
 export async function syncBusyBlocks(coupleId: string, userId: string): Promise<void> {
-  const permission = await Calendar.getCalendarPermissionsAsync();
-  if (permission.status !== "granted") return;
-
   const now = new Date();
 
-  // Always run the retention sweep, even with nothing connected: someone who
-  // has just disconnected everything should still see their history age out.
+  // The retention sweep runs before anything else, and before the permission
+  // check in particular.
+  //
+  // Revoking calendar access in the phone's settings is the most emphatic way
+  // there is of saying "stop sharing this". If the permission check came
+  // first, that action would freeze every uploaded row in place instead:
+  // nothing would ever delete them, the Calendars screen would show an empty
+  // list with no row to turn off, and the partner would keep reading those
+  // event titles indefinitely. Both deletes here are plain database calls and
+  // need no calendar access at all.
   const retentionCutoff = new Date(now);
   retentionCutoff.setDate(retentionCutoff.getDate() - RETENTION_DAYS);
   await supabase
@@ -41,26 +46,39 @@ export async function syncBusyBlocks(coupleId: string, userId: string): Promise<
     .lt("end_at", retentionCutoff.toISOString());
 
   const sharing = await sharedCalendars(userId);
-  if (sharing.size === 0) {
-    // Nothing shared: clear anything a previously-shared calendar left behind
-    // and stop. Returning early before this would leave stale events visible
-    // to a partner after the last calendar was switched off.
-    await supabase
-      .from("busy_blocks")
-      .delete()
-      .eq("user_id", userId)
-      .gt("end_at", now.toISOString());
+
+  const permission = await Calendar.getCalendarPermissionsAsync();
+  const canRead = permission.status === "granted";
+
+  // Everything we are about to re-insert, cleared first. Doing this on every
+  // path rather than only the happy one is what keeps a row from outliving the
+  // reason it existed -- permission withdrawn, nothing shared any more, or a
+  // shared calendar that has vanished off the phone.
+  const clearUpcoming = () =>
+    supabase.from("busy_blocks").delete().eq("user_id", userId).gt("end_at", now.toISOString());
+
+  if (!canRead || sharing.size === 0) {
+    await clearUpcoming();
     return;
   }
-
-  // A calendar can be removed from the phone entirely (an account signed out,
-  // a subscription deleted). Asking expo-calendar for an id that no longer
-  // exists throws, so only ask for ones still present.
+  // A calendar can be removed from the phone entirely: an account signed out,
+  // a subscription deleted, or a restore from backup reassigning its id.
+  // Asking expo-calendar for an id that no longer exists throws, so only ask
+  // for ones still present.
   const present = new Set(
     (await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT)).map((c) => c.id)
   );
   const readable = [...sharing.keys()].filter((id) => present.has(id));
-  if (readable.length === 0) return;
+
+  // Returning here without clearing was the same mistake as above, one step
+  // further along: the pref row still says "details", so the "nothing shared"
+  // branch doesn't catch it, and the vanished calendar's events would sit in
+  // the database with full detail forever -- unreachable from the picker,
+  // because a calendar that isn't on the phone never appears in it.
+  if (readable.length === 0) {
+    await clearUpcoming();
+    return;
+  }
 
   const windowEnd = new Date(now);
   windowEnd.setDate(windowEnd.getDate() + SYNC_WINDOW_DAYS);
@@ -96,11 +114,7 @@ export async function syncBusyBlocks(coupleId: string, userId: string): Promise<
   // progress behind -- its start is in the past -- while the insert happily adds
   // it again, so every sync stacked another copy of the event you're currently
   // in.
-  await supabase
-    .from("busy_blocks")
-    .delete()
-    .eq("user_id", userId)
-    .gt("end_at", now.toISOString());
+  await clearUpcoming();
 
   if (blocks.length > 0) {
     const { error } = await supabase.from("busy_blocks").insert(blocks);

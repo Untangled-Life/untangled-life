@@ -34,7 +34,16 @@ export function useCouplePhotos(): Photos {
   const partnerAvatarPath = partner?.avatar_path ?? null;
 
   const reload = useCallback(async () => {
-    if (!coupleId) return;
+    // Your own avatar has nothing to do with being in a couple -- the storage
+    // policy allows it on `p.id = auth.uid()` alone. Returning early here left
+    // a newly signed-up or just-unpaired user looking at "No photo yet" over a
+    // profile that had one, and left the ex-partner's signed URLs sitting in
+    // state, still rendering.
+    if (!coupleId) {
+      setCoverPath(null);
+      setUrls(await signedUrls([myAvatarPath]));
+      return;
+    }
 
     const { data } = await supabase
       .from("couples")

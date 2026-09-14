@@ -58,7 +58,13 @@ export default function Calendars() {
   }
 
   async function choose(calendar: DeviceCalendar, next: ShareLevel) {
-    if (!session?.user.id || !profile?.couple_id || next === calendar.shareLevel) return;
+    // busyId is a guard, not just a spinner. Two quick taps used to run two
+    // syncs concurrently: the first reads the old setting, the second writes
+    // and re-syncs, then the first finishes on its stale read and deletes what
+    // the second just inserted. The control would end up saying "Full detail"
+    // over an empty table, with nothing to reconcile it.
+    if (busyId !== null) return;
+    if (!session?.user.id || next === calendar.shareLevel) return;
     tapped();
     setBusyId(calendar.id);
 
@@ -83,7 +89,7 @@ export default function Calendars() {
 
     // Re-read straight away so the change is visible on the shared calendar
     // now, rather than whenever Home next happens to sync.
-    await syncBusyBlocks(profile.couple_id, session.user.id);
+    if (profile?.couple_id) await syncBusyBlocks(profile.couple_id, session.user.id);
     setBusyId(null);
   }
 

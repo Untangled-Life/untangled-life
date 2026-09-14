@@ -604,9 +604,14 @@ export default function Home() {
             <Pressable style={press(styles.card)}>
               <Text style={styles.cardTitle}>Calendars</Text>
               <Text style={styles.cardBody}>
-                {connectedCount === 0
-                  ? `None of the ${calendarCount ?? 0} calendars on this phone are shared, so nothing from them reaches your partner.`
-                  : `${connectedCount} of ${calendarCount ?? connectedCount} shared. Tap to change what each one gives away — busy times only, or the full detail.`}
+                {/* connectedCount is null until the calendar enumeration
+                    lands, and null === 0 is false -- which used to render the
+                    literal "null of null shared" on every cold start. */}
+                {connectedCount === null
+                  ? "Checking which calendars you're sharing…"
+                  : connectedCount === 0
+                    ? `None of the ${calendarCount ?? 0} calendars on this phone are shared, so nothing from them reaches your partner.`
+                    : `${connectedCount} of ${calendarCount ?? connectedCount} shared. Tap to change what each one gives away — busy times only, or the full detail.`}
               </Text>
             </Pressable>
           </Link>

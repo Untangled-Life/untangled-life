@@ -1,46 +1,28 @@
 import { supabase } from "@/lib/supabase";
-import { removePhoto } from "@/lib/photos";
 
 /**
  * Unpairing and account deletion.
  *
- * The database side (supabase/leaving.sql) hands shared things to the
- * remaining partner before removing you, so a couple's history isn't destroyed
- * by whichever of them happened to type it in.
+ * Both are a single RPC. The photos used to be deleted from here first, which
+ * was wrong twice over: if the RPC then failed the pictures were already gone
+ * with no way back, and "am I the last one out" was read from a hook that
+ * hasn't resolved on a cold start -- so tapping quickly could delete the
+ * couple's shared cover photo out from under the partner who was still there.
  *
- * What it can't do is reach into storage: files in the photos bucket aren't
- * foreign keys and nothing cascades them. So the photos are removed from here,
- * first -- an orphaned file in a private bucket is unreachable but it is still
- * a photo of two people that nobody asked us to keep.
+ * The ordering can't simply be reversed either: after leave_couple() runs, the
+ * caller's my_couple_id() is null and the storage policy denies the covers
+ * path, and after delete_own_account() there is no session at all. So the
+ * photos are dealt with inside the database functions, where the rules are the
+ * same rules and the whole thing is one transaction.
+ *
+ * See supabase/leaving.sql.
  */
-async function removePhotos(opts: {
-  avatarPath: string | null;
-  coverPath: string | null;
-  lastOneOut: boolean;
-}): Promise<void> {
-  await removePhoto(opts.avatarPath);
-  // The cover belongs to the couple, so it only goes when the couple does.
-  if (opts.lastOneOut) await removePhoto(opts.coverPath);
-}
-
-export async function leaveCouple(opts: {
-  avatarPath: string | null;
-  coverPath: string | null;
-  lastOneOut: boolean;
-}): Promise<{ error: string | null }> {
-  await removePhotos(opts);
-
+export async function leaveCouple(): Promise<{ error: string | null }> {
   const { error } = await supabase.rpc("leave_couple");
   return { error: error?.message ?? null };
 }
 
-export async function deleteOwnAccount(opts: {
-  avatarPath: string | null;
-  coverPath: string | null;
-  lastOneOut: boolean;
-}): Promise<{ error: string | null }> {
-  await removePhotos(opts);
-
+export async function deleteOwnAccount(): Promise<{ error: string | null }> {
   const { error } = await supabase.rpc("delete_own_account");
   if (error) return { error: error.message };
 

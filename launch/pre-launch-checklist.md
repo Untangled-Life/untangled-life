@@ -105,6 +105,10 @@ reach Google's verification team unnoticed.
 
 - [x] **Run `supabase/calendar-detail.sql` and `supabase/photos.sql`.** Both
       run 14 Sep. Not yet verified from the app.
+- [ ] **RE-RUN `supabase/photos.sql`.** The version already run used
+      `on conflict do nothing` on the bucket, which would have left an existing
+      bucket public. The fixed version forces `public = false` and adds a size
+      and MIME cap. Safe to re-run.
 - [ ] **Run `supabase/calendar-sharing.sql`** — replaces the connected boolean
       with off / busy-only / full-detail, and clears `busy_blocks` once so no
       row outlives the setting that allowed it.
@@ -163,6 +167,40 @@ reach Google's verification team unnoticed.
 - [ ] **Photo permission copy** on iOS — the Info.plist string is set but has
       never been seen on a device.
 
+## Found by review, fixed but never run on a device (14 Sep)
+
+Two adversarial reviews of the day's diff turned these up. All are fixed and
+committed; none has been seen working on a phone.
+
+- [ ] **Revoked calendar permission used to strand every uploaded row.** The
+      permission check ran before the deletes, so turning calendar access off
+      in the phone's settings froze the partner's view of your event titles
+      forever, with no in-app way to clear it. Test: share a calendar in full
+      detail, revoke access in iOS Settings, reopen the app, confirm the rows
+      disappear from the other phone.
+- [ ] **A shared calendar vanishing off the phone did the same.** Test by
+      signing an account out of iOS Calendar after sharing one of its
+      calendars.
+- [ ] **Multi-day and all-day busy events only appeared on their first day.**
+      Test a 5-day all-day event: every day should show it, the first as
+      "All day", and nothing should appear on the day after it ends.
+- [ ] **Same event in two calendars showed twice.** Put a meeting in both a
+      busy-only and a full-detail calendar; expect one row, with the title.
+- [ ] **Concurrent unpair could strand a couple's data forever.** Both
+      partners reading each other as "remaining" meant neither deleted the
+      couple, leaving rows nobody could ever read. Now locked. Hard to test by
+      hand; the fix is a `for update` plus a re-count.
+- [ ] **Account deletion could report success having deleted nothing.** If the
+      function lacks privilege on `auth.users` the delete matches zero rows and
+      raises nothing. Now raises. Test by actually deleting the second account
+      and confirming it can't sign back in.
+- [ ] **Photos are now deleted server-side, inside the same transaction.** Test
+      that unpairing removes your avatar, that the couple's cover survives if a
+      partner remains, and that deleting the last account takes the cover.
+- [ ] **`couples` is now column-grant restricted.** If the free-together
+      settings or the cover photo stop saving with a permission error, the
+      grant in `free-time-prefs.sql` is missing a column.
+
 ## Known rough edges
 
 - Everything is verified on two iPhones only, with one couple, on one Supabase
@@ -172,5 +210,12 @@ reach Google's verification team unnoticed.
   no way to see the whole list at once. A product decision rather than a bug.
 - Key-date reminders reschedule every time the tab is focused. Harmless now,
   but wasteful once a couple has many dates.
+- **All-day events may land a day early outside Australia.** expo-calendar can
+  report an all-day event's start as UTC midnight, which is the previous day
+  local time anywhere west of UTC. Australia is UTC+10 so it reads correctly
+  here either way, which is exactly why it won't be caught by testing. Needs
+  fixing before the app ships outside AU — most likely by storing an explicit
+  date-only field for all-day rows rather than inferring the day from a
+  timestamp.
 - No Android testing whatsoever. The date pickers in particular behave
   differently there — Android's dialog confirms itself, iOS uses a sheet.

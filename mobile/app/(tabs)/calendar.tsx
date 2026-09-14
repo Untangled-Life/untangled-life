@@ -26,6 +26,7 @@ import { Interval } from "@/lib/freeTime";
 import { KeyDateRow, displayTitleFor, nextOccurrence, tripNights } from "@/lib/keyDates";
 import { PlannedEvent, formatPlanWhen } from "@/lib/plannedEvents";
 import { WorkPattern, WorkShift, expandWorkOccurrences, WorkSource, toDateKey } from "@/lib/workHours";
+import { daysCovered, lastCoveredDay } from "@/lib/daySpan";
 
 type BusyRow = {
   user_id: string;
@@ -59,6 +60,7 @@ type DayEntry = {
 };
 
 const WEEK_HEADINGS = ["M", "T", "W", "T", "F", "S", "S"];
+
 
 function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -372,29 +374,56 @@ export default function CalendarScreen() {
       });
     }
 
-    // Defensive: identical blocks carry no extra information, and a row
-    // repeated a dozen times makes a day unreadable whatever caused it.
-    const seenBusy = new Set<string>();
+    // The same event often lives in two calendars at once -- a meeting invite
+    // that lands in both your work and personal accounts is routine. Those are
+    // two rows at identical times, and if the two calendars are shared at
+    // different levels one row carries a title and the other doesn't.
+    //
+    // So the fingerprint deliberately does NOT include the title: it would
+    // make the pair look like two separate commitments, "Standup" stacked on
+    // top of an anonymous "busy" at the same time. Where there's a clash the
+    // titled row wins, because it's the one that tells you something.
+    const bestBusy = new Map<string, BusyRow>();
 
     for (const b of busy) {
-      const fingerprint = `${b.user_id}|${b.start.getTime()}|${b.end.getTime()}|${b.title ?? ""}`;
-      if (seenBusy.has(fingerprint)) continue;
-      seenBusy.add(fingerprint);
+      const fingerprint = `${b.user_id}|${b.start.getTime()}|${b.end.getTime()}`;
+      const existing = bestBusy.get(fingerprint);
+      if (!existing || (!existing.title && b.title)) bestBusy.set(fingerprint, b);
+    }
 
-      // The title is the whole point of connecting a calendar -- without it
-      // this row is the anonymous grey block it used to be. Whose it is still
-      // leads, because on a shared calendar "Dentist" is ambiguous.
-      const when = b.all_day ? "All day" : `${timeLabel(b.start)} – ${timeLabel(b.end)}`;
+    for (const b of bestBusy.values()) {
+      // The title is the whole point of sharing a calendar in full -- without
+      // it this row is the anonymous grey block it used to be. Whose it is
+      // still leads, because on a shared calendar "Dentist" is ambiguous.
       const where = b.location ? ` · ${b.location}` : "";
 
-      push(toDateKey(b.start), {
-        kind: "busy",
-        label: b.title ? `${nameFor(b.user_id)} · ${b.title}` : `${nameFor(b.user_id)} busy`,
-        detail: `${when}${where}`,
-        note: b.notes,
-        whose: b.user_id,
-        action: null,
-      });
+      // An event can run over several days -- annual leave, a conference, a
+      // multi-day all-day block. It belongs on every day it covers, not just
+      // the day it starts, for the same reason a trip does: somebody looking
+      // at Wednesday wants to know their partner is away.
+      for (const day of daysCovered(b, startOfMonth(month), endOfMonth(month))) {
+        const sameDay = toDateKey(day) === toDateKey(b.start);
+        const lastDay = toDateKey(day) === toDateKey(lastCoveredDay(b));
+
+        const when = b.all_day
+          ? "All day"
+          : sameDay && lastDay
+            ? `${timeLabel(b.start)} – ${timeLabel(b.end)}`
+            : sameDay
+              ? `From ${timeLabel(b.start)}`
+              : lastDay
+                ? `Until ${timeLabel(b.end)}`
+                : "All day";
+
+        push(toDateKey(day), {
+          kind: "busy",
+          label: b.title ? `${nameFor(b.user_id)} · ${b.title}` : `${nameFor(b.user_id)} busy`,
+          detail: `${when}${where}`,
+          note: b.notes,
+          whose: b.user_id,
+          action: null,
+        });
+      }
     }
 
     return map;

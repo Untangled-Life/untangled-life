@@ -25,17 +25,12 @@ export default function Settings() {
   const t = useTheme();
   const { mode, setMode, scheme, accent, setAccent } = useThemeMode();
   const { session, profile, refreshProfile } = useAuth();
-  const { myAvatarUrl, coverPath, reload: reloadPhotos } = useCouplePhotos();
+  const { myAvatarUrl, reload: reloadPhotos } = useCouplePhotos();
   const { partner } = useCoupleMembers();
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
   const partnerName = partner?.display_name ?? "your partner";
-  const photoArgs = {
-    avatarPath: profile?.avatar_path ?? null,
-    coverPath,
-    lastOneOut: !partner,
-  };
 
   function confirmUnpair() {
     Alert.alert(
@@ -48,7 +43,7 @@ export default function Settings() {
           style: "destructive",
           onPress: async () => {
             setLeaving(true);
-            const { error } = await leaveCouple(photoArgs);
+            const { error } = await leaveCouple();
             if (error) {
               setLeaving(false);
               warned();
@@ -86,7 +81,7 @@ export default function Settings() {
                 style: "destructive",
                 onPress: async () => {
                   setLeaving(true);
-                  const { error } = await deleteOwnAccount(photoArgs);
+                  const { error } = await deleteOwnAccount();
                   if (error) {
                     setLeaving(false);
                     warned();
