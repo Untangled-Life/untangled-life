@@ -26,10 +26,11 @@ import { shadeFor } from "@/lib/palette";
 import { Avatar } from "@/components/avatar";
 import { Interval } from "@/lib/freeTime";
 import { KeyDateRow, displayTitleFor, nextOccurrence, tripNights } from "@/lib/keyDates";
-import { EVENT_COLUMNS, PlannedEvent, formatPlanWhen } from "@/lib/plannedEvents";
+import { EVENT_COLUMNS, PlannedEvent } from "@/lib/plannedEvents";
 import { occurrencesBetween } from "@/lib/recurrence";
 import { WorkPattern, WorkShift, expandWorkOccurrences, WorkSource, toDateKey } from "@/lib/workHours";
 import { daysCovered, lastCoveredDay } from "@/lib/daySpan";
+import { Chip, MonthEvent, inMonth, packWeek, weeksOfMonth } from "@/lib/monthGrid";
 
 type BusyRow = {
   id: string;
@@ -75,23 +76,72 @@ function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
-function endOfMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+/**
+ * The window the screen actually draws.
+ *
+ * Not the month: a month view is whole weeks, so September 2026 shows Monday
+ * 31 August and the first four days of October. Loading only the month left
+ * those days numbered, tappable and permanently empty -- tap 1 October and
+ * the app says you have nothing on, however full the day is.
+ */
+function gridRange(month: Date): { from: Date; to: Date } {
+  const weeks = weeksOfMonth(month);
+  const from = new Date(weeks[0]);
+  const to = new Date(weeks[weeks.length - 1]);
+  to.setDate(to.getDate() + 6);
+  to.setHours(23, 59, 59, 999);
+  return { from, to };
 }
 
-// Monday-first grid, padded to whole weeks.
-function monthGrid(month: Date): (Date | null)[] {
-  const first = startOfMonth(month);
-  const daysInMonth = endOfMonth(month).getDate();
-  const leading = (first.getDay() + 6) % 7;
+/**
+ * How many rows of bars a week may grow to before it starts counting instead.
+ *
+ * Four is enough for an ordinary week and short enough that a busy fortnight
+ * cannot push the rest of the month off the screen, which is the one thing a
+ * month view exists to prevent.
+ */
+const MAX_LANES = 4;
 
-  const cells: (Date | null)[] = Array(leading).fill(null);
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push(new Date(month.getFullYear(), month.getMonth(), d));
+type FilterKey = "me" | "partner" | "us" | "work";
+
+type Slot = { key: string; width: number; chip: Chip | null };
+
+/**
+ * A lane drawn as a row of flex boxes, gaps included.
+ *
+ * Absolute positioning would need the cell width measured first, and a
+ * percentage would fight the card's padding. Flex weights divide whatever
+ * width the row actually has into sevenths on their own.
+ */
+function laneSlots(lane: Chip[]): Slot[] {
+  const slots: Slot[] = [];
+  let cursor = 0;
+
+  for (const chip of lane) {
+    if (chip.col > cursor) {
+      slots.push({ key: `gap${cursor}`, width: chip.col - cursor, chip: null });
+    }
+    slots.push({ key: chip.event.id, width: chip.span, chip });
+    cursor = chip.col + chip.span;
   }
-  while (cells.length % 7 !== 0) cells.push(null);
 
-  return cells;
+  if (cursor < 7) slots.push({ key: `gap${cursor}`, width: 7 - cursor, chip: null });
+  return slots;
+}
+
+/**
+ * A bar that carries on past the edge of the week loses the corner on that
+ * side, so the eye reads the two halves as one thing rather than as two.
+ */
+function barShape(chip: Chip) {
+  return {
+    borderTopLeftRadius: chip.continuesLeft ? 0 : 5,
+    borderBottomLeftRadius: chip.continuesLeft ? 0 : 5,
+    borderTopRightRadius: chip.continuesRight ? 0 : 5,
+    borderBottomRightRadius: chip.continuesRight ? 0 : 5,
+    marginLeft: chip.continuesLeft ? 0 : 1,
+    marginRight: chip.continuesRight ? 0 : 1,
+  };
 }
 
 function timeLabel(d: Date): string {
@@ -132,7 +182,6 @@ function SwipeRow({
   onAction: (entry: DayEntry) => void;
 }) {
   const styles = useThemedStyles(createStyles);
-  const t = useTheme();
 
   const translateX = useRef(new Animated.Value(0)).current;
   const openRef = useRef(false);
@@ -186,7 +235,10 @@ function SwipeRow({
         style={[
           styles.entryBar,
           styles[`bar_${entry.kind}` as const],
-          tint ? { backgroundColor: tint.ink } : null,
+          // Work is grey wherever it appears -- on the grid, on the chip that
+          // switches it off, and here. A shift belongs to a person, but it is
+          // the one thing on the calendar nobody chose.
+          tint && entry.kind !== "work" ? { backgroundColor: tint.ink } : null,
         ]}
       />
       {/* Only rows that belong to one person get a face. A shared date or a
@@ -257,6 +309,8 @@ export default function CalendarScreen() {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState<string>(toDateKey(new Date()));
 
+  const loadSeq = useRef(0);
+
   const [plans, setPlans] = useState<PlannedEvent[]>([]);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [busy, setBusy] = useState<BusyRow[]>([]);
@@ -279,8 +333,14 @@ export default function CalendarScreen() {
   const load = useCallback(async () => {
     if (!session?.user.id) return;
 
-    const rangeStart = startOfMonth(month);
-    const rangeEnd = endOfMonth(month);
+    // Five queries a month, and tapping back three times fires fifteen. If
+    // August lands after July, every setter below writes August's rows while
+    // the header says July -- and nothing re-fires to correct it. A screenful
+    // of bars in the wrong month is a good deal more convincing than a few
+    // misplaced dots were.
+    const seq = ++loadSeq.current;
+
+    const { from: rangeStart, to: rangeEnd } = gridRange(month);
 
     const [planRes, keyRes, busyRes, patternRes, shiftRes] = await Promise.all([
       supabase
@@ -308,6 +368,8 @@ export default function CalendarScreen() {
         .gte("date", toDateKey(rangeStart))
         .lte("date", toDateKey(rangeEnd)),
     ]);
+
+    if (seq !== loadSeq.current) return;
 
     setPlans((planRes.data as PlannedEvent[]) ?? []);
     setKeyDates((keyRes.data as KeyDateRow[]) ?? []);
@@ -356,6 +418,8 @@ export default function CalendarScreen() {
   // mount -- otherwise changes made elsewhere aren't here until a restart.
   const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
+  const { from: gridFrom, to: gridTo } = useMemo(() => gridRange(month), [month]);
+
   // Everything that falls on each day, keyed by YYYY-MM-DD.
   const entriesByDay = useMemo(() => {
     const map = new Map<string, DayEntry[]>();
@@ -374,24 +438,47 @@ export default function CalendarScreen() {
           repeatEvery: p.repeat_every ?? "none",
           repeatUntil: p.repeat_until ? new Date(`${p.repeat_until}T00:00:00`) : null,
         },
-        startOfMonth(month),
-        endOfMonth(month)
+        gridFrom,
+        gridTo
       );
 
       for (const at of occurrences) {
-        push(toDateKey(at.start), {
+        // A plan can run over more than one day -- a weekend away booked as
+        // an event rather than a trip, a flight that lands the next morning.
+        // Filing it on its start day alone put a bar on the grid across days
+        // whose list said "Nothing on".
+        const lastDay = lastCoveredDay({ start: at.start, end: at.end });
+
+        for (const day of daysCovered(
+          { start: at.start, end: at.end },
+          gridFrom,
+          gridTo
+        )) {
+          const sameDay = toDateKey(day) === toDateKey(at.start);
+          const isLastDay = toDateKey(day) === toDateKey(lastDay);
+
+          push(toDateKey(day), {
           kind: "plan",
           label: p.title,
-          detail: formatPlanWhen(at.start.toISOString(), at.end.toISOString())
-            .split(", ")
-            .slice(1)
-            .join(", "),
+          detail:
+            sameDay && isLastDay
+              ? `${timeLabel(at.start)} – ${timeLabel(at.end)}`
+              : sameDay
+                ? `From ${timeLabel(at.start)}`
+                : isLastDay
+                  ? `Until ${timeLabel(at.end)}`
+                  : "All day",
           // An event belongs to whoever it's FOR, not whoever typed it in, so
           // the avatar and colour follow owner_user_id. Roy entering Alyssa's
           // dentist appointment should read as hers.
           whose: p.owner_user_id,
           open: { kind: "event", id: p.id },
-          action: {
+          // Cancelling from day three of a weekend away removes the whole
+          // weekend, which is not what a row reading "Until 5:00 PM" looks
+          // like it does. Same rule as a trip: only the first day offers it.
+          action: !sameDay
+            ? null
+            : {
             type: "cancelPlan",
             id: p.id,
             // Cancelling sets a flag on the ROW, and a repeating event is one
@@ -400,6 +487,7 @@ export default function CalendarScreen() {
             repeats: (p.repeat_every ?? "none") !== "none",
           },
         });
+        }
       }
     }
 
@@ -413,7 +501,7 @@ export default function CalendarScreen() {
       for (let offset = 0; offset <= nights; offset++) {
         const day = new Date(occurrence);
         day.setDate(day.getDate() + offset);
-        if (day < startOfMonth(month) || day > endOfMonth(month)) continue;
+        if (day < gridFrom || day > gridTo) continue;
 
         push(toDateKey(day), {
           kind: "keydate",
@@ -481,7 +569,7 @@ export default function CalendarScreen() {
       // multi-day all-day block. It belongs on every day it covers, not just
       // the day it starts, for the same reason a trip does: somebody looking
       // at Wednesday wants to know their partner is away.
-      for (const day of daysCovered(b, startOfMonth(month), endOfMonth(month))) {
+      for (const day of daysCovered(b, gridFrom, gridTo)) {
         const sameDay = toDateKey(day) === toDateKey(b.start);
         const lastDay = toDateKey(day) === toDateKey(lastCoveredDay(b));
 
@@ -508,10 +596,201 @@ export default function CalendarScreen() {
     }
 
     return map;
-  }, [plans, keyDates, work, busy, month, nameFor, myId]);
+  }, [plans, keyDates, work, busy, gridFrom, gridTo, nameFor, myId]);
 
-  const cells = useMemo(() => monthGrid(month), [month]);
-  const selectedEntries = entriesByDay.get(selected) ?? [];
+  /**
+   * The same material as entriesByDay, but as spans rather than per-day rows.
+   *
+   * A week in Bali is ONE event from the 10th to the 17th here. That is the
+   * whole difference between this grid and the old one: the day-keyed map
+   * cannot draw a bar, because by the time it is built the trip has already
+   * been chopped into eight unrelated rows.
+   */
+  const monthEvents = useMemo(() => {
+    const out: MonthEvent[] = [];
+    const { from, to } = gridRange(month);
+
+    for (const p of plans) {
+      const occurrences = occurrencesBetween(
+        {
+          start: new Date(p.start_at),
+          end: new Date(p.end_at),
+          repeatEvery: p.repeat_every ?? "none",
+          repeatUntil: p.repeat_until ? new Date(`${p.repeat_until}T00:00:00`) : null,
+        },
+        from,
+        to
+      );
+
+      for (const at of occurrences) {
+        out.push({
+          // One row can be many occurrences, so the row id alone is not
+          // unique -- and lane order breaks ties on id, so a duplicate would
+          // make the grid reshuffle itself.
+          id: `plan:${p.id}:${at.start.getTime()}`,
+          title: p.title,
+          start: at.start,
+          // Midnight is the natural way to write "ends at the end of the
+          // 14th", and taking it literally painted a bar into the 15th.
+          end: lastCoveredDay({ start: at.start, end: at.end }),
+          kind: "plan",
+          whose: p.owner_user_id,
+        });
+      }
+    }
+
+    for (const kd of keyDates) {
+      const occurrence = nextOccurrence(kd.date, kd.recurring);
+      const nights = tripNights(kd);
+      const end = new Date(occurrence);
+      end.setDate(end.getDate() + nights);
+
+      out.push({
+        id: `key:${kd.id}`,
+        title: displayTitleFor(kd, nameFor),
+        start: occurrence,
+        end,
+        kind: "keydate",
+        whose: null,
+      });
+    }
+
+    for (const w of work) {
+      out.push({
+        id: `work:${w.user_id}:${w.interval.start.getTime()}`,
+        title: `${nameFor(w.user_id)} working`,
+        start: w.interval.start,
+        end: w.interval.start,
+        kind: "work",
+        whose: w.user_id,
+      });
+    }
+
+    // Same de-duplication as the day list: one meeting that lands in two
+    // connected calendars is one commitment, and two identical bars stacked
+    // on each other looks like a double booking.
+    const bestBusy = new Map<string, BusyRow>();
+    for (const b of busy) {
+      const fingerprint = `${b.user_id}|${b.start.getTime()}|${b.end.getTime()}`;
+      const existing = bestBusy.get(fingerprint);
+      if (!existing || (!existing.title && b.title)) bestBusy.set(fingerprint, b);
+    }
+
+    for (const b of bestBusy.values()) {
+      out.push({
+        id: `busy:${b.id}`,
+        // The name leads in the day list because the rows there are mixed
+        // together. On the grid the colour already says whose it is, and a
+        // bar three days wide has room for about four words.
+        title: b.title ?? `${nameFor(b.user_id)} busy`,
+        start: b.start,
+        end: lastCoveredDay(b),
+        kind: "busy",
+        whose: b.user_id,
+      });
+    }
+
+    return out;
+  }, [plans, keyDates, work, busy, month, nameFor]);
+
+  // Kept as what is HIDDEN rather than what is shown, so a filter nobody has
+  // touched is on, and anything added later appears instead of vanishing.
+  const [hidden, setHidden] = useState<FilterKey[]>([]);
+
+  // Takes the shape both views share rather than a MonthEvent, so a filter
+  // means the same thing on the grid and in the list underneath it. Hiding
+  // your partner and still reading their whole day is not a filter.
+  const bucketOf = useCallback(
+    (e: { kind: MonthEvent["kind"]; whose: string | null }): FilterKey =>
+      e.kind === "work" ? "work" : !e.whose ? "us" : e.whose === myId ? "me" : "partner",
+    [myId]
+  );
+
+  // Pairing can change underneath a hidden filter, and a hidden filter with
+  // no chip on screen is a part of the calendar with no way to bring it back.
+  // Derived rather than corrected in an effect, so the choice survives if the
+  // chip comes back, and the grid never renders once unfiltered on the way.
+  const hiddenNow = useMemo(
+    () => hidden.filter((k) => k !== "partner" || (partnerId !== null && partnerTint !== null)),
+    [hidden, partnerId, partnerTint]
+  );
+
+  const visibleEvents = useMemo(
+    () => monthEvents.filter((e) => !hiddenNow.includes(bucketOf(e))),
+    [monthEvents, hiddenNow, bucketOf]
+  );
+
+  const weeks = useMemo(() => weeksOfMonth(month), [month]);
+
+  // Packed once per month rather than in the render body: selecting a day
+  // changes nothing about the bars, and re-sorting every event on every tap
+  // is work nobody sees.
+  const packedWeeks = useMemo(
+    () => weeks.map((w) => packWeek(w, visibleEvents, MAX_LANES)),
+    [weeks, visibleEvents]
+  );
+
+  const barColours = useCallback(
+    (e: MonthEvent) => {
+      // Working hours are grey everywhere else in the app and grey is what
+      // the Work chip shows. Asking for the owner's colour first made every
+      // shift take a partner colour and left the chip advertising a colour
+      // that appeared nowhere on the grid.
+      if (e.kind === "work") return { fill: t.surfaceSunken, ink: t.textSecondary };
+
+      // Palette ink is a dark tint of its own hue and clears 4.5:1 on its own
+      // fill. The theme's soft fills do not: brand on brandSoft is 3.3:1 in
+      // light mode, which is too thin to read at 10px.
+      const tint = tintFor(e.whose);
+      if (tint) return { fill: tint.fill, ink: tint.ink };
+      if (e.kind === "keydate") return { fill: t.accentSoft, ink: t.textPrimary };
+      return { fill: t.brandSoft, ink: t.textPrimary };
+    },
+    [tintFor, t]
+  );
+
+  const filterOptions = useMemo(() => {
+    const opts: { key: FilterKey; label: string; fill: string; ink: string }[] = [
+      { key: "me", label: myName, fill: myTint.fill, ink: myTint.ink },
+    ];
+
+    if (partnerTint && partnerId) {
+      opts.push({
+        key: "partner",
+        label: partnerName,
+        fill: partnerTint.fill,
+        ink: partnerTint.ink,
+      });
+    }
+
+    // Deliberately not a colour: "Us" covers shared plans AND key dates,
+    // which are two colours on the grid, so a single swatch here would be
+    // explaining something untrue. The two people are the only part of this
+    // control that is also a legend, because their colours are the only ones
+    // that identify rather than categorise.
+    opts.push({ key: "us", label: "Us", fill: t.surfaceSunken, ink: t.textPrimary });
+    opts.push({ key: "work", label: "Work", fill: t.surfaceSunken, ink: t.textPrimary });
+    return opts;
+  }, [myName, partnerName, partnerId, myTint, partnerTint, t]);
+
+  function toggleFilter(key: FilterKey) {
+    setHidden((h) => (h.includes(key) ? h.filter((k) => k !== key) : [...h, key]));
+  }
+
+  const dayEntries = useMemo(
+    () => entriesByDay.get(selected) ?? [],
+    [entriesByDay, selected]
+  );
+
+  const selectedEntries = useMemo(
+    () => dayEntries.filter((e) => !hiddenNow.includes(bucketOf(e))),
+    [dayEntries, hiddenNow, bucketOf]
+  );
+
+  // The one thing a couple's calendar must never do is say the day is clear
+  // when it is not. Once the filters reach the list as well, "Nothing on" and
+  // "nothing you are currently looking at" are different sentences.
+  const filteredOut = dayEntries.length - selectedEntries.length;
   const todayKey = toDateKey(new Date());
 
   async function performAction(entry: DayEntry) {
@@ -574,7 +853,18 @@ export default function CalendarScreen() {
   }
 
   function shiftMonth(delta: number) {
-    setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
+    const next = new Date(month.getFullYear(), month.getMonth() + delta, 1);
+
+    // A month view is whole weeks, so most of the time the day you had
+    // selected is still on screen -- the 30th of September is in October's
+    // grid. When it isn't, leaving it selected left the heading naming a day
+    // no cell was highlighting, above a list that had no data for it and so
+    // claimed it was free.
+    const { from, to } = gridRange(next);
+    const current = new Date(`${selected}T00:00:00`);
+    if (current < from || current > to) setSelected(toDateKey(next));
+
+    setMonth(next);
   }
 
   function goToToday() {
@@ -644,102 +934,123 @@ export default function CalendarScreen() {
       </View>
 
       <View style={styles.grid}>
-        {cells.map((cell, i) => {
-          if (!cell) return <View key={i} style={styles.cell} />;
-
-          const key = toDateKey(cell);
-          const entries = entriesByDay.get(key) ?? [];
-          const isSelected = key === selected;
-          const isToday = key === todayKey;
-
-          // Two kinds of dot, and they must not describe the same thing
-          // twice. Anything belonging to one person gets that person's dot;
-          // anything belonging to both of you gets its kind's dot. Keyed by
-          // user id rather than by colour, because two partners CAN end up the
-          // same colour and duplicate React keys drop a dot at random.
-          const owners = [
-            ...new Map(
-              entries
-                .filter((e) => e.whose)
-                .map((e) => [e.whose as string, tintFor(e.whose)] as const)
-            ).entries(),
-          ].filter((pair): pair is [string, NonNullable<ReturnType<typeof tintFor>>] =>
-            pair[1] !== null
-          );
-
-          const sharedKinds = [...new Set(entries.filter((e) => !e.whose).map((e) => e.kind))];
+        {packedWeeks.map(({ days, lanes, overflow }, wi) => {
+          const hasOverflow = overflow.some((n) => n > 0);
 
           return (
-            <Pressable
-              key={i}
-              style={press(styles.cell)}
-              // First tap selects the day and shows its list below; a second
-              // tap on the day already selected opens the hour-by-hour view.
-              // Going straight there on the first tap would make the month
-              // grid impossible to browse.
-              onPress={() =>
-                isSelected
-                  ? router.push({ pathname: "/day", params: { date: key } })
-                  : setSelected(key)
-              }
-            >
-              {/* A ring for today, a filled disc for whatever is selected.
-                  Colouring the digit alone was too quiet to find on a grid of
-                  forty-two digits, which is the one thing a month view has to
-                  make easy. */}
-              <View
-                style={[
-                  styles.dayPill,
-                  isToday && !isSelected ? styles.dayPillToday : null,
-                  isSelected ? styles.dayPillSelected : null,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.cellDay,
-                    isToday && !isSelected ? styles.cellDayToday : null,
-                    isSelected ? styles.cellDaySelected : null,
-                  ]}
-                >
-                  {cell.getDate()}
-                </Text>
+            <View key={wi} style={styles.week}>
+              <View style={styles.weekDays}>
+                {days.map((day) => {
+                  const key = toDateKey(day);
+                  const isSelected = key === selected;
+                  const isToday = key === todayKey;
+
+                  return (
+                    <Pressable
+                      key={key}
+                      style={press(styles.dayCell)}
+                      // First tap selects the day and shows its list below; a
+                      // second tap on the day already selected opens the
+                      // hour-by-hour view. Going straight there on the first
+                      // tap would make the month impossible to browse.
+                      onPress={() =>
+                        isSelected
+                          ? router.push({ pathname: "/day", params: { date: key } })
+                          : setSelected(key)
+                      }
+                    >
+                      <View
+                        style={[
+                          styles.dayPill,
+                          isToday && !isSelected ? styles.dayPillToday : null,
+                          isSelected ? styles.dayPillSelected : null,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.cellDay,
+                            inMonth(day, month) ? null : styles.cellDayOutside,
+                            isToday && !isSelected ? styles.cellDayToday : null,
+                            isSelected ? styles.cellDaySelected : null,
+                          ]}
+                        >
+                          {day.getDate()}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
               </View>
-              <View style={styles.dotRow}>
-                {owners.slice(0, 2).map(([userId, tint]) => (
-                  // ink, not chip: a 5px dot in a pastel is invisible against
-                  // the page -- the pale yellows sit at about 1.3:1.
-                  <View key={userId} style={[styles.dot, { backgroundColor: tint.ink }]} />
-                ))}
-                {sharedKinds.slice(0, 2).map((k) => (
-                  <View key={k} style={[styles.dot, styles[`dot_${k}` as const]]} />
-                ))}
-              </View>
-            </Pressable>
+
+              {lanes.map((lane, li) => (
+                <View key={li} style={styles.lane}>
+                  {laneSlots(lane).map((slot) => {
+                    const chip = slot.chip;
+                    if (!chip) return <View key={slot.key} style={{ flex: slot.width }} />;
+
+                    const { fill, ink } = barColours(chip.event);
+
+                    return (
+                      <Pressable
+                        key={slot.key}
+                        style={press({ flex: slot.width })}
+                        // Tapping a bar selects the first day of it you can
+                        // see, so the list underneath is showing the thing
+                        // you just tapped rather than the day it began.
+                        onPress={() => setSelected(toDateKey(days[chip.col]))}
+                      >
+                        <View style={[styles.bar, barShape(chip), { backgroundColor: fill }]}>
+                          <Text numberOfLines={1} style={[styles.barText, { color: ink }]}>
+                            {chip.event.title}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ))}
+
+              {/* Counted per day rather than per week: a day sitting under a
+                  long bar still has to say there is more to see. */}
+              {hasOverflow ? (
+                <View style={styles.lane}>
+                  {overflow.map((n, i) => (
+                    <View key={i} style={styles.overflowCell}>
+                      {n > 0 ? <Text style={styles.overflowText}>+{n} more</Text> : null}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
           );
         })}
       </View>
 
       </View>
 
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: myTint.ink }]} />
-          <Text style={styles.legendText}>{me.display_name ?? "You"}</Text>
-        </View>
-        {partnerTint ? (
-          <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: partnerTint.ink }]} />
-            <Text style={styles.legendText}>{partnerName}</Text>
-          </View>
-        ) : null}
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, styles.dot_plan]} />
-          <Text style={styles.legendText}>Both of you</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, styles.dot_keydate]} />
-          <Text style={styles.legendText}>Key date</Text>
-        </View>
+      {/* The old legend explained four colours and did nothing. These do the
+          explaining for the part that needs it -- which of you is which -- and
+          they also switch each group off. */}
+      <View style={styles.filters}>
+        {filterOptions.map((f) => {
+          const on = !hiddenNow.includes(f.key);
+
+          return (
+            <Pressable
+              key={f.key}
+              onPress={() => toggleFilter(f.key)}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: on }}
+              accessibilityLabel={`${f.label}, ${on ? "shown" : "hidden"}`}
+              style={press([
+                styles.filterChip,
+                on ? { backgroundColor: f.fill, borderColor: f.fill } : null,
+              ])}
+            >
+              <Text style={[styles.filterText, on ? { color: f.ink } : null]}>{f.label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <View style={styles.dayTitleRow}>
@@ -760,12 +1071,25 @@ export default function CalendarScreen() {
 
       {selectedEntries.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Nothing on. That&apos;s a good sign.</Text>
+          <Text style={styles.emptyText}>
+            {filteredOut > 0
+              ? `${filteredOut} thing${filteredOut === 1 ? "" : "s"} on, hidden by your filters.`
+              : "Nothing on. That's a good sign."}
+          </Text>
+          {filteredOut > 0 ? (
+            <Pressable onPress={() => setHidden([])} hitSlop={8} style={press(styles.emptyTap)}>
+              <Text style={styles.emptyAction}>Show everything</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : (
         selectedEntries.map((e, i) => (
           <SwipeRow
-            key={i}
+            // Index keys alone let a row inherit the swipe offset of whatever
+            // used to sit at that position once the list shrinks under it.
+            // The index stays as the last resort: two identical shifts on one
+            // day would otherwise collide.
+            key={`${e.kind}:${e.open?.id ?? e.action?.type ?? e.label}:${i}`}
             entry={e}
             avatarUrl={avatarUrlFor(e.whose)}
             avatarName={e.whose ? nameFor(e.whose) : null}
@@ -774,6 +1098,12 @@ export default function CalendarScreen() {
           />
         ))
       )}
+
+      {selectedEntries.length > 0 && filteredOut > 0 ? (
+        <Text style={styles.footnote}>
+          {filteredOut} more hidden by your filters.
+        </Text>
+      ) : null}
 
       {selectedEntries.some((e) => e.kind === "busy") ? (
         <Text style={styles.footnote}>
@@ -842,14 +1172,20 @@ const createStyles = (t: Theme) =>
     ...t.type.eyebrow,
     color: t.textMuted,
   },
-  grid: { flexDirection: "row", flexWrap: "wrap" },
-  cell: {
-    width: CELL,
-    aspectRatio: 0.88,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-  },
+  // A week at a time rather than forty-two independent cells, because a bar
+  // that runs from Friday to Tuesday belongs to the week, not to either day.
+  grid: {},
+  week: { marginBottom: t.space(2) },
+  weekDays: { flexDirection: "row" },
+  dayCell: { width: CELL, alignItems: "center", paddingVertical: 2 },
+  lane: { flexDirection: "row", height: 17, marginTop: 2 },
+  bar: { flex: 1, height: 15, justifyContent: "center", paddingHorizontal: 4 },
+  // Smaller than anything else in the app and deliberately so: at t.type
+  // sizes a bar fits about one word, which is no better than the dot it
+  // replaced. Weight rather than size carries it.
+  barText: { fontSize: 10, lineHeight: 13, fontWeight: "700" },
+  overflowCell: { flex: 1, alignItems: "center", justifyContent: "center" },
+  overflowText: { fontSize: 9, lineHeight: 12, color: t.textMuted, fontWeight: "600" },
   dayPill: {
     width: 32,
     height: 32,
@@ -862,23 +1198,27 @@ const createStyles = (t: Theme) =>
   dayPillToday: { borderColor: t.brand },
   dayPillSelected: { backgroundColor: t.brand, borderColor: t.brand },
   cellDay: { ...t.type.body, color: t.textPrimary, fontVariant: ["tabular-nums"] },
+  cellDayOutside: { color: t.textMuted },
   cellDayToday: { color: t.brand, fontWeight: "700" },
   cellDaySelected: { color: t.textOnBrand, fontWeight: "700" },
-  dotRow: { flexDirection: "row", gap: 3, height: 5 },
-  dot: { width: 5, height: 5, borderRadius: 3 },
-  dot_plan: { backgroundColor: t.brand },
-  dot_keydate: { backgroundColor: t.accent },
-  dot_work: { backgroundColor: t.dotWork },
-  dot_busy: { backgroundColor: t.dotBusy },
-  legend: {
+  filters: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: t.space(4),
+    gap: t.space(2),
     marginTop: t.space(4),
     marginBottom: t.space(7),
   },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: t.space(2) },
-  legendText: { ...t.type.caption, color: t.textMuted },
+  // An off filter is an outline rather than a faded fill: a pale colour at
+  // half opacity still reads as a colour, so the two states looked like one
+  // colour and a slightly paler version of it.
+  filterChip: {
+    paddingHorizontal: t.space(3),
+    paddingVertical: t.space(2),
+    borderRadius: t.radius.pill,
+    borderWidth: 1,
+    borderColor: t.surfaceSunken,
+  },
+  filterText: { ...t.type.label, color: t.textMuted },
   dayTitleRow: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -890,6 +1230,8 @@ const createStyles = (t: Theme) =>
   dayTitleAction: { ...t.type.label, color: t.accent, paddingBottom: 2 },
   emptyCard: { backgroundColor: t.surfaceSunken, borderRadius: t.radius.lg, padding: t.space(5) },
   emptyText: { ...t.type.body, color: t.textSecondary },
+  emptyTap: { alignSelf: "flex-start", marginTop: t.space(2) },
+  emptyAction: { ...t.type.label, color: t.accent },
   entryRow: {
     flexDirection: "row",
     ...t.card,

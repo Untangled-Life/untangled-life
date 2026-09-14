@@ -1,7 +1,18 @@
-import { StyleProp, StyleSheet, ViewStyle } from "react-native";
+import { Animated, StyleProp, StyleSheet, ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/theme";
+
+/**
+ * Home fades this in against the scroll, which means the opacity it hands
+ * over is an Animated node rather than a number. A plain component cannot be
+ * given one: the style it is inside gets handed to the native side as-is, and
+ * in development the frozen StyleSheet object it is flattened with throws
+ * ("attempted to set the key `__isNative` ... frozen") before the screen ever
+ * appears. Built once at module scope, because createAnimatedComponent inside
+ * a render makes a new component type every pass and remounts the view.
+ */
+const AnimatedGradient = Animated.createAnimatedComponent(LinearGradient);
 
 /**
  * A short fade at the top of the screen, under the status bar.
@@ -32,7 +43,7 @@ export function TopScrim({ style }: { style?: StyleProp<ViewStyle> } = {}) {
   const height = insets.top + 14;
 
   return (
-    <LinearGradient
+    <AnimatedGradient
       pointerEvents="none"
       colors={[t.bg, t.bg, withAlpha(t.bg, 0)]}
       locations={[0, 0.62, 1]}
