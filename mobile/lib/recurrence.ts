@@ -48,8 +48,47 @@ export function addStep(from: Date, every: RepeatEvery, steps = 1): Date {
   return next;
 }
 
-/** A guard against a bad rule turning one event into an unbounded loop. */
+/**
+ * A guard against a bad rule turning one event into an unbounded loop.
+ *
+ * It is a budget for occurrences INSIDE the range being asked about, not for
+ * the whole history of the event. Counting from the very first occurrence
+ * instead meant a weekly dinner quietly stopped appearing after about seven
+ * and a half years, and every month view cost a little more than the last.
+ */
 const MAX_OCCURRENCES = 400;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * How many whole steps fit between two dates, less one.
+ *
+ * Used to skip the years of occurrences nobody asked about. It deliberately
+ * lands a step EARLY -- calendar arithmetic is not uniform (a week is not
+ * always 168 hours once the clocks move, and months vary), so the estimate is
+ * a floor and the loop walks the last stretch properly.
+ *
+ * The walk still steps from the ORIGINAL date with a multiplier rather than
+ * from the previous occurrence, so monthly clamping stays correct: the 31st is
+ * remembered as the 31st through February rather than becoming the 28th
+ * forever.
+ */
+function stepsBefore(from: Date, target: Date, every: RepeatEvery): number {
+  if (target <= from) return 0;
+
+  if (every === "week" || every === "fortnight") {
+    const days = (target.getTime() - from.getTime()) / MS_PER_DAY;
+    return Math.max(0, Math.floor(days / (every === "week" ? 7 : 14)) - 1);
+  }
+
+  if (every === "month") {
+    const months =
+      (target.getFullYear() - from.getFullYear()) * 12 + (target.getMonth() - from.getMonth());
+    return Math.max(0, months - 1);
+  }
+
+  return 0;
+}
 
 /**
  * Every occurrence of an event that falls inside a range.
@@ -73,14 +112,17 @@ export function occurrencesBetween(
 
   const out: Interval[] = [];
 
-  // Walking from the first occurrence rather than jumping straight to the
-  // range keeps monthly clamping correct: the 31st has to be remembered as the
-  // 31st, so stepping through February and back out to March gives the 31st
-  // again rather than the 28th forever.
-  let start = new Date(event.start);
+  // Jump to just before the first occurrence that could overlap the range. An
+  // occurrence is wanted when its END is after rangeStart, so the target to
+  // skip past is rangeStart less the event's own length.
+  let i = stepsBefore(event.start, new Date(rangeStart.getTime() - duration), event.repeatEvery);
+  let start = addStep(event.start, event.repeatEvery, i);
 
-  for (let i = 0; i < MAX_OCCURRENCES; i++) {
-    if (start > rangeEnd) break;
+  for (let drawn = 0; drawn < MAX_OCCURRENCES; drawn++, i++) {
+    // Half-open at the top, matching the non-repeating case above. Including
+    // an occurrence that starts exactly at rangeEnd puts a midnight event on
+    // both the day it belongs to and the day before.
+    if (start >= rangeEnd) break;
 
     // repeatUntil is a day, so an occurrence starting anywhere on that day
     // still counts -- "until the 30th" includes the 30th.

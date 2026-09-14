@@ -3,6 +3,7 @@ import { dateKeyInZone, localZone, zonedTimeToInstant } from "@/lib/timezone";
 export type Interval = { start: Date; end: Date };
 
 const LOOKAHEAD_DAYS = 7;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
  * What counts as time you're free.
@@ -110,17 +111,27 @@ export function awakeIntervals(
   const cursor = new Date(rangeStart);
   cursor.setDate(cursor.getDate() - 1);
 
-  for (let i = 0; i < LOOKAHEAD_DAYS + 3; i++) {
+  // Driven by the range asked for rather than a fixed count, so this answers
+  // the question it was given. A hard-coded length silently truncates the
+  // moment anything asks about a longer stretch, and truncation here reads as
+  // "you are never free again" rather than as a bug.
+  const days = Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / MS_PER_DAY) + 2;
+
+  for (let i = 0; i < days; i++) {
     const [year, month, day] = dateKeyInZone(cursor, timeZone).split("-").map(Number);
 
     const start = zonedTimeToInstant(year, month, day, prefs.dayStartHour, 0, timeZone);
 
-    // An end hour of 24 is midnight at the END of the day, so it is asked for
-    // as hour 0 of the next one rather than as an hour that does not exist.
-    const end =
-      prefs.dayEndHour >= 24
-        ? zonedTimeToInstant(year, month, day + 1, 0, 0, timeZone)
-        : zonedTimeToInstant(year, month, day, prefs.dayEndHour, 0, timeZone);
+    // An end hour of 24 is midnight at the END of the day. So is an end hour
+    // at or before the start: someone on nights whose day runs 10pm to 6am
+    // means tomorrow morning, not a window that finishes sixteen hours before
+    // it opens. Both are the next day's clock.
+    const endHour = prefs.dayEndHour >= 24 ? 0 : prefs.dayEndHour;
+    const endsNextDay = prefs.dayEndHour >= 24 || prefs.dayEndHour <= prefs.dayStartHour;
+
+    const end = endsNextDay
+      ? zonedTimeToInstant(year, month, day + 1, endHour, 0, timeZone)
+      : zonedTimeToInstant(year, month, day, endHour, 0, timeZone);
 
     if (end > rangeStart && start < rangeEnd) {
       out.push({
@@ -156,9 +167,12 @@ export function nextSharedFreeWindows(
   const now = new Date();
   const rangeStart = nextQuarterHour(now);
 
+  // Midnight at the far end rather than 23:59:59.999. The old bound clamped
+  // any window running to the end of the last day to "11:59 pm", which is a
+  // time nobody chose and reads as a made-up deadline.
   const rangeEnd = new Date(now);
-  rangeEnd.setDate(rangeEnd.getDate() + LOOKAHEAD_DAYS - 1);
-  rangeEnd.setHours(23, 59, 59, 999);
+  rangeEnd.setDate(rangeEnd.getDate() + LOOKAHEAD_DAYS);
+  rangeEnd.setHours(0, 0, 0, 0);
 
   if (rangeEnd <= rangeStart) return [];
 

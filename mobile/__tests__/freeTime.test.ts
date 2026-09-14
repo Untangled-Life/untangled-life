@@ -6,6 +6,7 @@ import {
   FreeTimePrefs,
   subtractIntervals,
   intersectIntervals,
+  awakeIntervals,
 } from "@/lib/freeTime";
 
 const at = (day: number, h: number, m = 0) => new Date(2026, 8, day, h, m, 0, 0);
@@ -326,5 +327,56 @@ describe("intersectIntervals", () => {
       iv2(11, 12),
       iv2(14, 15),
     ]);
+  });
+});
+
+describe("awakeIntervals with an overnight day", () => {
+  // Someone on nights whose day runs 10pm to 6am. An end hour at or before the
+  // start used to produce an interval finishing sixteen hours before it began,
+  // which merged into nonsense and quietly offered nobody any time at all.
+  const nights: FreeTimePrefs = { dayStartHour: 22, dayEndHour: 6, minFreeMinutes: 30 };
+
+  it("runs the window into the following morning", () => {
+    const windows = awakeIntervals(
+      new Date(2026, 8, 14, 0, 0, 0, 0),
+      new Date(2026, 8, 17, 0, 0, 0, 0),
+      nights,
+      "America/New_York"
+    );
+
+    expect(windows.length).toBeGreaterThan(0);
+    for (const w of windows) expect(w.end.getTime()).toBeGreaterThan(w.start.getTime());
+
+    // One that sits wholly inside the range starts at 10pm and ends at 6am.
+    const whole = windows.find((w) => w.start.getHours() === 22);
+    expect(whole).toBeDefined();
+    expect(whole!.end.getHours()).toBe(6);
+    expect(whole!.end.getDate()).toBe(whole!.start.getDate() + 1);
+  });
+
+  it("covers the whole day when the hours are equal", () => {
+    const allDay: FreeTimePrefs = { dayStartHour: 9, dayEndHour: 9, minFreeMinutes: 30 };
+    const windows = awakeIntervals(
+      new Date(2026, 8, 14, 0, 0, 0, 0),
+      new Date(2026, 8, 17, 0, 0, 0, 0),
+      allDay,
+      "America/New_York"
+    );
+
+    // Every day joins the next, so it merges into one continuous stretch.
+    expect(windows).toHaveLength(1);
+  });
+
+  it("answers the range it was given rather than a fixed week", () => {
+    const start = new Date(2026, 8, 14, 0, 0, 0, 0);
+    const end = new Date(2026, 9, 14, 0, 0, 0, 0);
+    const windows = awakeIntervals(start, end, DEFAULT_FREE_TIME_PREFS, "America/New_York");
+
+    // Thirty days of 7am-11pm, not seven. A hard-coded length used to truncate
+    // here and read as "you are never free again".
+    expect(windows.length).toBeGreaterThan(25);
+    expect(windows[windows.length - 1].end.getTime()).toBeGreaterThan(
+      end.getTime() - 24 * 60 * 60 * 1000
+    );
   });
 });

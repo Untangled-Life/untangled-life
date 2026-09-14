@@ -1,5 +1,5 @@
 import { Interval } from "@/lib/freeTime";
-import { dateKeyInZone, zonedTimeToInstant } from "@/lib/timezone";
+import { zonedTimeToInstant } from "@/lib/timezone";
 
 
 export type WorkMode = "weekly" | "rotating" | "irregular";
@@ -47,17 +47,23 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  *
  * Null falls back to the device, which is what every row did before this and
  * is correct for anyone who has not travelled.
+ *
+ * The day arrives as a CALENDAR KEY rather than a Date, and that is the whole
+ * point. A Date is an instant, so reading its date in another zone can land on
+ * a different day: midnight in Sydney is still the previous afternoon in
+ * Perth. "Monday's shift" is a claim about the roster's own calendar, so it
+ * has to be handed over as one.
  */
-function atShiftTime(day: Date, hhmm: string, timeZone: string | null): Date {
+function atShiftTime(dateKey: string, hhmm: string, timeZone: string | null): Date {
   const [h, m] = hhmm.split(":").map(Number);
+  const [year, month, date] = dateKey.split("-").map(Number);
 
   if (!timeZone) {
-    const d = new Date(day);
+    const d = new Date(year, month - 1, date);
     d.setHours(h, m ?? 0, 0, 0);
     return d;
   }
 
-  const [year, month, date] = dateKeyInZone(day, timeZone).split("-").map(Number);
   return zonedTimeToInstant(year, month, date, h, m ?? 0, timeZone);
 }
 
@@ -145,7 +151,8 @@ export function expandWorkOccurrences(
     const last = startOfDay(rangeEnd);
 
     for (let day = cursor; day <= last; day = new Date(day.getTime() + MS_PER_DAY)) {
-      if (offDays.has(toDateKey(day))) continue;
+      const dayKey = toDateKey(day);
+      if (offDays.has(dayKey)) continue;
 
       // Mode is the authority, not cycle_weeks. A weekly pattern repeats every
       // week whatever number happens to be stored alongside it -- otherwise a
@@ -158,8 +165,8 @@ export function expandWorkOccurrences(
         if (shift.weekday !== day.getDay()) continue;
         if (rotating && shift.week !== week) continue;
 
-        const start = atShiftTime(day, shift.start, pattern.time_zone ?? null);
-        let end = atShiftTime(day, shift.end, pattern.time_zone ?? null);
+        const start = atShiftTime(dayKey, shift.start, pattern.time_zone ?? null);
+        let end = atShiftTime(dayKey, shift.end, pattern.time_zone ?? null);
         // A shift ending at or before it starts runs past midnight.
         if (end <= start) end = new Date(end.getTime() + MS_PER_DAY);
 
@@ -171,9 +178,8 @@ export function expandWorkOccurrences(
   for (const s of oneOffs) {
     if (s.kind !== "extra" || !s.start_time || !s.end_time) continue;
 
-    const day = new Date(s.date + "T00:00:00");
-    const start = atShiftTime(day, s.start_time.slice(0, 5), s.time_zone ?? null);
-    let end = atShiftTime(day, s.end_time.slice(0, 5), s.time_zone ?? null);
+    const start = atShiftTime(s.date, s.start_time.slice(0, 5), s.time_zone ?? null);
+    let end = atShiftTime(s.date, s.end_time.slice(0, 5), s.time_zone ?? null);
     if (end <= start) end = new Date(end.getTime() + MS_PER_DAY);
 
     intervals.push({ interval: { start, end }, source: { type: "shift", id: s.id } });

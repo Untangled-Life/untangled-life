@@ -213,3 +213,54 @@ describe("describePattern", () => {
     expect(text).toMatch(/3-week rotation/i);
   });
 });
+
+describe("a roster entered in another time zone", () => {
+  // The suite runs in America/New_York (UTC-4 in September) and Los Angeles is
+  // UTC-7, so the device is three hours AHEAD of the roster. Midnight here is
+  // still nine o'clock the previous evening there -- which is how a Monday
+  // shift used to be placed on the Sunday, the whole roster sliding a day.
+  const la = pattern({
+    time_zone: "America/Los_Angeles",
+    shifts: weekdays([1], "09:00", "17:00"),
+  });
+
+  it("puts a Monday shift on the roster's Monday", () => {
+    const found = expandWorkHours(
+      la,
+      [],
+      new Date(2026, 8, 13, 0, 0, 0, 0),
+      new Date(2026, 8, 20, 0, 0, 0, 0)
+    );
+
+    expect(found).toHaveLength(1);
+    // 9am in Los Angeles on Monday 14 September is 16:00 UTC.
+    expect(found[0].start.toISOString()).toBe("2026-09-14T16:00:00.000Z");
+    expect(found[0].end.toISOString()).toBe("2026-09-15T00:00:00.000Z");
+  });
+
+  it("does the same for a one-off shift", () => {
+    const found = expandWorkHours(
+      pattern(),
+      [shift({ date: "2026-09-16", start_time: "09:00:00", end_time: "17:00:00", time_zone: "America/Los_Angeles" })],
+      new Date(2026, 8, 13, 0, 0, 0, 0),
+      new Date(2026, 8, 20, 0, 0, 0, 0)
+    );
+
+    expect(found).toHaveLength(1);
+    expect(found[0].start.toISOString()).toBe("2026-09-16T16:00:00.000Z");
+  });
+
+  it("still uses the device's own clock when no zone is stored", () => {
+    const here = pattern({ shifts: weekdays([1], "09:00", "17:00") });
+    const found = expandWorkHours(
+      here,
+      [],
+      new Date(2026, 8, 13, 0, 0, 0, 0),
+      new Date(2026, 8, 20, 0, 0, 0, 0)
+    );
+
+    expect(found).toHaveLength(1);
+    expect(found[0].start.getHours()).toBe(9);
+    expect(found[0].start.getDate()).toBe(14);
+  });
+});

@@ -144,8 +144,9 @@ export default function FreeTimeSettings() {
         <Text style={styles.label}>And ends</Text>
         <HourRow value={prefs.dayEndHour} onPick={(h) => save({ ...prefs, dayEndHour: h })} />
         <Text style={styles.hint}>
-          Pick Midnight to run right through to the end of the day. If you work nights, the window
-          that matters is probably your morning: 4am to 12pm rather than 7am to 11pm.
+          Pick Midnight to run right through to the end of the day. If it lands on or before the
+          start, the day is taken as running overnight: 10pm to 6am is tonight into tomorrow
+          morning, which is the window that matters if you work nights.
         </Text>
       </View>
 

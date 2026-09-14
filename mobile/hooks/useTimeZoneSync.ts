@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
@@ -19,14 +19,23 @@ export function useTimeZoneSync() {
   const { session, profile, refreshProfile } = useAuth();
 
   const userId = session?.user.id ?? null;
-  const stored = profile?.time_zone ?? null;
+
+  // Read through refs rather than the dependency list. Both of these change as
+  // a RESULT of a successful sync, so depending on them tears down the
+  // foreground listener and rebuilds it on every profile refresh -- churn in
+  // the one place that has to survive the app being backgrounded.
+  const storedRef = useRef<string | null>(profile?.time_zone ?? null);
+  storedRef.current = profile?.time_zone ?? null;
+
+  const refreshRef = useRef(refreshProfile);
+  refreshRef.current = refreshProfile;
 
   useEffect(() => {
     if (!userId) return;
 
     async function sync() {
       const current = deviceTimeZone();
-      if (!current || current === stored) return;
+      if (!current || current === storedRef.current) return;
 
       const { error } = await supabase
         .from("profiles")
@@ -40,7 +49,7 @@ export function useTimeZoneSync() {
         return;
       }
 
-      await refreshProfile();
+      await refreshRef.current();
     }
 
     sync();
@@ -50,5 +59,5 @@ export function useTimeZoneSync() {
     });
 
     return () => subscription.remove();
-  }, [userId, stored, refreshProfile]);
+  }, [userId]);
 }

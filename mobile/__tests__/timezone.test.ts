@@ -136,3 +136,27 @@ describe("shortZoneName", () => {
     expect(shortZoneName(null)).toBe("");
   });
 });
+
+describe("zonedTimeToInstant across a transition", () => {
+  // 2:30am does not exist in New York on 8 March 2026: the clocks jump from
+  // 2am to 3am. Resolving it backwards to 1:30am reports a shift as starting
+  // an hour before its owner set an alarm, so it resolves forwards instead,
+  // which is what every calendar does with a skipped time.
+  it("pushes a skipped wall time forwards, not backwards", () => {
+    const instant = zonedTimeToInstant(2026, 3, 8, 2, 30, "America/New_York");
+    expect(instant.toISOString()).toBe("2026-03-08T07:30:00.000Z");
+  });
+
+  it("leaves an ordinary time alone on the same day", () => {
+    const instant = zonedTimeToInstant(2026, 3, 8, 9, 0, "America/New_York");
+    expect(instant.toISOString()).toBe("2026-03-08T13:00:00.000Z");
+  });
+
+  // An ambiguous time happens twice when the clocks go back. The first is the
+  // conventional answer and the one people mean.
+  it("takes the first of a repeated wall time", () => {
+    const instant = zonedTimeToInstant(2026, 11, 1, 1, 30, "America/New_York");
+    expect(instant.toISOString()).toBe("2026-11-01T05:30:00.000Z");
+  });
+});
+

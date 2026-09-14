@@ -123,20 +123,24 @@ export async function cancelPlannedEvent(id: string, byUserId?: string) {
  * fortnightly frequency, and inventing one produces an event that silently
  * does not repeat.
  */
-function recurrenceRuleFor(ev: PlannedEvent) {
-  if (!ev.repeat_every || ev.repeat_every === "none") return undefined;
+function recurrenceRuleFor(ev: PlannedEvent): Calendar.RecurrenceRule | null {
+  // Null, not undefined. An undefined field is "leave this alone" to
+  // updateEventAsync, so an event that STOPS repeating would keep its old rule
+  // on the phone forever: turn a weekly dinner into a one-off and it still
+  // appears every week, which looks exactly like the app ignoring you.
+  if (!ev.repeat_every || ev.repeat_every === "none") return null;
 
   const endDate = ev.repeat_until ? new Date(`${ev.repeat_until}T23:59:59`) : undefined;
 
   if (ev.repeat_every === "month") {
-    return { frequency: Calendar.Frequency.MONTHLY, endDate };
+    return { frequency: Calendar.Frequency.MONTHLY, endDate } as Calendar.RecurrenceRule;
   }
 
   return {
     frequency: Calendar.Frequency.WEEKLY,
     interval: ev.repeat_every === "fortnight" ? 2 : 1,
     endDate,
-  };
+  } as Calendar.RecurrenceRule;
 }
 
 export type PlanSyncResult = {
@@ -209,8 +213,17 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
   // upcoming. The union is what makes removal reachable.
   const linkedIds = [...linkFor.keys()];
 
+  // A repeating event is fetched whatever its first occurrence was. Filtering
+  // on end_at alone hides a weekly dinner from every phone that didn't happen
+  // to be open the week it was created -- the row's end_at is the end of
+  // occurrence one, which is in the past by the second week.
+  const nowIso = new Date().toISOString();
+
   const [upcomingRes, linkedRes] = await Promise.all([
-    supabase.from("planned_events").select(EVENT_COLUMNS).gte("end_at", new Date().toISOString()),
+    supabase
+      .from("planned_events")
+      .select(EVENT_COLUMNS)
+      .or(`end_at.gte.${nowIso},repeat_every.neq.none`),
     linkedIds.length > 0
       ? supabase.from("planned_events").select(EVENT_COLUMNS).in("id", linkedIds)
       : Promise.resolve({ data: [] as PlannedEvent[] }),

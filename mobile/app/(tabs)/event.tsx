@@ -86,6 +86,12 @@ export default function EventEditor() {
   const [loaded, setLoaded] = useState(!editingId);
   const [saving, setSaving] = useState(false);
 
+  // The event this screen was opened for is gone -- deleted on the other
+  // phone, or removed from the calendar it came from. Without this the screen
+  // falls back to a blank Add form, and "Save" on what looks like the event
+  // you were reading quietly creates a second, different one.
+  const [missing, setMissing] = useState(false);
+
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [location, setLocation] = useState("");
@@ -133,6 +139,18 @@ export default function EventEditor() {
    */
   const routeKey = `${params.id ?? ""}|${params.busy ?? ""}|${params.date ?? ""}|${params.start ?? ""}`;
   useEffect(() => {
+    setMissing(false);
+
+    // A synced event left behind by a previous visit has to be cleared too.
+    // The screen stays mounted, so opening one of the phone's own events and
+    // then one of ours left deviceEvent pointing at the first -- and save()
+    // branches on it, so the second edit would have been written over the
+    // first event in Google's calendar.
+    if (!busyId) {
+      setDeviceEvent(null);
+      setEditability({ editable: true });
+    }
+
     if (editingId || busyId) {
       setLoaded(false);
       return;
@@ -164,6 +182,7 @@ export default function EventEditor() {
 
     const row = await loadDeviceEvent(busyId);
     if (!row) {
+      setMissing(true);
       setLoaded(true);
       return;
     }
@@ -208,6 +227,9 @@ export default function EventEditor() {
       setPushTo(ev.push_to ?? []);
       setRepeatEvery(ev.repeat_every ?? "none");
       setRepeatUntil(ev.repeat_until ?? null);
+      setMissing(false);
+    } else {
+      setMissing(true);
     }
     setLoaded(true);
   }, [editingId]);
@@ -444,6 +466,21 @@ export default function EventEditor() {
     );
   }
 
+  if (missing) {
+    return (
+      <View style={styles.loading}>
+        <Text style={styles.missing}>
+          {busyId
+            ? "That event is no longer on this phone's calendar."
+            : "That event has been cancelled or deleted."}
+        </Text>
+        <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Text style={styles.save}>Go back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.topRow}>
@@ -669,6 +706,13 @@ export default function EventEditor() {
 const createStyles = (t: Theme) =>
   StyleSheet.create({
     loading: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: t.bg },
+    missing: {
+      fontSize: 15,
+      color: t.textSecondary,
+      textAlign: "center",
+      paddingHorizontal: t.space(10),
+      marginBottom: t.space(4),
+    },
     container: {
       flexGrow: 1,
       backgroundColor: t.bg,

@@ -63,7 +63,7 @@ describe("occurrencesBetween", () => {
   });
 
   it("repeats weekly through the range", () => {
-    const found = occurrencesBetween(weekly, at(2026, 9, 1), at(2026, 10, 12));
+    const found = occurrencesBetween(weekly, at(2026, 9, 1), at(2026, 10, 13));
     expect(found.map((o) => key(o.start))).toEqual([
       "2026-9-14",
       "2026-9-21",
@@ -143,5 +143,63 @@ describe("labels", () => {
     expect(describeRepeat("none", null, fmt)).toBeNull();
     expect(describeRepeat("week", null, fmt)).toBe("Weekly");
     expect(describeRepeat("week", at(2026, 12, 3), fmt)).toBe("Weekly, until 3/12");
+  });
+});
+
+describe("occurrencesBetween boundaries", () => {
+  const weekly = {
+    start: new Date(2026, 8, 14, 19, 0, 0, 0),
+    end: new Date(2026, 8, 14, 21, 0, 0, 0),
+    repeatEvery: "week" as const,
+    repeatUntil: null,
+  };
+
+  // The range is half-open at the top, exactly as it is for an event that does
+  // not repeat. Including an occurrence that starts precisely at rangeEnd is
+  // how a midnight event ends up drawn on the day before as well as its own.
+  it("excludes an occurrence starting exactly at the end of the range", () => {
+    const upTo = new Date(2026, 8, 21, 19, 0, 0, 0);
+    const found = occurrencesBetween(weekly, new Date(2026, 8, 1), upTo);
+    expect(found.map((o) => o.start.getDate())).toEqual([14]);
+  });
+
+  it("agrees with a one-off about that boundary", () => {
+    const once = { ...weekly, repeatEvery: "none" as const };
+    const upTo = new Date(2026, 8, 14, 19, 0, 0, 0);
+    expect(occurrencesBetween(once, new Date(2026, 8, 1), upTo)).toHaveLength(0);
+    expect(occurrencesBetween(weekly, new Date(2026, 8, 1), upTo)).toHaveLength(0);
+  });
+
+  // The occurrence budget is for the range asked about, not for the event's
+  // whole history. Counting from the first occurrence meant a weekly event
+  // silently stopped appearing after a few hundred weeks, and every month view
+  // cost a little more than the last.
+  it("still finds occurrences of a very old weekly event", () => {
+    const old = {
+      start: new Date(2005, 0, 3, 19, 0, 0, 0),
+      end: new Date(2005, 0, 3, 21, 0, 0, 0),
+      repeatEvery: "week" as const,
+      repeatUntil: null,
+    };
+
+    const found = occurrencesBetween(old, new Date(2026, 8, 1), new Date(2026, 9, 1));
+    expect(found.length).toBeGreaterThan(3);
+    for (const o of found) expect(o.start.getMonth()).toBe(8);
+  });
+
+  it("still clamps a very old monthly event to the last day of the month", () => {
+    const old = {
+      start: new Date(2005, 0, 31, 19, 0, 0, 0),
+      end: new Date(2005, 0, 31, 21, 0, 0, 0),
+      repeatEvery: "month" as const,
+      repeatUntil: null,
+    };
+
+    // February 2026 has 28 days, and the rule still remembers the 31st.
+    const feb = occurrencesBetween(old, new Date(2026, 1, 1), new Date(2026, 2, 1));
+    expect(feb.map((o) => o.start.getDate())).toEqual([28]);
+
+    const mar = occurrencesBetween(old, new Date(2026, 2, 1), new Date(2026, 3, 1));
+    expect(mar.map((o) => o.start.getDate())).toEqual([31]);
   });
 });

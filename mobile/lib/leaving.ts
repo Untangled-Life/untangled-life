@@ -56,12 +56,16 @@ export async function leaveCouple(
   // Unpairing keeps your account, so it keeps your profile picture. Only the
   // couple's cover goes, and only if nobody is left to look at it.
   if (coupleId) {
-    const { data: members } = await supabase
+    const { data: members, error: membersError } = await supabase
       .from("profiles")
       .select("id")
       .eq("couple_id", coupleId);
 
-    if ((members ?? []).length <= 1) {
+    // A failed read must not read as "nobody left". Treating an error as an
+    // empty list deletes the couple's shared cover photo out from under a
+    // partner who is still there, over a dropped connection. Leaving a file
+    // behind is recoverable; deleting their picture of the two of them is not.
+    if (!membersError && members && members.length <= 1) {
       const { data: couple } = await supabase
         .from("couples")
         .select("cover_path")
@@ -104,14 +108,17 @@ async function clearPhotoFiles(userId: string, coupleId: string | null): Promise
 
   if (!coupleId) return;
 
-  const { data: members } = await supabase
+  const { data: members, error: membersError } = await supabase
     .from("profiles")
     .select("id")
     .eq("couple_id", coupleId);
 
-  // The cover belongs to the couple, so it only goes when the couple does.
-  const lastOneOut = (members ?? []).length <= 1;
-  if (!lastOneOut) return;
+  // The cover belongs to the couple, so it only goes when the couple does --
+  // and a read that FAILED is not evidence that it does. Failing closed leaves
+  // an orphaned file behind at worst; failing open destroys a photo belonging
+  // to the partner who is staying.
+  if (membersError || !members) return;
+  if (members.length > 1) return;
 
   const { data: couple } = await supabase
     .from("couples")

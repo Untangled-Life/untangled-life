@@ -61,15 +61,21 @@ export function supportsNamedZones(): boolean {
   if (supported !== null) return supported;
 
   try {
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/New_York",
-      hour: "2-digit",
-      hour12: false,
-    });
-    // 02:00 UTC on 14 Sep 2026 is 22:00 on the 13th in New York. If the engine
-    // ignores timeZone it returns 02 instead, which is the failure we care
-    // about -- it does not throw, it just quietly uses UTC.
-    supported = formatter.format(new Date("2026-09-14T02:00:00Z")) === "22";
+    const instant = new Date("2026-09-14T02:00:00Z");
+    const hourIn = (timeZone: string) =>
+      new Intl.DateTimeFormat("en-US", { timeZone, hour: "2-digit", hour12: false }).format(
+        instant
+      );
+
+    // TWO zones, because one is not enough to tell the difference between an
+    // engine that honours the name and one that ignores it. An engine that
+    // ignores it answers with the same clock both times -- its own -- and a
+    // phone that happens to be sitting on that offset would sail through a
+    // single check while getting every other zone wrong.
+    //
+    // 02:00 UTC on 14 Sep 2026 is 22:00 on the 13th in New York and 11:00 in
+    // Tokyo. No device can be in both.
+    supported = hourIn("America/New_York") === "22" && hourIn("Asia/Tokyo") === "11";
   } catch {
     supported = false;
   }
@@ -85,20 +91,43 @@ export function supportsNamedZones(): boolean {
  * difference. It is the standard trick, and it is correct across DST because
  * it asks about one specific instant rather than assuming a fixed offset.
  */
+/**
+ * Intl formatters are expensive to build and cheap to reuse, and these get
+ * called per event per render -- a home screen listing a fortnight of plans
+ * was constructing hundreds of them a frame. Keyed by zone, built once.
+ */
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function cachedFormatter(
+  key: string,
+  build: () => Intl.DateTimeFormat
+): Intl.DateTimeFormat {
+  const existing = formatterCache.get(key);
+  if (existing) return existing;
+
+  const made = build();
+  formatterCache.set(key, made);
+  return made;
+}
+
 export function offsetMinutesAt(instant: Date, timeZone: string): number {
   if (!supportsNamedZones()) return -instant.getTimezoneOffset();
 
   try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone,
-      hour12: false,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).formatToParts(instant);
+    const parts = cachedFormatter(
+      `offset:${timeZone}`,
+      () =>
+        new Intl.DateTimeFormat("en-US", {
+          timeZone,
+          hour12: false,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        })
+    ).formatToParts(instant);
 
     const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? "0");
 
@@ -143,8 +172,25 @@ export function zonedTimeToInstant(
 
   // If the offset changed between the two, the first guess fell on the other
   // side of a transition. The second is computed from an instant that is
-  // already close to correct, so it is the one to trust.
-  return new Date(guess - secondOffset * 60000);
+  // already close to correct, so it is normally the one to trust.
+  const settled = new Date(guess - secondOffset * 60000);
+
+  if (secondOffset === firstOffset) return settled;
+
+  // ... normally, because on the morning the clocks go FORWARD the requested
+  // time may not exist at all: 2:30am is skipped entirely, and the second
+  // offset resolves it backwards to 1:30am. An hour earlier than asked for is
+  // the wrong way to be wrong -- a shift starting "2:30" would be reported as
+  // starting before its owner set an alarm.
+  //
+  // The test is whether the answer reads back as the time requested. When it
+  // does not, the first offset gives the same wall clock pushed FORWARD past
+  // the gap, which is what every calendar does with a time that was skipped.
+  if (offsetMinutesAt(settled, timeZone) !== secondOffset) {
+    return new Date(guess - firstOffset * 60000);
+  }
+
+  return settled;
 }
 
 /** The wall-clock date in a zone, as YYYY-MM-DD. */
@@ -157,22 +203,30 @@ export function dateKeyInZone(instant: Date, timeZone: string): string {
   }
 
   // en-CA formats as YYYY-MM-DD, which saves reassembling the parts.
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(instant);
+  return cachedFormatter(
+    `datekey:${timeZone}`,
+    () =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+  ).format(instant);
 }
 
 /** "7:00 pm" in the given zone. */
 export function timeInZone(instant: Date, timeZone: string): string {
   try {
-    return new Intl.DateTimeFormat(undefined, {
-      timeZone,
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(instant);
+    return cachedFormatter(
+      `time:${timeZone}`,
+      () =>
+        new Intl.DateTimeFormat(undefined, {
+          timeZone,
+          hour: "numeric",
+          minute: "2-digit",
+        })
+    ).format(instant);
   } catch {
     return instant.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   }

@@ -66,6 +66,12 @@ export default function Home() {
     useCouplePhotos();
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [freeWindows, setFreeWindows] = useState<Interval[]>([]);
+
+  // "Both calendars look packed" is the wrong thing to say to a couple whose
+  // waking hours simply do not meet. Nothing they delete will help, and being
+  // told to clear a diary that is already empty is worse than being told
+  // nothing.
+  const [noZoneOverlap, setNoZoneOverlap] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [myPattern, setMyPattern] = useState<WorkPattern | null>(null);
   const [plans, setPlans] = useState<UpcomingPlan[]>([]);
@@ -189,11 +195,21 @@ export default function Home() {
     }
 
     setMyPattern(patterns.find((p) => p.user_id === session.user.id) ?? null);
-    setFreeWindows(
-      nextSharedFreeWindows([...mine, ...myWork], [...theirs, ...theirWork], prefs, {
-        mine: myZone,
-        theirs: partnerZone,
-      })
+
+    const zones = { mine: myZone, theirs: partnerZone };
+    const windows = nextSharedFreeWindows(
+      [...mine, ...myWork],
+      [...theirs, ...theirWork],
+      prefs,
+      zones
+    );
+
+    setFreeWindows(windows);
+    // Only asked when the answer was empty: run the same calculation with
+    // nothing in either diary. Still empty means the hours themselves never
+    // meet, which is a different problem with a different fix.
+    setNoZoneOverlap(
+      windows.length === 0 && nextSharedFreeWindows([], [], prefs, zones).length === 0
     );
   }, [session?.user.id, profile?.couple_id, myZone, partnerZone]);
 
@@ -319,7 +335,15 @@ export default function Home() {
   }
 
   function confirmCancel(plan: PlannedEvent) {
-    Alert.alert("Cancel this plan?", `"${plan.title}" will come off both your calendars.`, [
+    // Cancelling flags the row, and a repeating event is a single row. Until
+    // there is a way to skip one occurrence, saying "this plan" about a weekly
+    // dinner is a promise the app does not keep.
+    const repeats = (plan.repeat_every ?? "none") !== "none";
+    const message = repeats
+      ? `"${plan.title}" repeats. Every occurrence will come off both your calendars, not just this one.`
+      : `"${plan.title}" will come off both your calendars.`;
+
+    Alert.alert(repeats ? "Cancel every one?" : "Cancel this plan?", message, [
       { text: "Keep it", style: "cancel" },
       {
         text: "Cancel plan",
@@ -561,7 +585,9 @@ export default function Home() {
         ) : freeWindows.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>
-              No shared free time found in the next week. Both calendars look packed.
+              {noZoneOverlap
+                ? `Your hours and ${partnerName}'s don't meet at all while you're this far apart. Widening the day in Free together is what would change that, not clearing the calendar.`
+                : "No shared free time found in the next week. Both calendars look packed."}
             </Text>
           </View>
         ) : (

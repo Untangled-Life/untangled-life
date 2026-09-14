@@ -40,17 +40,5 @@
     "test": "jest",
     "test:watch": "jest --watch"
   },
-  "private": true,
-  "jest": {
-    "preset": "jest-expo",
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
-    },
-    "testMatch": [
-      "<rootDir>/__tests__/**/*.test.ts"
-    ],
-    "setupFiles": [
-      "<rootDir>/jest.setup.js"
-    ]
-  }
+  "private": true
 }

@@ -58,7 +58,7 @@ type DayEntry = {
    * that here would simply come back on the next sync, so it isn't offered.
    */
   action:
-    | { type: "cancelPlan"; id: string }
+    | { type: "cancelPlan"; id: string; repeats: boolean }
     | { type: "deleteKeyDate"; id: string }
     | { type: "deleteShift"; id: string }
     | { type: "markDayOff"; date: string }
@@ -386,7 +386,14 @@ export default function CalendarScreen() {
           // dentist appointment should read as hers.
           whose: p.owner_user_id,
           open: { kind: "event", id: p.id },
-          action: { type: "cancelPlan", id: p.id },
+          action: {
+            type: "cancelPlan",
+            id: p.id,
+            // Cancelling sets a flag on the ROW, and a repeating event is one
+            // row. There is no per-occurrence exception yet, so the only
+            // honest thing is to say so before the tap rather than after it.
+            repeats: (p.repeat_every ?? "none") !== "none",
+          },
         });
       }
     }
@@ -548,7 +555,9 @@ export default function CalendarScreen() {
 
     const message =
       entry.action?.type === "cancelPlan"
-        ? `"${entry.label}" will come off both your calendars.`
+        ? entry.action.repeats
+          ? `"${entry.label}" repeats. Every occurrence will come off both your calendars, not just this one.`
+          : `"${entry.label}" will come off both your calendars.`
         : entry.action?.type === "deleteKeyDate"
           ? `"${entry.label}" and its reminders will be removed for both of you.`
           : "This day will be marked off, and your working hours won't count against free time.";
