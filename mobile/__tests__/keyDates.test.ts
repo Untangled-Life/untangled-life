@@ -1,4 +1,11 @@
-import { displayTitleFor, nextOccurrence, daysUntil, KeyDateRow } from "@/lib/keyDates";
+import {
+  displayTitleFor,
+  nextOccurrence,
+  daysUntil,
+  describeReminders,
+  reminderLabel,
+  KeyDateRow,
+} from "@/lib/keyDates";
 
 const row = (over: Partial<KeyDateRow> = {}): KeyDateRow => ({
   id: "k1",
@@ -7,7 +14,46 @@ const row = (over: Partial<KeyDateRow> = {}): KeyDateRow => ({
   recurring: true,
   kind: "anniversary",
   subject_user_id: null,
+  reminder_days: [14, 7, 3],
+  notes: null,
   ...over,
+});
+
+describe("reminderLabel", () => {
+  it("names the round offsets rather than counting days", () => {
+    expect(reminderLabel(0)).toBe("on the day");
+    expect(reminderLabel(1)).toBe("1 day");
+    expect(reminderLabel(7)).toBe("1 week");
+    expect(reminderLabel(14)).toBe("2 weeks");
+    expect(reminderLabel(30)).toBe("1 month");
+  });
+
+  it("falls back to a day count for anything else", () => {
+    expect(reminderLabel(5)).toBe("5 days");
+  });
+});
+
+describe("describeReminders", () => {
+  it("reads as a sentence, furthest out first", () => {
+    expect(describeReminders([3, 14, 7])).toBe("2 weeks, 1 week and 3 days before");
+  });
+
+  it("handles a single reminder", () => {
+    expect(describeReminders([1])).toBe("1 day before");
+  });
+
+  // "1 week and on the day before" is nonsense -- "on the day" already says
+  // when it is, so the trailing "before" has to go.
+  it("drops the trailing 'before' when the last reminder is on the day", () => {
+    expect(describeReminders([7, 0])).toBe("1 week and on the day");
+    expect(describeReminders([0])).toBe("on the day");
+  });
+
+  // Turning every reminder off is a real choice, not an empty list to paper
+  // over -- the row still exists and still shows on the calendar.
+  it("says so when there are none", () => {
+    expect(describeReminders([])).toBe("No reminders");
+  });
 });
 
 const names: Record<string, string> = { roy: "Roy", alyssa: "Alyssa" };

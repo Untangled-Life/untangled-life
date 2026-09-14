@@ -10,10 +10,76 @@ import { toFriendlyDate, fromISODate } from "@/lib/dates";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
-import { KeyDateRow, displayTitleFor } from "@/lib/keyDates";
+import {
+  KeyDateRow,
+  displayTitleFor,
+  describeReminders,
+  reminderLabel,
+  REMINDER_CHOICES,
+  DEFAULT_REMINDER_DAYS,
+} from "@/lib/keyDates";
 import { requestNotificationPermission, rescheduleKeyDateReminders } from "@/lib/notifications";
-import { succeeded, warned } from "@/lib/haptics";
+import { succeeded, warned, tapped } from "@/lib/haptics";
 
+
+/**
+ * Reminders and notes for one key date.
+ *
+ * Declared at module level rather than inside KeyDates: a component defined in
+ * the render body is a new type every render, so React unmounts and remounts
+ * it -- and the notes field would lose focus on every keystroke.
+ */
+function DetailsPanel({
+  row,
+  onToggle,
+  onSaveNotes,
+}: {
+  row: KeyDateRow;
+  onToggle: (row: KeyDateRow, offset: number) => void;
+  onSaveNotes: (row: KeyDateRow, notes: string) => void;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+  const selected = row.reminder_days ?? DEFAULT_REMINDER_DAYS;
+  const [notes, setNotes] = useState(row.notes ?? "");
+
+  return (
+    <View style={styles.details}>
+      <Text style={styles.detailsLabel}>Remind me</Text>
+      <View style={styles.chips}>
+        {REMINDER_CHOICES.map((offset) => {
+          const on = selected.includes(offset);
+          return (
+            <Pressable
+              key={offset}
+              style={press([styles.chip, on ? styles.chipOn : null])}
+              onPress={() => onToggle(row, offset)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+            >
+              <Text style={[styles.chipText, on ? styles.chipTextOn : null]}>
+                {reminderLabel(offset)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={styles.detailsHint}>{describeReminders(selected)}. 9am, on your phone only.</Text>
+
+      <Text style={[styles.detailsLabel, { marginTop: 16 }]}>Notes and gift ideas</Text>
+      <TextInput
+        style={[styles.input, styles.notesInput]}
+        value={notes}
+        onChangeText={setNotes}
+        onBlur={() => onSaveNotes(row, notes)}
+        placeholder="She mentioned those earrings…"
+        placeholderTextColor={t.textMuted}
+        multiline
+      />
+      <Text style={styles.detailsHint}>Both of you can see this.</Text>
+    </View>
+  );
+}
 
 export default function KeyDates() {
   const styles = useThemedStyles(createStyles);
@@ -35,6 +101,10 @@ export default function KeyDates() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
 
+  // Which date has its reminders/notes panel open. One at a time -- the panel
+  // is tall, and three of them expanded turns the screen into a scroll.
+  const [openDetailId, setOpenDetailId] = useState<string | null>(null);
+
   const partnerName = partner?.display_name ?? "Partner";
   const myId = me.id;
   const partnerId = partner?.id ?? null;
@@ -51,7 +121,7 @@ export default function KeyDates() {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("key_dates")
-      .select("id, title, date, recurring, kind, subject_user_id")
+      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes")
       .order("date", { ascending: true });
 
     if (data) {
@@ -72,6 +142,7 @@ export default function KeyDates() {
           displayTitle: displayTitleFor(d, nameFor),
           date: d.date,
           recurring: d.recurring,
+          reminderDays: d.reminder_days ?? DEFAULT_REMINDER_DAYS,
         }))
       );
     }
@@ -199,6 +270,48 @@ export default function KeyDates() {
     ]);
   }
 
+  async function toggleReminder(row: KeyDateRow, offset: number) {
+    const current = row.reminder_days ?? DEFAULT_REMINDER_DAYS;
+    const next = current.includes(offset)
+      ? current.filter((d) => d !== offset)
+      : [...current, offset].sort((a, b) => b - a);
+
+    // Optimistic, so the chip moves under your finger. The reload below is
+    // what makes it true.
+    setDates((prev) =>
+      prev.map((d) => (d.id === row.id ? { ...d, reminder_days: next } : d))
+    );
+    tapped();
+
+    const { error: saveError } = await supabase
+      .from("key_dates")
+      .update({ reminder_days: next })
+      .eq("id", row.id);
+
+    if (saveError) {
+      warned();
+      setError(saveError.message);
+    }
+    load();
+  }
+
+  async function saveNotes(row: KeyDateRow, notes: string) {
+    const trimmed = notes.trim();
+    if (trimmed === (row.notes ?? "")) return;
+
+    const { error: saveError } = await supabase
+      .from("key_dates")
+      .update({ notes: trimmed.length > 0 ? trimmed : null })
+      .eq("id", row.id);
+
+    if (saveError) {
+      warned();
+      setError(saveError.message);
+      return;
+    }
+    load();
+  }
+
   function startEditing(row: KeyDateRow) {
     setEditingId(row.id);
     setEditTitle(row.title);
@@ -252,6 +365,38 @@ export default function KeyDates() {
 
   const miscDates = dates.filter((d) => d.kind === "misc");
 
+  const anniversaryRow = dates.find((d) => d.kind === "anniversary") ?? null;
+  const myBirthdayRow =
+    dates.find((d) => d.kind === "birthday" && d.subject_user_id === myId) ?? null;
+  const partnerBirthdayRow =
+    dates.find((d) => d.kind === "birthday" && d.subject_user_id === partnerId) ?? null;
+
+  function detailsFor(row: KeyDateRow | null) {
+    if (!row) return null;
+    const open = openDetailId === row.id;
+
+    return (
+      <>
+        <Pressable
+          onPress={() => setOpenDetailId(open ? null : row.id)}
+          style={press(styles.detailsToggle)}
+          hitSlop={6}
+        >
+          <Text style={styles.detailsToggleText}>
+            {open ? "Hide reminders & notes" : "Reminders & notes"}
+          </Text>
+          <Text style={styles.detailsToggleSummary}>
+            {row.notes ? "Has notes · " : ""}
+            {describeReminders(row.reminder_days ?? DEFAULT_REMINDER_DAYS)}
+          </Text>
+        </Pressable>
+        {open ? (
+          <DetailsPanel row={row} onToggle={toggleReminder} onSaveNotes={saveNotes} />
+        ) : null}
+      </>
+    );
+  }
+
   return (
     <ScrollView
       refreshControl={
@@ -259,8 +404,8 @@ export default function KeyDates() {
       } contentContainerStyle={styles.container}>
       <Text style={styles.title}>Key Dates</Text>
       <Text style={styles.subtitle}>
-        We&apos;ll remind you 2 weeks, 1 week, and 3 days before each one — plenty of time to
-        sort a card and a gift. Dates save as soon as you pick them.
+        Reminders land at 9am, 2 weeks, 1 week and 3 days before by default — change that per date
+        under Reminders &amp; notes. Dates save as soon as you pick them.
       </Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -282,6 +427,7 @@ export default function KeyDates() {
             saveSingleton("anniversary", iso, "Anniversary");
           }}
         />
+        {detailsFor(anniversaryRow)}
       </View>
 
       <View style={styles.card}>
@@ -302,6 +448,7 @@ export default function KeyDates() {
             saveSingleton("birthday", iso, "Birthday", partnerId);
           }}
         />
+        {detailsFor(partnerBirthdayRow)}
       </View>
 
       <View style={styles.card}>
@@ -325,6 +472,7 @@ export default function KeyDates() {
             saveSingleton("birthday", iso, "Birthday", myId);
           }}
         />
+        {detailsFor(myBirthdayRow)}
       </View>
 
       <View style={styles.card}>
@@ -351,6 +499,7 @@ export default function KeyDates() {
                   onChange={(iso) => saveEdit(d, { title: editTitle, date: iso })}
                 />
               </View>
+              <DetailsPanel row={d} onToggle={toggleReminder} onSaveNotes={saveNotes} />
               <View style={styles.miscEditorActions}>
                 <Pressable
                   onPress={() => {
@@ -373,7 +522,14 @@ export default function KeyDates() {
               onPress={() => startEditing(d)}
               onLongPress={() => confirmRemoveMisc(d)}
             >
-              <Text style={styles.miscTitle}>{d.title}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.miscTitle}>{d.title}</Text>
+                {d.notes ? (
+                  <Text style={styles.miscNotes} numberOfLines={1}>
+                    {d.notes}
+                  </Text>
+                ) : null}
+              </View>
               <Text style={styles.miscDate}>{toFriendlyDate(d.date)}</Text>
             </Pressable>
           )
@@ -449,5 +605,28 @@ const createStyles = (t: Theme) =>
     borderBottomColor: t.surfaceSunken,
   },
   miscTitle: { fontSize: 14, color: t.textPrimary },
+  miscNotes: { fontSize: 12, color: t.textMuted, marginTop: 2 },
+  detailsToggle: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: t.surfaceSunken,
+  },
+  detailsToggleText: { fontSize: 13, fontWeight: "600", color: t.accent },
+  detailsToggleSummary: { fontSize: 12, color: t.textMuted, marginTop: 2 },
+  details: { marginTop: 12 },
+  detailsLabel: { fontSize: 12, fontWeight: "700", color: t.textSecondary, marginBottom: 8 },
+  detailsHint: { fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 15 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: t.radius.pill,
+    backgroundColor: t.surfaceSunken,
+  },
+  chipOn: { backgroundColor: t.accentSoft },
+  chipText: { fontSize: 12, fontWeight: "600", color: t.textMuted },
+  chipTextOn: { color: t.accent },
+  notesInput: { minHeight: 72, textAlignVertical: "top", paddingTop: 12 },
   miscDate: { fontSize: 13, color: t.textMuted },
   });

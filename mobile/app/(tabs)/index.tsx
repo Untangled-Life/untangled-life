@@ -78,7 +78,7 @@ export default function Home() {
   const loadKeyDates = useCallback(async () => {
     const { data } = await supabase
       .from("key_dates")
-      .select("id, title, date, recurring, kind, subject_user_id")
+      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes")
       .order("date", { ascending: true });
     if (data) setKeyDates(data as KeyDateRow[]);
   }, []);
@@ -454,6 +454,14 @@ export default function Home() {
                 <Text style={styles.keyDateTitle} numberOfLines={2}>
                   {displayTitleFor(kd, nameFor)}
                 </Text>
+                {/* The gift idea belongs where you'll see it -- on the
+                    countdown, not two taps away on a screen you only open when
+                    you're already thinking about it. */}
+                {kd.notes ? (
+                  <Text style={styles.keyDateNote} numberOfLines={2}>
+                    {kd.notes}
+                  </Text>
+                ) : null}
               </View>
             );
           })}
@@ -698,6 +706,7 @@ const createStyles = (t: Theme) =>
   },
   keyDateDays: { fontSize: 20, fontWeight: "700", color: t.brand, marginBottom: 6 },
   keyDateTitle: { fontSize: 13, color: t.textPrimary },
+  keyDateNote: { fontSize: 11, color: t.textMuted, marginTop: 4, lineHeight: 15 },
   planRow: {
     backgroundColor: t.surface,
     borderRadius: t.radius.md,

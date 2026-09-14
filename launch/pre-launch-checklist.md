@@ -123,8 +123,14 @@ reach Google's verification team unnoticed.
       Found by grep after fixing it in Key Dates, patched in seven places
       (sign-in, sign-up, pairing, to-dos, both wishlist screens, key dates).
       Worth a pass through the app with dark mode on.
+- [ ] **Run `supabase/key-date-extras.sql`** — per-date reminders and notes.
 - [ ] **Key Dates editing.** Tap a misc date to rename or re-date it; Clear on
       the anniversary and either birthday.
+- [ ] **Per-date reminders.** Change a date's reminder chips, then check the
+      old notification is gone and the new one is scheduled — rescheduling
+      cancels by `keydate-` prefix, so a stale offset should not survive.
+- [ ] **Notes.** Type a gift idea, leave the field, come back. It should also
+      appear under the countdown on Home and be visible on the other phone.
 - [ ] **Busy-only really is busy-only.** Set a calendar to Busy only, sync, and
       confirm in Supabase that `title` is null on those rows. The promise is
       that titles never reach the server, not that the app hides them.
