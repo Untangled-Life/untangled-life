@@ -311,7 +311,7 @@ const createStyles = (t: Theme) =>
   },
   chipActive: { backgroundColor: t.accent },
   chipText: { ...t.type.label, color: t.textSecondary },
-  chipTextActive: { color: t.surface },
+  chipTextActive: { color: t.textOnBrand },
   editInput: {
     flex: 1,
     ...t.type.body,
@@ -334,7 +334,7 @@ const createStyles = (t: Theme) =>
     marginBottom: t.space(5)
   },
   emptyTitle: { ...t.type.heading, color: t.textPrimary, marginBottom: t.space(1.5) },
-  emptyBody: { ...t.type.caption, color: t.textSecondary, lineHeight: 19 },
+  emptyBody: { ...t.type.caption, color: t.textSecondary },
   todoRow: {
     flexDirection: "row",
     alignItems: "center",

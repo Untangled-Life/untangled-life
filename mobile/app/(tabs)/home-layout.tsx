@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, Switch, Alert } from "react-native";
-import { router } from "expo-router";
 import { press } from "@/components/press";
+import { ScreenHeader } from "@/components/screen";
 import { tapped, warned } from "@/lib/haptics";
 import { useAuth } from "@/contexts/auth";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
@@ -56,15 +56,15 @@ export default function HomeLayoutSettings() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Pressable onPress={() => router.back()} hitSlop={8}>
-        <Text style={styles.back}>‹ Back</Text>
-      </Pressable>
-
-      <Text style={styles.title}>Arrange Home</Text>
-      <Text style={styles.intro}>
-        Put the sections in the order you want them and switch off the ones you don&apos;t use.
-        This is yours alone. Your partner keeps their own arrangement.
-      </Text>
+      <ScreenHeader
+        title="Arrange Home"
+        intro={
+          <>
+          Put the sections in the order you want them and switch off the ones you don&apos;t use.
+          This is yours alone. Your partner keeps their own arrangement.
+          </>
+        }
+      />
 
       <View style={styles.card}>
         {layout.order.map((key, index) => {
@@ -138,9 +138,6 @@ const createStyles = (t: Theme) =>
       paddingTop: t.space(16),
       paddingBottom: t.space(12),
     },
-    back: { ...t.type.label, color: t.accent, marginBottom: t.space(3) },
-    title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(2) },
-    intro: { ...t.type.body, lineHeight: 21, color: t.textSecondary, marginBottom: t.space(6) },
     card: {
       ...t.card,
       paddingHorizontal: t.space(4)
@@ -158,5 +155,5 @@ const createStyles = (t: Theme) =>
     rowLabel: { ...t.type.heading, color: t.textPrimary },
     rowLabelOff: { color: t.textMuted },
     rowHint: { ...t.type.caption, color: t.textMuted, marginTop: 2 },
-    footnote: { ...t.type.caption, lineHeight: 18, color: t.textMuted, marginTop: t.space(4) },
+    footnote: { ...t.type.caption, color: t.textMuted, marginTop: t.space(4) },
   });

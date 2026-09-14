@@ -137,10 +137,18 @@ export type Theme = {
 const radius = { sm: 10, md: 14, lg: 20, xl: 28, pill: 999 };
 const space = (n: number) => n * 4;
 
+// Named so the card token below and the surface token above cannot drift
+// apart: a card that keeps the old colour after somebody changes `surface` is
+// a bug with no error message.
+const LIGHT_SURFACE = "#FFFFFF";
+const LIGHT_CARD_EDGE = "rgba(58, 52, 40, 0.08)";
+const DARK_SURFACE = "#1E1C17";
+const DARK_BORDER = "#332F28";
+
 export const lightTheme: Theme = {
   scheme: "light",
   bg: "#F7F5F0",
-  surface: "#FFFFFF",
+  surface: LIGHT_SURFACE,
   surfaceAlt: "#FBFAF7",
   surfaceSunken: "#F0EEE8",
   border: "#E9E7E0",
@@ -159,10 +167,10 @@ export const lightTheme: Theme = {
   dotBusy: "#D6D2C8",
   type,
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: LIGHT_SURFACE,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(58, 52, 40, 0.08)",
+    borderColor: LIGHT_CARD_EDGE,
     shadowColor: "#3A3428",
     shadowOpacity: 0.08,
     shadowRadius: 18,
@@ -188,14 +196,19 @@ export const darkTheme: Theme = {
   // Warm-tinted rather than pure grey, so it still reads as the same brand at
   // night instead of a generic dark app.
   bg: "#14130F",
-  surface: "#1E1C17",
+  surface: DARK_SURFACE,
   surfaceAlt: "#25221C",
   surfaceSunken: "#2B2822",
-  border: "#332F28",
+  border: DARK_BORDER,
   textPrimary: "#F5F2EB",
   textSecondary: "#A8A196",
   textMuted: "#79736A",
-  textOnBrand: "#FFFFFF",
+  // Dark mode's brand and accent are LIFTED, which is what makes them read on
+  // a dark ground -- and it also makes them too bright to put white type on.
+  // #35B98C with white is 2.5:1, unreadable; with the near-black ground it is
+  // 8.4:1. "On brand" means whatever reads on a filled colour, and in this
+  // theme that is dark.
+  textOnBrand: "#14130F",
   // Lifted slightly: the light-mode brand tones go muddy on a dark ground.
   brand: "#F0714A",
   brandSoft: "#3A251C",
@@ -208,10 +221,10 @@ export const darkTheme: Theme = {
   dotBusy: "#4A463E",
   // No shadow worth seeing on a dark ground, so the edge does the work.
   card: {
-    backgroundColor: "#1E1C17",
+    backgroundColor: DARK_SURFACE,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#332F28",
+    borderColor: DARK_BORDER,
   },
   type,
   radius,

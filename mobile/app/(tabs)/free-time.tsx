@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert, RefreshControl } from "react-native";
-import { router } from "expo-router";
 import { press } from "@/components/press";
+import { ScreenHeader } from "@/components/screen";
 import { tapped, warned } from "@/lib/haptics";
 import { useAuth } from "@/contexts/auth";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
@@ -111,16 +111,16 @@ export default function FreeTimeSettings() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
       }
     >
-      <Pressable onPress={() => router.back()} hitSlop={8}>
-        <Text style={styles.back}>‹ Back</Text>
-      </Pressable>
-
-      <Text style={styles.title}>Free together</Text>
-      <Text style={styles.intro}>
-        What counts as time worth offering the two of you. These apply to both of you, because there&apos;s
-        no useful sense in which one of you thinks 11pm is too late for a window you&apos;d both
-        have to be in.
-      </Text>
+      <ScreenHeader
+        title="Free together"
+        intro={
+          <>
+          What counts as time worth offering the two of you. These apply to both of you, because there&apos;s
+          no useful sense in which one of you thinks 11pm is too late for a window you&apos;d both
+          have to be in.
+          </>
+        }
+      />
 
       <View style={styles.card}>
         <Text style={styles.label}>Your day starts</Text>
@@ -183,16 +183,13 @@ const createStyles = (t: Theme) =>
       paddingTop: t.space(16),
       paddingBottom: t.space(12),
     },
-    back: { ...t.type.label, color: t.accent, marginBottom: t.space(3) },
-    title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(2) },
-    intro: { ...t.type.body, lineHeight: 21, color: t.textSecondary, marginBottom: t.space(6) },
     card: {
       ...t.card,
       padding: t.space(4),
       marginBottom: t.space(4)
     },
     label: { ...t.type.label, color: t.textSecondary, marginBottom: t.space(3) },
-    hint: { ...t.type.caption, color: t.textMuted, marginTop: t.space(3), lineHeight: 17 },
+    hint: { ...t.type.caption, color: t.textMuted, marginTop: t.space(3) },
     chipScroll: { marginHorizontal: -4 },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     chip: {

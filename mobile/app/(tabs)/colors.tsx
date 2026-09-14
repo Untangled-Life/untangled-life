@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from "react-native";
-import { router } from "expo-router";
 import { press } from "@/components/press";
+import { ScreenHeader } from "@/components/screen";
 import { tapped, warned } from "@/lib/haptics";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
@@ -69,15 +69,15 @@ export default function Colors() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Pressable onPress={() => router.back()} hitSlop={8}>
-        <Text style={styles.back}>‹ Back</Text>
-      </Pressable>
-
-      <Text style={styles.title}>Your colour</Text>
-      <Text style={styles.intro}>
-        Everything of yours is drawn in this: events, your busy time, your working hours. Both of
-        you see the same scheme, so pick something {partnerName.toLowerCase() === "your partner" ? "your partner" : partnerName} isn&apos;t.
-      </Text>
+      <ScreenHeader
+        title="Your colour"
+        intro={
+          <>
+          Everything of yours is drawn in this: events, your busy time, your working hours. Both of
+          you see the same scheme, so pick something {partnerName.toLowerCase() === "your partner" ? "your partner" : partnerName} isn&apos;t.
+          </>
+        }
+      />
 
       <View style={styles.preview}>
         <View
@@ -170,9 +170,6 @@ const createStyles = (t: Theme) =>
       paddingTop: t.space(16),
       paddingBottom: t.space(12),
     },
-    back: { ...t.type.label, color: t.accent, marginBottom: t.space(3) },
-    title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(2) },
-    intro: { ...t.type.body, lineHeight: 21, color: t.textSecondary, marginBottom: t.space(5) },
     preview: { gap: t.space(2), marginBottom: t.space(6) },
     previewBlock: {
       borderRadius: t.radius.sm,
@@ -196,5 +193,5 @@ const createStyles = (t: Theme) =>
     tick: { fontSize: 18, fontWeight: "700" },
     swatchLabel: { fontSize: 10, color: t.textMuted, marginTop: 5, textAlign: "center" },
     swatchLabelOn: { color: t.textPrimary, fontWeight: "700" },
-    footnote: { ...t.type.caption, lineHeight: 18, color: t.textMuted, marginTop: t.space(6) },
+    footnote: { ...t.type.caption, color: t.textMuted, marginTop: t.space(6) },
   });

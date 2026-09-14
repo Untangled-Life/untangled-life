@@ -73,11 +73,13 @@ export default function SignIn() {
 const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: t.bg },
+  // The brand's own face, not small capitals. Uppercasing a product name
+  // changes how it is written, and this is the first screen anybody sees.
   wordmark: {
-    ...t.type.eyebrow,
+    ...t.type.title,
     color: t.brand,
     textAlign: "center",
-    marginBottom: t.space(3),
+    marginBottom: t.space(2),
   },
   title: { ...t.type.display, color: t.textPrimary, textAlign: "center", marginBottom: t.space(1) },
   subtitle: { ...t.type.body, color: t.textSecondary, textAlign: "center", marginBottom: t.space(7) },

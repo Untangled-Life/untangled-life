@@ -414,7 +414,6 @@ const createStyles = (t: Theme) =>
     footnote: {
       ...t.type.caption,
       color: t.textMuted,
-      lineHeight: 18,
       marginTop: t.space(3),
       marginLeft: t.space(1),
     },

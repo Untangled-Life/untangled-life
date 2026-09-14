@@ -804,7 +804,7 @@ const createStyles = (t: Theme) =>
   back: { ...t.type.label, color: t.accent },
   todayPill: {
     paddingHorizontal: t.space(3),
-    paddingVertical: t.space(1),
+    paddingVertical: t.space(2),
     borderRadius: t.radius.pill,
     backgroundColor: t.accentSoft,
   },
@@ -845,7 +845,7 @@ const createStyles = (t: Theme) =>
   grid: { flexDirection: "row", flexWrap: "wrap" },
   cell: {
     width: CELL,
-    aspectRatio: 0.92,
+    aspectRatio: 0.88,
     alignItems: "center",
     justifyContent: "center",
     gap: 3,
@@ -928,5 +928,5 @@ const createStyles = (t: Theme) =>
   swipeActionTextSoft: { color: t.textSecondary },
   footnote: { ...t.type.caption, color: t.textMuted, marginTop: t.space(2) },
   entryDetail: { ...t.type.caption, color: t.textSecondary, marginTop: 2 },
-  entryNote: { ...t.type.caption, color: t.textMuted, marginTop: 4, lineHeight: 17 },
+  entryNote: { ...t.type.caption, color: t.textMuted, marginTop: 4 },
   });

@@ -261,14 +261,13 @@ const createStyles = (t: Theme) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    intro: { ...t.type.body, color: t.textSecondary, lineHeight: 20, marginBottom: t.space(5) },
+    intro: { ...t.type.body, color: t.textSecondary, marginBottom: t.space(5) },
     paste: {
       ...t.card,
       padding: t.space(4),
       minHeight: 200,
       ...t.type.body,
-      color: t.textPrimary,
-      lineHeight: 21
+      color: t.textPrimary
     },
     primary: {
       backgroundColor: t.accent,
@@ -281,7 +280,7 @@ const createStyles = (t: Theme) =>
     primaryText: { color: t.textOnBrand, ...t.type.heading },
     secondary: { paddingVertical: t.space(4), alignItems: "center" },
     secondaryText: { color: t.textSecondary, ...t.type.heading },
-    hint: { ...t.type.caption, color: t.textMuted, lineHeight: 18, marginTop: t.space(4) },
+    hint: { ...t.type.caption, color: t.textMuted, marginTop: t.space(4) },
     row: {
       ...t.card,
       padding: t.space(4),

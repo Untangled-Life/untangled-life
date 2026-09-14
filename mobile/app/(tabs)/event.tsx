@@ -761,7 +761,7 @@ const createStyles = (t: Theme) =>
       marginTop: t.space(4),
     },
     bannerWarn: { backgroundColor: t.surfaceSunken },
-    bannerText: { ...t.type.caption, lineHeight: 18, color: t.textSecondary },
+    bannerText: { ...t.type.caption, color: t.textSecondary },
     titleInput: {
       ...t.card,
       paddingHorizontal: t.space(4),
@@ -794,7 +794,7 @@ const createStyles = (t: Theme) =>
     segmentActive: { backgroundColor: t.surface, ...t.shadow },
     segmentText: { ...t.type.label, color: t.textMuted },
     segmentTextActive: { color: t.brand },
-    hint: { ...t.type.caption, color: t.textMuted, marginTop: t.space(2), lineHeight: 16 },
+    hint: { ...t.type.caption, color: t.textMuted, marginTop: t.space(2) },
     pushRow: { flexDirection: "row", alignItems: "center", gap: t.space(3), paddingVertical: t.space(2) },
     rowDivider: {
       borderTopWidth: StyleSheet.hairlineWidth,

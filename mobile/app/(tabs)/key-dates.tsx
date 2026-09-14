@@ -862,7 +862,9 @@ const createStyles = (t: Theme) =>
   detailsToggleText: { ...t.type.label, color: t.accent },
   detailsToggleSummary: { ...t.type.caption, color: t.textMuted, marginTop: 2 },
   details: { marginTop: 12 },
-  detailsLabel: { ...t.type.eyebrow, color: t.textMuted, marginBottom: t.space(2) },
+  // A field label, not an eyebrow. The eyebrow token uppercases, and
+  // "RUNS UNTIL (OPTIONAL)" is a sentence being shouted.
+  detailsLabel: { ...t.type.label, color: t.textSecondary, marginBottom: t.space(2) },
   detailsHint: { ...t.type.caption, color: t.textMuted, marginTop: t.space(2) },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {

@@ -181,7 +181,7 @@ const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: t.bg },
   title: { ...t.type.display, color: t.textPrimary, textAlign: "center", marginBottom: 8 },
-  subtitle: { ...t.type.body, color: t.textSecondary, textAlign: "center", marginBottom: 24, lineHeight: 20 },
+  subtitle: { ...t.type.body, color: t.textSecondary, textAlign: "center", marginBottom: 24 },
   input: {
     backgroundColor: t.surface,
     borderRadius: t.radius.md,

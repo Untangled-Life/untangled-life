@@ -222,7 +222,7 @@ const createStyles = (t: Theme) =>
   title: { ...t.type.display, color: t.textPrimary },
   addLink: { ...t.type.heading, color: t.accent },
   emptyCard: { ...t.card, padding: t.space(5) },
-  emptyText: { ...t.type.caption, color: t.textSecondary, lineHeight: 18 },
+  emptyText: { ...t.type.caption, color: t.textSecondary },
   card: { ...t.card, padding: t.space(5), marginBottom: 12 },
   renameInput: {
     fontSize: 16,

@@ -13,7 +13,11 @@ export const DAY_HOURS = 24;
 export const GRID_HEIGHT = HOUR_HEIGHT * DAY_HOURS;
 
 /** Minimum drawn height, so a 15-minute event is still readable and tappable. */
-const MIN_BLOCK_HEIGHT = 22;
+// Tall enough to hold one line of the caption token (16) plus the block's own
+// vertical padding (8) and its hairline borders. At 22 a half-hour event
+// rendered its title with the descenders cut off, which reads as a rendering
+// fault rather than as a short event.
+const MIN_BLOCK_HEIGHT = 26;
 
 export type Placed<T> = {
   item: T;

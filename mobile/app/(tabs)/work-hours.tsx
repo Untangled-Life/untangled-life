@@ -394,7 +394,7 @@ const createStyles = (t: Theme) =>
   container: { flexGrow: 1, padding: 24, paddingTop: 70, paddingBottom: 48 },
   back: { ...t.type.label, color: t.accent, marginBottom: 12 },
   title: { ...t.type.display, color: t.textPrimary, marginBottom: 8 },
-  subtitle: { ...t.type.caption, color: t.textSecondary, lineHeight: 19, marginBottom: 20 },
+  subtitle: { ...t.type.caption, color: t.textSecondary, marginBottom: 20 },
   card: { ...t.card, padding: t.space(5), marginBottom: 16 },
   importCard: {
     flexDirection: "row",
@@ -406,7 +406,7 @@ const createStyles = (t: Theme) =>
     marginBottom: 16,
   },
   importTitle: { ...t.type.heading, color: t.accent, marginBottom: 4 },
-  importBody: { ...t.type.caption, color: t.textSecondary, lineHeight: 18 },
+  importBody: { ...t.type.caption, color: t.textSecondary },
   importChevron: { fontSize: 24, color: t.accent },
   cardTitle: { ...t.type.heading, color: t.textPrimary, marginBottom: 12 },
   fieldLabel: { ...t.type.caption, color: t.textSecondary, marginBottom: 8 },
@@ -433,7 +433,7 @@ const createStyles = (t: Theme) =>
   },
   chipActive: { backgroundColor: t.brand },
   chipText: { ...t.type.caption, color: t.textSecondary, fontWeight: "600" },
-  chipTextActive: { color: t.surface },
+  chipTextActive: { color: t.textOnBrand },
   row: { flexDirection: "row", gap: 8 },
   saveButton: {
     backgroundColor: t.accent,
@@ -463,7 +463,7 @@ const createStyles = (t: Theme) =>
   shiftDay: { ...t.type.body, color: t.textPrimary, fontWeight: "500" },
   shiftTime: { ...t.type.caption, color: t.textSecondary },
   empty: { ...t.type.caption, color: t.textMuted },
-  hint: { ...t.type.caption, color: t.textMuted, marginTop: 8, lineHeight: 16 },
+  hint: { ...t.type.caption, color: t.textMuted, marginTop: 8 },
   divider: { height: 1, backgroundColor: t.surfaceSunken, marginVertical: 16 },
   savingNote: { ...t.type.caption, color: t.textMuted, textAlign: "center" },
   });

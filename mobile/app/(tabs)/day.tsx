@@ -667,13 +667,19 @@ const createStyles = (t: Theme) =>
     block_busy: { backgroundColor: t.surfaceSunken, borderLeftColor: t.dotBusy },
     block_work: { backgroundColor: t.surfaceSunken, borderLeftColor: t.dotWork },
     blockLabel: { ...t.type.caption, fontWeight: "700", color: t.textPrimary },
-    blockTime: { ...t.type.caption, ...t.type.caption, color: t.textSecondary },
+    // A step smaller than the label, so the time reads as subordinate to the
+    // title rather than as a second title.
+    blockTime: { ...t.type.caption, fontSize: 11, lineHeight: 14, color: t.textSecondary, marginTop: 1 },
     nowLine: {
       position: "absolute",
       left: GUTTER - 5,
       right: 0,
       flexDirection: "row",
       alignItems: "center",
+      // The row has no height of its own, so it takes the dot's -- which puts
+      // the rule half a dot below the instant it marks. Five pixels is about
+      // five minutes on this grid.
+      marginTop: -5,
     },
     // A ring round the dot so the line still reads where it crosses a block
     // in the brand colour.

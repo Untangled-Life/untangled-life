@@ -12,6 +12,7 @@ import {
 import * as Calendar from "expo-calendar/legacy";
 import { router } from "expo-router";
 import { press } from "@/components/press";
+import { ScreenHeader } from "@/components/screen";
 import { tapped, warned } from "@/lib/haptics";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
@@ -110,17 +111,18 @@ export default function Calendars() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
       }
     >
-      <Pressable onPress={goBack} hitSlop={8}>
-        <Text style={styles.back}>‹ Back</Text>
-      </Pressable>
-
-      <Text style={styles.title}>Calendars</Text>
-      <Text style={styles.intro}>
-        Pick what {partnerName} sees of each calendar. <Text style={styles.bold}>Busy only</Text>{" "}
-        shares the times and nothing else. <Text style={styles.bold}>Full detail</Text> shares the
-        title, place and notes as well. Anything left <Text style={styles.bold}>off</Text> is never
-        read and never leaves this phone.
-      </Text>
+      <ScreenHeader
+        title="Calendars"
+        onBack={goBack}
+        intro={
+          <>
+          Pick what {partnerName} sees of each calendar. <Text style={styles.bold}>Busy only</Text>{" "}
+          shares the times and nothing else. <Text style={styles.bold}>Full detail</Text> shares the
+          title, place and notes as well. Anything left <Text style={styles.bold}>off</Text> is never
+          read and never leaves this phone.
+          </>
+        }
+      />
 
       {permission !== "granted" ? (
         <View style={styles.card}>
@@ -204,14 +206,6 @@ const createStyles = (t: Theme) =>
       paddingTop: t.space(16),
       paddingBottom: t.space(12),
     },
-    back: { ...t.type.label, color: t.accent, marginBottom: t.space(3) },
-    title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(2) },
-    intro: {
-      ...t.type.body,
-      lineHeight: 21,
-      color: t.textSecondary,
-      marginBottom: t.space(6),
-    },
     card: {
       ...t.card,
       paddingHorizontal: t.space(4)
@@ -252,7 +246,6 @@ const createStyles = (t: Theme) =>
     },
     emptyText: {
       ...t.type.caption,
-      lineHeight: 19,
       color: t.textSecondary,
       marginTop: t.space(2),
       marginBottom: t.space(4),
@@ -264,10 +257,9 @@ const createStyles = (t: Theme) =>
       alignItems: "center",
       marginBottom: t.space(4),
     },
-    buttonText: { color: "#fff", ...t.type.heading },
+    buttonText: { color: t.textOnBrand, ...t.type.heading },
     footnote: {
       ...t.type.caption,
-      lineHeight: 18,
       color: t.textMuted,
       marginTop: t.space(4),
     },

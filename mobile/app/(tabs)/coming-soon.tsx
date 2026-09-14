@@ -34,7 +34,6 @@ const createStyles = (t: Theme) =>
       ...t.type.body,
       color: t.textSecondary,
       textAlign: "center",
-      lineHeight: 21,
       marginBottom: t.space(8),
     },
     button: {
