@@ -3,14 +3,14 @@ import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator
 import { press } from "@/components/press";
 import { router } from "expo-router";
 import { useThemedStyles, useTheme, useThemeMode } from "@/contexts/theme";
-import { Theme, ThemeMode } from "@/theme/tokens";
+import { Theme, ThemeMode, ACCENTS } from "@/theme/tokens";
 import { ChevronRightIcon } from "@/components/icons";
 import { Avatar } from "@/components/avatar";
 import { useAuth } from "@/contexts/auth";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
 import { supabase } from "@/lib/supabase";
-import { succeeded, warned } from "@/lib/haptics";
+import { succeeded, warned, tapped } from "@/lib/haptics";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { leaveCouple, deleteOwnAccount } from "@/lib/leaving";
 
@@ -23,7 +23,7 @@ const MODES: { key: ThemeMode; label: string; blurb: string }[] = [
 export default function Settings() {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
-  const { mode, setMode, scheme } = useThemeMode();
+  const { mode, setMode, scheme, accent, setAccent } = useThemeMode();
   const { session, profile, refreshProfile } = useAuth();
   const { myAvatarUrl, coverPath, reload: reloadPhotos } = useCouplePhotos();
   const { partner } = useCoupleMembers();
@@ -216,6 +216,43 @@ export default function Settings() {
           </Pressable>
         ))}
       </View>
+      <Text style={styles.groupTitle}>Accent colour</Text>
+      <View style={[styles.card, styles.swatchCard]}>
+        {ACCENTS.map((a) => {
+          const on = a.name === accent;
+          const pair = scheme === "dark" ? a.dark : a.light;
+          return (
+            <Pressable
+              key={a.name}
+              onPress={() => {
+                tapped();
+                setAccent(a.name);
+              }}
+              style={press(styles.swatchWrap)}
+              accessibilityRole="button"
+              accessibilityLabel={a.label}
+              accessibilityState={{ selected: on }}
+            >
+              <View
+                style={[
+                  styles.swatch,
+                  { backgroundColor: pair.on },
+                  on ? { borderColor: t.textPrimary } : null,
+                ]}
+              >
+                {on ? <Text style={styles.swatchTick}>✓</Text> : null}
+              </View>
+              <Text style={[styles.swatchLabel, on ? styles.rowLabelActive : null]}>
+                {a.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={styles.footnote}>
+        Changes links, buttons and key dates. The brand orange stays put.
+      </Text>
+
       <Text style={styles.footnote}>
         Currently showing the {scheme} theme.
         {mode === "system" ? " Change your phone's appearance setting to switch." : ""}
@@ -339,6 +376,25 @@ const createStyles = (t: Theme) =>
     rowLabelDanger: { color: t.danger },
     rowLabelActive: { color: t.accent, fontWeight: "700" },
     rowHint: { fontSize: 12, color: t.textMuted, marginTop: 2 },
+    swatchCard: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
+      padding: t.space(4),
+      gap: t.space(3),
+    },
+    swatchWrap: { alignItems: "center", width: "28%" },
+    swatch: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 2,
+      borderColor: "transparent",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    swatchTick: { color: "#fff", fontSize: 18, fontWeight: "700" },
+    swatchLabel: { fontSize: 12, color: t.textMuted, marginTop: 6 },
     profileCard: {
       flexDirection: "row",
       alignItems: "center",

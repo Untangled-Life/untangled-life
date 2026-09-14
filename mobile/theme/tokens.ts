@@ -114,7 +114,96 @@ export const darkTheme: Theme = {
   },
 };
 
-export function themeFor(mode: ThemeMode, system: Scheme): Theme {
-  if (mode === "system") return system === "dark" ? darkTheme : lightTheme;
-  return mode === "dark" ? darkTheme : lightTheme;
+/**
+ * Accent colours.
+ *
+ * The brand orange is fixed -- it's the app's identity and it's on the website
+ * -- so what's adjustable is the accent: the green used for links, actions,
+ * chips and key dates. Each one carries a light and a dark pair, because a
+ * colour that works on paper-white goes muddy on a dark ground and a colour
+ * lifted for dark mode glares in light.
+ *
+ * `soft` is the tinted background behind a selected chip or the hero
+ * countdown, so it has to sit in the same family as `on` rather than being
+ * derived by opacity, which produces a different hue over a warm surface.
+ */
+export type AccentName = "green" | "teal" | "blue" | "violet" | "rose" | "amber";
+
+type AccentPair = { on: string; soft: string };
+
+export const ACCENTS: {
+  name: AccentName;
+  label: string;
+  light: AccentPair;
+  dark: AccentPair;
+}[] = [
+  {
+    name: "green",
+    label: "Green",
+    light: { on: "#1D9E75", soft: "#E8F5EF" },
+    dark: { on: "#35B98C", soft: "#163026" },
+  },
+  {
+    name: "teal",
+    label: "Teal",
+    light: { on: "#0E8C9B", soft: "#E3F3F5" },
+    dark: { on: "#2FB6C6", soft: "#132C30" },
+  },
+  {
+    name: "blue",
+    label: "Blue",
+    light: { on: "#2F6FD0", soft: "#E8F0FC" },
+    dark: { on: "#5C96EC", soft: "#17243A" },
+  },
+  {
+    name: "violet",
+    label: "Violet",
+    light: { on: "#7A4BD0", soft: "#F0EAFB" },
+    dark: { on: "#A481EE", soft: "#241B3A" },
+  },
+  {
+    name: "rose",
+    label: "Rose",
+    light: { on: "#C6407A", soft: "#FBE8F0" },
+    dark: { on: "#E9709F", soft: "#351826" },
+  },
+  {
+    name: "amber",
+    label: "Amber",
+    light: { on: "#B07600", soft: "#FBF1DC" },
+    dark: { on: "#DFA53A", soft: "#332614" },
+  },
+];
+
+export const DEFAULT_ACCENT: AccentName = "green";
+
+export function isAccentName(value: unknown): value is AccentName {
+  return ACCENTS.some((a) => a.name === value);
+}
+
+function withAccent(base: Theme, accent: AccentName): Theme {
+  if (accent === DEFAULT_ACCENT) return base;
+
+  const chosen = ACCENTS.find((a) => a.name === accent);
+  if (!chosen) return base;
+
+  const pair = base.scheme === "dark" ? chosen.dark : chosen.light;
+
+  return {
+    ...base,
+    accent: pair.on,
+    accentSoft: pair.soft,
+    // Key dates are drawn in the accent everywhere else, so the calendar dot
+    // has to move with it or the legend stops matching the grid.
+    dotKeyDate: pair.on,
+  };
+}
+
+export function themeFor(
+  mode: ThemeMode,
+  system: Scheme,
+  accent: AccentName = DEFAULT_ACCENT
+): Theme {
+  const base = mode === "system" ? (system === "dark" ? darkTheme : lightTheme) : mode === "dark" ? darkTheme : lightTheme;
+  return withAccent(base, accent);
 }

@@ -137,6 +137,9 @@ reach Google's verification team unnoticed.
       both of you and the date leaves the horizontal row.
 - [ ] **Run `supabase/free-time-prefs.sql`** — the free-window settings.
 - [ ] **Run `supabase/home-layout.sql`** — per-person Home arrangement.
+- [ ] **Accent colour.** Pick each one in both light and dark mode. The soft
+      tints behind chips and the hero countdown are the ones most likely to
+      look wrong.
 - [ ] **Arrange Home.** Reorder and hide sections in Settings → Arrange Home,
       then check Home matches and that Alyssa's arrangement is untouched.
       Hiding everything should leave the photo and setup prompts, not a crash.

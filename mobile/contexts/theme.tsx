@@ -9,14 +9,17 @@ import {
 } from "react";
 import { useColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Theme, ThemeMode, themeFor } from "@/theme/tokens";
+import { AccentName, DEFAULT_ACCENT, Theme, ThemeMode, isAccentName, themeFor } from "@/theme/tokens";
 
 const STORAGE_KEY = "untangled.themeMode";
+const ACCENT_KEY = "untangled.accent";
 
 type ThemeContextValue = {
   theme: Theme;
   mode: ThemeMode;
   setMode: (mode: ThemeMode) => void;
+  accent: AccentName;
+  setAccent: (accent: AccentName) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -24,16 +27,20 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const system = useColorScheme() === "dark" ? "dark" : "light";
   const [mode, setModeState] = useState<ThemeMode>("system");
+  const [accent, setAccentState] = useState<AccentName>(DEFAULT_ACCENT);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then((stored) => {
-        if (stored === "light" || stored === "dark" || stored === "system") {
-          setModeState(stored);
+    AsyncStorage.multiGet([STORAGE_KEY, ACCENT_KEY])
+      .then((entries) => {
+        const stored = Object.fromEntries(entries);
+        const storedMode = stored[STORAGE_KEY];
+        if (storedMode === "light" || storedMode === "dark" || storedMode === "system") {
+          setModeState(storedMode);
         }
+        if (isAccentName(stored[ACCENT_KEY])) setAccentState(stored[ACCENT_KEY]);
       })
       .catch(() => {
-        // Preference is a convenience, not state worth failing startup over.
+        // Preferences are a convenience, not state worth failing startup over.
       });
   }, []);
 
@@ -42,9 +49,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
   }, []);
 
+  const setAccent = useCallback((next: AccentName) => {
+    setAccentState(next);
+    AsyncStorage.setItem(ACCENT_KEY, next).catch(() => {});
+  }, []);
+
   const value = useMemo(
-    () => ({ theme: themeFor(mode, system), mode, setMode }),
-    [mode, system, setMode]
+    () => ({ theme: themeFor(mode, system, accent), mode, setMode, accent, setAccent }),
+    [mode, system, accent, setMode, setAccent]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -59,7 +71,13 @@ export function useTheme(): Theme {
 export function useThemeMode() {
   const ctx = useContext(ThemeContext);
   if (!ctx) throw new Error("useThemeMode must be used within a ThemeProvider");
-  return { mode: ctx.mode, setMode: ctx.setMode, scheme: ctx.theme.scheme };
+  return {
+    mode: ctx.mode,
+    setMode: ctx.setMode,
+    scheme: ctx.theme.scheme,
+    accent: ctx.accent,
+    setAccent: ctx.setAccent,
+  };
 }
 
 /**
