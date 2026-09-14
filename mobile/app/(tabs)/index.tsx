@@ -253,6 +253,12 @@ export default function Home() {
       title,
       startAt: start,
       endAt: end,
+      // "Book it on both phones" says what it does on the button, so it owns
+      // nothing in particular and goes to both. push_to defaults to empty now
+      // that it's a real choice in the event editor, so this has to be
+      // explicit or the feature silently stops reaching either calendar.
+      ownerUserId: null,
+      pushTo: partnerId ? [session.user.id, partnerId] : [session.user.id],
     });
 
     if (error) {

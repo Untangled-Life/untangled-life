@@ -9,6 +9,8 @@ type Profile = {
   avatar_path: string | null;
   /** Their Home screen arrangement. Null means never set. */
   home_sections: string[] | null;
+  /** Their palette colour. Null means they haven't picked one. */
+  color: string | null;
 };
 
 type AuthContextValue = {
@@ -29,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function loadProfile(userId: string) {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, display_name, couple_id, avatar_path, home_sections")
+      .select("id, display_name, couple_id, avatar_path, home_sections, color")
       .eq("id", userId)
       .maybeSingle();
 

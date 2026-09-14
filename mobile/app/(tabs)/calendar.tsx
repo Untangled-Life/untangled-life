@@ -21,10 +21,12 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
+import { usePartnerColors } from "@/hooks/usePartnerColors";
+import { shadeFor } from "@/lib/palette";
 import { Avatar } from "@/components/avatar";
 import { Interval } from "@/lib/freeTime";
 import { KeyDateRow, displayTitleFor, nextOccurrence, tripNights } from "@/lib/keyDates";
-import { PlannedEvent, formatPlanWhen } from "@/lib/plannedEvents";
+import { EVENT_COLUMNS, PlannedEvent, formatPlanWhen } from "@/lib/plannedEvents";
 import { WorkPattern, WorkShift, expandWorkOccurrences, WorkSource, toDateKey } from "@/lib/workHours";
 import { daysCovered, lastCoveredDay } from "@/lib/daySpan";
 
@@ -112,11 +114,14 @@ function SwipeRow({
   entry,
   avatarUrl,
   avatarName,
+  tint,
   onAction,
 }: {
   entry: DayEntry;
   avatarUrl: string | null;
   avatarName: string | null;
+  /** The owner's colour, or null for anything that belongs to both of you. */
+  tint: { fill: string; ink: string; chip: string } | null;
   onAction: (entry: DayEntry) => void;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -156,7 +161,13 @@ function SwipeRow({
 
   const row = (
     <View style={styles.entryRow}>
-      <View style={[styles.entryBar, styles[`bar_${entry.kind}` as const]]} />
+      <View
+        style={[
+          styles.entryBar,
+          styles[`bar_${entry.kind}` as const],
+          tint ? { backgroundColor: tint.chip } : null,
+        ]}
+      />
       {/* Only rows that belong to one person get a face. A shared date or a
           key date belongs to both, and a picture of one of you beside it
           would say something untrue. */}
@@ -210,6 +221,15 @@ export default function CalendarScreen() {
   const { session, profile } = useAuth();
   const { me, partner } = useCoupleMembers();
   const { avatarUrlFor } = useCouplePhotos();
+  const partnerColors = usePartnerColors();
+
+  const tintFor = useCallback(
+    (ownerUserId: string | null) => {
+      const color = partnerColors.forOwner(ownerUserId);
+      return color ? shadeFor(color, t.scheme) : null;
+    },
+    [partnerColors, t.scheme]
+  );
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState<string>(toDateKey(new Date()));
 
@@ -241,7 +261,7 @@ export default function CalendarScreen() {
     const [planRes, keyRes, busyRes, patternRes, shiftRes] = await Promise.all([
       supabase
         .from("planned_events")
-        .select("id, title, start_at, end_at, location, notes, cancelled, created_by")
+        .select(EVENT_COLUMNS)
         .eq("cancelled", false)
         .gte("end_at", rangeStart.toISOString())
         .lte("start_at", rangeEnd.toISOString()),
@@ -318,7 +338,10 @@ export default function CalendarScreen() {
         kind: "plan",
         label: p.title,
         detail: formatPlanWhen(p.start_at, p.end_at).split(", ").slice(1).join(", "),
-        whose: null,
+        // An event belongs to whoever it's FOR, not whoever typed it in, so
+        // the avatar and colour follow owner_user_id. Roy entering Alyssa's
+        // dentist appointment should read as hers.
+        whose: p.owner_user_id,
         action: { type: "cancelPlan", id: p.id },
       });
     }
@@ -532,13 +555,30 @@ export default function CalendarScreen() {
           const isSelected = key === selected;
           const isToday = key === todayKey;
 
+          // One dot per distinct colour-and-kind, so a day with your event
+          // and theirs shows two dots rather than one.
           const dotKinds = [...new Set(entries.map((e) => e.kind))];
+          const ownerTints = [
+            ...new Map(
+              entries
+                .filter((e) => e.whose)
+                .map((e) => [e.whose as string, tintFor(e.whose)] as const)
+            ).values(),
+          ].filter((tint): tint is NonNullable<typeof tint> => tint !== null);
 
           return (
             <Pressable
               key={i}
               style={press([styles.cell, isSelected ? styles.cellSelected : null])}
-              onPress={() => setSelected(key)}
+              // First tap selects the day and shows its list below; a second
+              // tap on the day already selected opens the hour-by-hour view.
+              // Going straight there on the first tap would make the month
+              // grid impossible to browse.
+              onPress={() =>
+                isSelected
+                  ? router.push({ pathname: "/day", params: { date: key } })
+                  : setSelected(key)
+              }
             >
               <Text
                 style={[
@@ -550,9 +590,15 @@ export default function CalendarScreen() {
                 {cell.getDate()}
               </Text>
               <View style={styles.dotRow}>
-                {dotKinds.slice(0, 3).map((k) => (
-                  <View key={k} style={[styles.dot, styles[`dot_${k}` as const]]} />
+                {ownerTints.slice(0, 2).map((tint) => (
+                  <View key={tint.chip} style={[styles.dot, { backgroundColor: tint.chip }]} />
                 ))}
+                {dotKinds
+                  .filter((k) => k === "plan" || k === "keydate")
+                  .slice(0, 2)
+                  .map((k) => (
+                    <View key={k} style={[styles.dot, styles[`dot_${k}` as const]]} />
+                  ))}
               </View>
             </Pressable>
           );
@@ -578,13 +624,21 @@ export default function CalendarScreen() {
         </View>
       </View>
 
-      <Text style={styles.dayTitle}>
-        {new Date(selected + "T00:00:00").toLocaleDateString(undefined, {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        })}
-      </Text>
+      <View style={styles.dayTitleRow}>
+        <Text style={styles.dayTitle}>
+          {new Date(selected + "T00:00:00").toLocaleDateString(undefined, {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          })}
+        </Text>
+        <Pressable
+          onPress={() => router.push({ pathname: "/day", params: { date: selected } })}
+          hitSlop={8}
+        >
+          <Text style={styles.dayTitleAction}>Open day ›</Text>
+        </Pressable>
+      </View>
 
       {selectedEntries.length === 0 ? (
         <View style={styles.emptyCard}>
@@ -597,6 +651,7 @@ export default function CalendarScreen() {
             entry={e}
             avatarUrl={avatarUrlFor(e.whose)}
             avatarName={e.whose ? nameFor(e.whose) : null}
+            tint={tintFor(e.whose)}
             onAction={confirmAction}
           />
         ))
@@ -666,7 +721,14 @@ const createStyles = (t: Theme) =>
   },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legendText: { fontSize: 11, color: t.textMuted },
-  dayTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary, marginBottom: 12 },
+  dayTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  dayTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary },
+  dayTitleAction: { fontSize: 13, fontWeight: "600", color: t.accent },
   emptyCard: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 18 },
   emptyText: { fontSize: 13, color: t.textSecondary },
   entryRow: {

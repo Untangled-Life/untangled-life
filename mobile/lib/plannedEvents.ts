@@ -10,7 +10,14 @@ export type PlannedEvent = {
   notes: string | null;
   cancelled: boolean;
   created_by: string;
+  /** Whose event it is. Null means it belongs to both of you. */
+  owner_user_id: string | null;
+  /** Whose phone calendar it should appear in. Empty means neither. */
+  push_to: string[];
 };
+
+export const EVENT_COLUMNS =
+  "id, title, start_at, end_at, location, notes, cancelled, created_by, owner_user_id, push_to";
 
 /**
  * Create a plan. This only writes the shared record -- getting it onto the
@@ -25,6 +32,10 @@ export async function createPlannedEvent(input: {
   endAt: Date;
   location?: string;
   notes?: string;
+  /** Null for an event that belongs to both of you. */
+  ownerUserId?: string | null;
+  /** Whose phone calendar it goes to. Defaults to nobody's. */
+  pushTo?: string[];
 }) {
   return supabase.from("planned_events").insert({
     couple_id: input.coupleId,
@@ -34,7 +45,40 @@ export async function createPlannedEvent(input: {
     end_at: input.endAt.toISOString(),
     location: input.location ?? null,
     notes: input.notes ?? null,
+    owner_user_id: input.ownerUserId ?? null,
+    push_to: input.pushTo ?? [],
   });
+}
+
+export async function updatePlannedEvent(
+  id: string,
+  patch: {
+    title?: string;
+    startAt?: Date;
+    endAt?: Date;
+    location?: string | null;
+    notes?: string | null;
+    ownerUserId?: string | null;
+    pushTo?: string[];
+  }
+) {
+  const row: Record<string, unknown> = {};
+  if (patch.title !== undefined) row.title = patch.title;
+  if (patch.startAt !== undefined) row.start_at = patch.startAt.toISOString();
+  if (patch.endAt !== undefined) row.end_at = patch.endAt.toISOString();
+  if (patch.location !== undefined) row.location = patch.location;
+  if (patch.notes !== undefined) row.notes = patch.notes;
+  if (patch.ownerUserId !== undefined) row.owner_user_id = patch.ownerUserId;
+  if (patch.pushTo !== undefined) row.push_to = patch.pushTo;
+
+  return supabase.from("planned_events").update(row).eq("id", id);
+}
+
+export async function deletePlannedEvent(id: string) {
+  // Cancel rather than delete: each phone removes its own copy on the next
+  // sync by reading the flag, and a row that has vanished can't tell anybody
+  // to take the event off their calendar.
+  return cancelPlannedEvent(id);
 }
 
 /** Flag the plan cancelled. Both phones drop their own copy on next sync. */
@@ -93,10 +137,10 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
 
   const { data: events } = await supabase
     .from("planned_events")
-    .select("id, title, start_at, end_at, location, notes, cancelled, created_by")
+    .select(EVENT_COLUMNS)
     .gte("end_at", new Date().toISOString());
 
-  if (!events || events.length === 0) return result;
+  if (!events) return result;
 
   const { data: links } = await supabase
     .from("planned_event_calendar_links")
@@ -112,7 +156,18 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
   for (const ev of events as PlannedEvent[]) {
     const existing = linkFor.get(ev.id);
 
-    if (ev.cancelled) {
+    // Whether THIS phone should be carrying it. push_to is a list of user ids
+    // chosen in the event editor, separate from who the event belongs to: a
+    // shared dinner is both of yours and wants to be on both phones, while
+    // "Alyssa - school pickup" is hers but you may well want it in your diary
+    // too. Untangling the two is the whole point of the toggles.
+    const wanted = !ev.cancelled && (ev.push_to ?? []).includes(userId);
+
+    // Cancelled and "no longer pushed to me" are the same job: take my copy
+    // off this phone. Treating them separately is how you end up with an event
+    // that stays in your calendar after you switch its toggle off, which looks
+    // exactly like the toggle not working.
+    if (!wanted) {
       if (existing) {
         try {
           await Calendar.deleteEventAsync(existing);
@@ -130,7 +185,29 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
       continue;
     }
 
-    if (existing) continue;
+    if (existing) {
+      // Already on this phone. Keep its details in step with the shared
+      // record, so editing an event's time in the app moves it in the phone's
+      // calendar rather than leaving the two disagreeing.
+      try {
+        await Calendar.updateEventAsync(existing, {
+          title: ev.title,
+          startDate: new Date(ev.start_at),
+          endDate: new Date(ev.end_at),
+          location: ev.location ?? undefined,
+          notes: ev.notes ?? undefined,
+        });
+      } catch {
+        // Deleted by hand on the phone, or its calendar removed. Drop the link
+        // so the next sync puts it back rather than believing it's still there.
+        await supabase
+          .from("planned_event_calendar_links")
+          .delete()
+          .eq("planned_event_id", ev.id)
+          .eq("user_id", userId);
+      }
+      continue;
+    }
 
     if (!writableCalendarId) {
       writableCalendarId = await findWritableCalendarId();
@@ -181,7 +258,7 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
 export async function loadUpcomingPlans(): Promise<PlannedEvent[]> {
   const { data } = await supabase
     .from("planned_events")
-    .select("id, title, start_at, end_at, location, notes, cancelled, created_by")
+    .select(EVENT_COLUMNS)
     .eq("cancelled", false)
     .gte("end_at", new Date().toISOString())
     .order("start_at", { ascending: true });

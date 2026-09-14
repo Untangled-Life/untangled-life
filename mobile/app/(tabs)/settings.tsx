@@ -253,6 +253,17 @@ export default function Settings() {
         {mode === "system" ? " Change your phone's appearance setting to switch." : ""}
       </Text>
 
+      <Text style={styles.groupTitle}>Calendar colour</Text>
+      <Pressable style={press(styles.card)} onPress={() => router.push("/colors")}>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Your colour</Text>
+            <Text style={styles.rowHint}>How your events look on the shared calendar</Text>
+          </View>
+          <ChevronRightIcon size={18} color={t.textMuted} />
+        </View>
+      </Pressable>
+
       <Text style={styles.groupTitle}>Home screen</Text>
       <Pressable style={press(styles.card)} onPress={() => router.push("/home-layout")}>
         <View style={styles.row}>

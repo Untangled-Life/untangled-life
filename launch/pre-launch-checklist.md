@@ -201,6 +201,28 @@ committed; none has been seen working on a phone.
       settings or the cover photo stop saving with a permission error, the
       grant in `free-time-prefs.sql` is missing a column.
 
+## The calendar build (14 Sep, evening) — needs device testing
+
+- [ ] **Run `supabase/calendar-events.sql`** (in the combined file).
+- [ ] **Day view.** Tap a day in the month grid once to select it, again to
+      open the hour-by-hour view. 24 rows, everything in its real slot, a red
+      line at the current time on today.
+- [ ] **Tap-to-add.** Tapping empty space should open the editor pre-filled
+      with that half-hour slot — check the slot matches where you tapped.
+- [ ] **Overlaps.** Two events at the same time should sit side by side, not
+      on top of each other.
+- [ ] **Owner and colour.** An event set to Alyssa should show in her colour
+      everywhere — day view, month dots, the day list.
+- [ ] **Push toggles.** The critical one. Turn a toggle ON and the event should
+      appear in that phone's own calendar app; turn it OFF and it should
+      *disappear* from there on the next sync. Editing the time in the app
+      should move it in the phone calendar too.
+- [ ] **Book it still works.** It now has to pass push_to explicitly; if the
+      booked date stops reaching either calendar, that's why.
+- [ ] **Colour picker.** 24 swatches, your partner's current colour labelled
+      with their name so you don't pick the same one.
+- [ ] **Editing and deleting an event**, including one the partner created.
+
 ## Known rough edges
 
 - Everything is verified on two iPhones only, with one couple, on one Supabase
