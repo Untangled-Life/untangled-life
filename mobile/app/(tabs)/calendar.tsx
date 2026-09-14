@@ -25,10 +25,22 @@ import { KeyDateRow, displayTitleFor, nextOccurrence } from "@/lib/keyDates";
 import { PlannedEvent, formatPlanWhen } from "@/lib/plannedEvents";
 import { WorkPattern, WorkShift, expandWorkOccurrences, WorkSource, toDateKey } from "@/lib/workHours";
 
+type BusyRow = {
+  user_id: string;
+  start: Date;
+  end: Date;
+  title: string | null;
+  location: string | null;
+  notes: string | null;
+  all_day: boolean;
+};
+
 type DayEntry = {
   kind: "plan" | "keydate" | "work" | "busy";
   label: string;
   detail: string;
+  /** Free text shown under the detail line, e.g. an event's notes. */
+  note?: string | null;
   whose: string | null;
   /**
    * What removing this row actually means. Not every row is a row you can
@@ -140,6 +152,11 @@ function SwipeRow({
       <View style={{ flex: 1 }}>
         <Text style={styles.entryLabel}>{entry.label}</Text>
         <Text style={styles.entryDetail}>{entry.detail}</Text>
+        {entry.note ? (
+          <Text style={styles.entryNote} numberOfLines={3}>
+            {entry.note}
+          </Text>
+        ) : null}
       </View>
     </View>
   );
@@ -185,7 +202,7 @@ export default function CalendarScreen() {
 
   const [plans, setPlans] = useState<PlannedEvent[]>([]);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
-  const [busy, setBusy] = useState<{ user_id: string; start: Date; end: Date }[]>([]);
+  const [busy, setBusy] = useState<BusyRow[]>([]);
   const [work, setWork] = useState<{ user_id: string; interval: Interval; source: WorkSource }[]>([]);
 
   const myId = me.id;
@@ -218,7 +235,7 @@ export default function CalendarScreen() {
       supabase.from("key_dates").select("id, title, date, recurring, kind, subject_user_id"),
       supabase
         .from("busy_blocks")
-        .select("user_id, start_at, end_at")
+        .select("user_id, start_at, end_at, title, location, notes, all_day")
         .gte("end_at", rangeStart.toISOString())
         .lte("start_at", rangeEnd.toISOString()),
       supabase.from("work_patterns").select("id, user_id, mode, cycle_weeks, anchor_date, shifts"),
@@ -236,6 +253,10 @@ export default function CalendarScreen() {
         user_id: b.user_id as string,
         start: new Date(b.start_at as string),
         end: new Date(b.end_at as string),
+        title: (b.title as string | null) ?? null,
+        location: (b.location as string | null) ?? null,
+        notes: (b.notes as string | null) ?? null,
+        all_day: b.all_day === true,
       }))
     );
 
@@ -325,14 +346,21 @@ export default function CalendarScreen() {
     const seenBusy = new Set<string>();
 
     for (const b of busy) {
-      const fingerprint = `${b.user_id}|${b.start.getTime()}|${b.end.getTime()}`;
+      const fingerprint = `${b.user_id}|${b.start.getTime()}|${b.end.getTime()}|${b.title ?? ""}`;
       if (seenBusy.has(fingerprint)) continue;
       seenBusy.add(fingerprint);
 
+      // The title is the whole point of connecting a calendar -- without it
+      // this row is the anonymous grey block it used to be. Whose it is still
+      // leads, because on a shared calendar "Dentist" is ambiguous.
+      const when = b.all_day ? "All day" : `${timeLabel(b.start)} – ${timeLabel(b.end)}`;
+      const where = b.location ? ` · ${b.location}` : "";
+
       push(toDateKey(b.start), {
         kind: "busy",
-        label: `${nameFor(b.user_id)} busy`,
-        detail: `${timeLabel(b.start)} – ${timeLabel(b.end)}`,
+        label: b.title ? `${nameFor(b.user_id)} · ${b.title}` : `${nameFor(b.user_id)} busy`,
+        detail: `${when}${where}`,
+        note: b.notes,
         whose: b.user_id,
         action: null,
       });
@@ -510,7 +538,8 @@ export default function CalendarScreen() {
 
       {selectedEntries.some((e) => e.kind === "busy") ? (
         <Text style={styles.footnote}>
-          Busy time comes from your phone&apos;s calendar — change it there and it updates here.
+          Events come from the calendars you&apos;ve connected — change them there and they update
+          here.
         </Text>
       ) : null}
 
@@ -611,4 +640,5 @@ const createStyles = (t: Theme) =>
   swipeActionTextSoft: { color: t.textSecondary },
   footnote: { fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 16 },
   entryDetail: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
+  entryNote: { fontSize: 12, color: t.textMuted, marginTop: 4, lineHeight: 17 },
   });

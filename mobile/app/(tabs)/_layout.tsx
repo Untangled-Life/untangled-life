@@ -117,6 +117,7 @@ export default function TabsLayout() {
       {/* Reached from the Home header / cards, not the tab bar — href: null
           keeps them inside the gated tab group without adding tab buttons. */}
       <Tabs.Screen name="calendar" options={{ href: null }} />
+      <Tabs.Screen name="calendars" options={{ href: null }} />
       <Tabs.Screen name="work-hours" options={{ href: null }} />
       <Tabs.Screen name="menu" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />

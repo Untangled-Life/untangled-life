@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { KeyDateRow, daysUntil, displayTitleFor } from "@/lib/keyDates";
 import { syncBusyBlocks } from "@/lib/calendarSync";
+import { listCalendars } from "@/lib/calendarPrefs";
 import { Interval, nextSharedFreeWindows, formatWindow } from "@/lib/freeTime";
 import { WorkPattern, WorkShift, expandWorkHours, toDateKey, describePattern } from "@/lib/workHours";
 import {
@@ -44,6 +45,7 @@ export default function Home() {
   const { me, partner } = useCoupleMembers();
   const [permission, setPermission] = useState<PermissionStatus | null>(null);
   const [calendarCount, setCalendarCount] = useState<number | null>(null);
+  const [connectedCount, setConnectedCount] = useState<number | null>(null);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [freeWindows, setFreeWindows] = useState<Interval[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -83,9 +85,14 @@ export default function Home() {
     const windowEnd = new Date();
     windowEnd.setDate(windowEnd.getDate() + 8);
 
+    // all_day is excluded on purpose. An all-day event now syncs (it's worth
+    // seeing "Alyssa - annual leave" on the shared calendar) but treating it
+    // as 24 hours of busy would wipe out every free window on that day, and
+    // being on leave is the opposite of being unavailable.
     const { data } = await supabase
       .from("busy_blocks")
       .select("user_id, start_at, end_at")
+      .eq("all_day", false)
       .lte("start_at", windowEnd.toISOString())
       .gte("end_at", new Date().toISOString());
 
@@ -158,6 +165,12 @@ export default function Home() {
     const permissionResult = await Calendar.getCalendarPermissionsAsync();
     setPermission(permissionResult.status);
 
+    if (permissionResult.status === PermissionStatus.GRANTED && session?.user.id) {
+      const all = await listCalendars(session.user.id);
+      setCalendarCount(all.length);
+      setConnectedCount(all.filter((c) => c.connected).length);
+    }
+
     await Promise.all([loadKeyDates(), loadPlans()]);
 
     if (permissionResult.status === PermissionStatus.GRANTED) {
@@ -165,7 +178,7 @@ export default function Home() {
     } else {
       await loadFreeWindows();
     }
-  }, [loadKeyDates, loadPlans, loadFreeWindows, syncAndLoad]);
+  }, [loadKeyDates, loadPlans, loadFreeWindows, syncAndLoad, session?.user.id]);
 
   const { refreshing, onRefresh } = useRefreshOnFocus(refreshAll);
 
@@ -173,9 +186,10 @@ export default function Home() {
     const result = await Calendar.requestCalendarPermissionsAsync();
     setPermission(result.status);
     if (result.status === PermissionStatus.GRANTED) {
-      const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-      setCalendarCount(calendars.length);
-      syncAndLoad();
+      // Permission on its own shares nothing now -- every calendar starts
+      // disconnected -- so go straight to the choice rather than leaving them
+      // on a screen that looks connected and shows no free time.
+      router.push("/calendars");
     }
   }
 
@@ -265,7 +279,13 @@ export default function Home() {
           why: "So we can find time you're both actually free",
           onPress: requestAccess,
         }
-      : null,
+      : connectedCount === 0
+        ? {
+            label: "Choose which calendars to share",
+            why: "Nothing is shared until you pick at least one",
+            onPress: () => router.push("/calendars"),
+          }
+        : null,
     !myPattern || myPattern.shifts.length === 0
       ? {
           label: "Add your working hours",
@@ -402,6 +422,13 @@ export default function Home() {
         <View style={styles.emptyCard}>
           <Text style={styles.emptyText}>Connect your calendar below to see this.</Text>
         </View>
+      ) : connectedCount === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyText}>
+            No calendars connected yet, so there&apos;s nothing to work from. Choose which ones to
+            share below.
+          </Text>
+        </View>
       ) : syncing && freeWindows.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyText}>Checking both your calendars...</Text>
@@ -473,19 +500,30 @@ export default function Home() {
         </Pressable>
       </Link>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Calendar access</Text>
-        <Text style={styles.cardBody}>
-          {permission === PermissionStatus.GRANTED
-            ? `Connected — reading ${calendarCount ?? "your"} calendar(s) on this phone (Google, iCloud, Outlook — whatever you've got synced).`
-            : "Not connected yet. We read the calendars already synced to your phone, so this covers Google and Apple/iCloud without a separate sign-in for each."}
-        </Text>
-        {permission !== PermissionStatus.GRANTED ? (
+      {permission === PermissionStatus.GRANTED ? (
+        <Link href="/calendars" asChild>
+          <Pressable style={press(styles.card)}>
+            <Text style={styles.cardTitle}>Calendars</Text>
+            <Text style={styles.cardBody}>
+              {connectedCount === 0
+                ? `None of the ${calendarCount ?? 0} calendars on this phone are connected, so nothing from them is shared.`
+                : `${connectedCount} of ${calendarCount ?? connectedCount} connected. Their events — titles and all — show on your shared calendar. Tap to change.`}
+            </Text>
+          </Pressable>
+        </Link>
+      ) : (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Calendar access</Text>
+          <Text style={styles.cardBody}>
+            Not connected yet. We read the calendars already synced to your phone, so this covers
+            Google and Apple/iCloud without a separate sign-in for each — and you choose which ones,
+            one at a time.
+          </Text>
           <Pressable style={press(styles.button)} onPress={requestAccess}>
             <Text style={styles.buttonText}>Connect my calendar</Text>
           </Pressable>
-        ) : null}
-      </View>
+        </View>
+      )}
 
       <Pressable onPress={() => signOut()} style={press({ marginTop: 32 })}>
         <Text style={styles.link}>Signed in as {profile?.display_name ?? "you"}. Sign out</Text>

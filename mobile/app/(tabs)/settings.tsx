@@ -48,6 +48,16 @@ export default function Settings() {
       </Text>
 
       <Text style={styles.groupTitle}>Account</Text>
+      <Pressable style={press(styles.card)} onPress={() => router.push("/calendars")}>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Calendars</Text>
+            <Text style={styles.rowHint}>Which ones your partner can see</Text>
+          </View>
+          <ChevronRightIcon size={18} color={t.textMuted} />
+        </View>
+      </Pressable>
+
       <Pressable style={press(styles.card)} onPress={() => router.push("/work-hours")}>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
@@ -91,6 +101,7 @@ const createStyles = (t: Theme) =>
       backgroundColor: t.surface,
       borderRadius: t.radius.lg,
       overflow: "hidden",
+      marginBottom: t.space(3),
       ...t.shadow,
     },
     row: {
