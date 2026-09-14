@@ -636,16 +636,18 @@ export default function Home() {
         {zoneGap ? <Text style={styles.zoneGap}>{zoneGap}</Text> : null}
 
         {permission !== PermissionStatus.GRANTED ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Connect your calendar below to see this.</Text>
-          </View>
-        ) : connectedCount === 0 ? (
-          <View style={styles.emptyCard}>
+          <Pressable style={press(styles.emptyCard)} onPress={requestAccess}>
             <Text style={styles.emptyText}>
-              No calendars shared yet, so there&apos;s nothing to work from. Choose what to share
-              below.
+              Connect your calendar to see this. Tap to allow it.
             </Text>
-          </View>
+          </Pressable>
+        ) : connectedCount === 0 ? (
+          <Pressable style={press(styles.emptyCard)} onPress={() => router.push("/calendars")}>
+            <Text style={styles.emptyText}>
+              No calendars shared yet, so there&apos;s nothing to work from. Tap to choose what to
+              share.
+            </Text>
+          </Pressable>
         ) : syncing && freeWindows.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>Checking both your calendars...</Text>
