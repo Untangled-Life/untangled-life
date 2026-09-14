@@ -87,7 +87,7 @@ export function ScreenshotCarousel() {
 
   return (
     <div
-      className="w-[260px] shrink-0 sm:w-[280px]"
+      className="w-[220px] shrink-0 sm:w-[240px]"
       // Pausing on hover and on focus, not just hover: someone tabbing through
       // the dots should not have the thing move under them.
       onMouseEnter={() => setPaused(true)}
@@ -99,7 +99,7 @@ export function ScreenshotCarousel() {
       aria-label="Screenshots of the app"
     >
       <div
-        className="relative aspect-[9/19.5] overflow-hidden rounded-[2rem] border border-border bg-surface-card shadow-sm"
+        className="relative aspect-[9/19.5] overflow-hidden rounded-[1.75rem] border border-border bg-surface-card shadow-sm"
         onTouchStart={(e) => {
           touchStartX.current = e.touches[0].clientX;
         }}
@@ -168,13 +168,13 @@ export function ScreenshotCarousel() {
  */
 function Placeholder({ slide, position }: { slide: Slide; position: number }) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-b from-surface-card to-surface px-6 text-center">
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-orange/10 text-[13px] font-semibold text-brand-orange">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 bg-gradient-to-b from-surface-card to-surface px-5 text-center">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-orange/10 text-[12px] font-semibold text-brand-orange">
         {position}
       </span>
-      <p className="text-[15px] font-medium text-text-primary">{slide.label}</p>
+      <p className="text-[14px] font-medium text-text-primary">{slide.label}</p>
       <p className="text-[12px] leading-5 text-text-secondary">{slide.blurb}</p>
-      <p className="mt-2 text-[11px] uppercase tracking-wide text-text-muted">Screenshot coming</p>
+      <p className="mt-1 text-[10px] uppercase tracking-wide text-text-muted">Screenshot coming</p>
     </div>
   );
 }
