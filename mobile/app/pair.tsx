@@ -190,6 +190,7 @@ const createStyles = (t: Theme) =>
     fontSize: 15,
     textAlign: "center",
     letterSpacing: 2,
+    color: t.textPrimary,
   },
   button: {
     backgroundColor: t.brand,

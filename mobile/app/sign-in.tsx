@@ -76,6 +76,7 @@ const createStyles = (t: Theme) =>
     paddingVertical: 14,
     marginBottom: 12,
     fontSize: 15,
+    color: t.textPrimary,
   },
   button: {
     backgroundColor: t.brand,

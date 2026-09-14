@@ -253,6 +253,7 @@ const createStyles = (t: Theme) =>
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 14,
+    color: t.textPrimary,
   },
   addButton: {
     backgroundColor: t.brand,

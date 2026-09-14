@@ -247,6 +247,7 @@ const createStyles = (t: Theme) =>
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
+    color: t.textPrimary,
   },
   button: { backgroundColor: t.accent, borderRadius: t.radius.pill, paddingVertical: 12, alignItems: "center" },
   buttonText: { color: t.surface, fontWeight: "600", fontSize: 14 },

@@ -118,6 +118,13 @@ reach Google's verification team unnoticed.
       Roy's. Check afterwards that the remaining partner still has the
       anniversary, the to-dos and the wishlists, and that the leaver's birthday
       is gone. Then re-pair and make sure a fresh invite code works.
+- [ ] **Key Dates in dark mode.** Every text input in the app was rendering
+      its text in the platform default black, invisible on the dark theme.
+      Found by grep after fixing it in Key Dates, patched in seven places
+      (sign-in, sign-up, pairing, to-dos, both wishlist screens, key dates).
+      Worth a pass through the app with dark mode on.
+- [ ] **Key Dates editing.** Tap a misc date to rename or re-date it; Clear on
+      the anniversary and either birthday.
 - [ ] **Busy-only really is busy-only.** Set a calendar to Busy only, sync, and
       confirm in Supabase that `title` is null on those rows. The promise is
       that titles never reach the server, not that the app hides them.

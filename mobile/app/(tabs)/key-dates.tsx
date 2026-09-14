@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { RefreshControl,
+import { RefreshControl, Alert,
   View, Text, StyleSheet, Pressable, ScrollView, TextInput } from "react-native";
 import { press } from "@/components/press";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { KeyDateRow, displayTitleFor } from "@/lib/keyDates";
 import { requestNotificationPermission, rescheduleKeyDateReminders } from "@/lib/notifications";
+import { succeeded, warned } from "@/lib/haptics";
 
 
 export default function KeyDates() {
@@ -27,6 +28,12 @@ export default function KeyDates() {
   const [miscTitle, setMiscTitle] = useState("");
   const [miscDate, setMiscDate] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Which misc date is open for editing, and the draft title while it is.
+  // Editing in place beats a modal here: the row is two fields, and you can
+  // see the others while you change one.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
 
   const partnerName = partner?.display_name ?? "Partner";
   const myId = me.id;
@@ -139,6 +146,101 @@ export default function KeyDates() {
     load();
   }
 
+  /**
+   * Clearing an anniversary or a birthday deletes the row rather than blanking
+   * the date, because a key date with no date isn't a thing -- and a stored
+   * row with an empty date would still be scheduling reminders.
+   */
+  async function clearSingleton(
+    kind: "anniversary" | "birthday",
+    subjectUserId: string | null = null
+  ) {
+    const existing = dates.find(
+      (d) => d.kind === kind && (kind !== "birthday" || d.subject_user_id === subjectUserId)
+    );
+    if (!existing) return;
+
+    const what =
+      kind === "anniversary"
+        ? "your anniversary"
+        : subjectUserId === myId
+          ? "your birthday"
+          : `${partnerName}'s birthday`;
+
+    Alert.alert(`Clear ${what}?`, "Its reminders go with it, for both of you.", [
+      { text: "Keep it", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: async () => {
+          setError(null);
+          const { error: clearError } = await supabase
+            .from("key_dates")
+            .delete()
+            .eq("id", existing.id);
+
+          if (clearError) {
+            warned();
+            setError(clearError.message);
+            return;
+          }
+
+          // The inputs are driven by `dates`, but load() only refills them
+          // from rows that exist -- a cleared one leaves the old value sitting
+          // in the field, which reads as "the delete didn't work".
+          if (kind === "anniversary") setAnniversaryInput("");
+          else if (subjectUserId === myId) setMyBirthdayInput("");
+          else setPartnerBirthdayInput("");
+
+          succeeded();
+          load();
+        },
+      },
+    ]);
+  }
+
+  function startEditing(row: KeyDateRow) {
+    setEditingId(row.id);
+    setEditTitle(row.title);
+    setError(null);
+  }
+
+  async function saveEdit(row: KeyDateRow, patch: { title?: string; date?: string }) {
+    const title = (patch.title ?? row.title).trim();
+    if (!title) {
+      setError("It needs a name.");
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("key_dates")
+      .update({ title, date: patch.date ?? row.date })
+      .eq("id", row.id);
+
+    if (updateError) {
+      warned();
+      setError(updateError.message);
+      return;
+    }
+
+    succeeded();
+    load();
+  }
+
+  function confirmRemoveMisc(row: KeyDateRow) {
+    Alert.alert(`Delete "${row.title}"?`, "Its reminders go with it, for both of you.", [
+      { text: "Keep it", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          setEditingId(null);
+          removeMisc(row.id);
+        },
+      },
+    ]);
+  }
+
   async function removeMisc(id: string) {
     // Removed from the list first so it feels instant; if the delete fails the
     // reload below puts it back, which would otherwise look like a ghost.
@@ -164,7 +266,14 @@ export default function KeyDates() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Anniversary Date</Text>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Anniversary Date</Text>
+          {anniversaryInput ? (
+            <Pressable onPress={() => clearSingleton("anniversary")} hitSlop={8}>
+              <Text style={styles.clear}>Clear</Text>
+            </Pressable>
+          ) : null}
+        </View>
         <DateField
           value={anniversaryInput || null}
           placeholder="Pick your anniversary"
@@ -176,7 +285,14 @@ export default function KeyDates() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{partnerName}&apos;s Birthday</Text>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>{partnerName}&apos;s Birthday</Text>
+          {partnerBirthdayInput ? (
+            <Pressable onPress={() => clearSingleton("birthday", partnerId)} hitSlop={8}>
+              <Text style={styles.clear}>Clear</Text>
+            </Pressable>
+          ) : null}
+        </View>
         <DateField
           value={partnerBirthdayInput || null}
           placeholder={`Pick ${partnerName}'s birthday`}
@@ -189,7 +305,14 @@ export default function KeyDates() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Your Birthday</Text>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Your Birthday</Text>
+          {myBirthdayInput ? (
+            <Pressable onPress={() => clearSingleton("birthday", myId)} hitSlop={8}>
+              <Text style={styles.clear}>Clear</Text>
+            </Pressable>
+          ) : null}
+        </View>
         <Text style={styles.cardHint}>
           So {partnerName} gets the reminders for yours too.
         </Text>
@@ -206,12 +329,58 @@ export default function KeyDates() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Misc</Text>
-        {miscDates.map((d) => (
-          <Pressable key={d.id} style={press(styles.miscRow)} onLongPress={() => removeMisc(d.id)}>
-            <Text style={styles.miscTitle}>{d.title}</Text>
-            <Text style={styles.miscDate}>{toFriendlyDate(d.date)}</Text>
-          </Pressable>
-        ))}
+        {miscDates.map((d) =>
+          editingId === d.id ? (
+            <View key={d.id} style={styles.miscEditor}>
+              <TextInput
+                style={styles.input}
+                value={editTitle}
+                onChangeText={setEditTitle}
+                placeholder="What is it?"
+                placeholderTextColor={t.textMuted}
+                autoFocus
+                onSubmitEditing={() => {
+                  saveEdit(d, { title: editTitle });
+                  setEditingId(null);
+                }}
+              />
+              <View style={{ marginTop: 8 }}>
+                <DateField
+                  value={d.date}
+                  placeholder="Pick a date"
+                  onChange={(iso) => saveEdit(d, { title: editTitle, date: iso })}
+                />
+              </View>
+              <View style={styles.miscEditorActions}>
+                <Pressable
+                  onPress={() => {
+                    saveEdit(d, { title: editTitle });
+                    setEditingId(null);
+                  }}
+                  hitSlop={8}
+                >
+                  <Text style={styles.clear}>Done</Text>
+                </Pressable>
+                <Pressable onPress={() => confirmRemoveMisc(d)} hitSlop={8}>
+                  <Text style={[styles.clear, styles.clearDanger]}>Delete</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              key={d.id}
+              style={press(styles.miscRow)}
+              onPress={() => startEditing(d)}
+              onLongPress={() => confirmRemoveMisc(d)}
+            >
+              <Text style={styles.miscTitle}>{d.title}</Text>
+              <Text style={styles.miscDate}>{toFriendlyDate(d.date)}</Text>
+            </Pressable>
+          )
+        )}
+        {miscDates.length > 0 && editingId === null ? (
+          <Text style={styles.cardHint}>Tap one to rename or re-date it.</Text>
+        ) : null}
         <TextInput
           style={styles.input}
           placeholder="What is it?"
@@ -242,7 +411,16 @@ const createStyles = (t: Theme) =>
   error: { color: t.danger, fontSize: 13, marginBottom: 12 },
   card: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 18, marginBottom: 16 },
   cardTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary, marginBottom: 12 },
-  cardHint: { fontSize: 12, color: t.textMuted, marginTop: -6, marginBottom: 12, lineHeight: 16 },
+  cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  clear: { fontSize: 13, fontWeight: "600", color: t.accent, marginBottom: 12 },
+  clearDanger: { color: t.danger },
+  miscEditor: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: t.surfaceSunken,
+  },
+  miscEditorActions: { flexDirection: "row", gap: 18, marginTop: 12 },
+  cardHint: { fontSize: 12, color: t.textMuted, marginBottom: 12, lineHeight: 16 },
   row: { flexDirection: "row", gap: 8 },
   input: {
     flex: 1,
@@ -251,6 +429,10 @@ const createStyles = (t: Theme) =>
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
+    // Without this the text renders in the platform default (black), which on
+    // the dark theme's dark background is invisible -- the same bug the date
+    // picker had.
+    color: t.textPrimary,
   },
   saveButton: {
     backgroundColor: t.accent,
