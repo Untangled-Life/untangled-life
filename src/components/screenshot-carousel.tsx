@@ -57,6 +57,13 @@ const SLIDES: Slide[] = [
 
 const ADVANCE_MS = 4500;
 
+/**
+ * The width is fixed rather than `w-full max-w-[...]`.
+ *
+ * The wrapper in the hero is a shrink-to-fit flex item with no width of its
+ * own, so a percentage width here resolves against nothing and the whole
+ * carousel collapses to a sliver with its text clipped.
+ */
 export function ScreenshotCarousel() {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -80,7 +87,7 @@ export function ScreenshotCarousel() {
 
   return (
     <div
-      className="w-full max-w-[280px]"
+      className="w-[260px] shrink-0 sm:w-[280px]"
       // Pausing on hover and on focus, not just hover: someone tabbing through
       // the dots should not have the thing move under them.
       onMouseEnter={() => setPaused(true)}

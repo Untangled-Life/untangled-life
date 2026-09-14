@@ -102,7 +102,7 @@ export default function Home() {
             <WaitlistCounter />
             </div>
 
-            <div className="flex shrink-0 justify-center lg:justify-end">
+            <div className="flex justify-center">
               <ScreenshotCarousel />
             </div>
           </div>
