@@ -1,6 +1,6 @@
 import * as Calendar from "expo-calendar/legacy";
 import { supabase } from "@/lib/supabase";
-import { connectedCalendarIds } from "@/lib/calendarPrefs";
+import { sharedCalendars } from "@/lib/calendarPrefs";
 
 const SYNC_WINDOW_DAYS = 30;
 
@@ -9,15 +9,20 @@ const SYNC_WINDOW_DAYS = 30;
 const RETENTION_DAYS = 7;
 
 /**
- * Reads the calendars you have CONNECTED -- not every calendar on the phone --
- * for the next 30 days, and uploads each event so that both of you can see it.
+ * Reads the calendars you have chosen to share -- not every calendar on the
+ * phone -- for the next 30 days, and uploads each event so that both of you
+ * can see it.
  *
- * This used to upload start and end times only, which made the shared calendar
- * a wall of anonymous grey blocks. It now carries the title, location and
- * notes, which is far more useful and considerably more revealing, so the set
- * of calendars it reads is no longer "all of them": it's whatever you ticked
- * in Calendars. An unticked calendar is never opened here, and a calendar you
- * have never been asked about counts as unticked.
+ * How much of each event travels depends on that calendar's share level. A
+ * 'times' calendar uploads start and end only, so your partner sees that
+ * you're busy and nothing more; a 'details' calendar carries the title,
+ * location and notes as well. Anything set to off, or never chosen at all, is
+ * not opened here.
+ *
+ * The stripping happens BEFORE the insert, not in the UI. A busy_blocks row
+ * that carries a title is readable by the partner whatever the app chooses to
+ * render, so "don't show it" and "don't store it" are not the same promise,
+ * and only the second one is worth making.
  */
 export async function syncBusyBlocks(coupleId: string, userId: string): Promise<void> {
   const permission = await Calendar.getCalendarPermissionsAsync();
@@ -35,11 +40,11 @@ export async function syncBusyBlocks(coupleId: string, userId: string): Promise<
     .eq("user_id", userId)
     .lt("end_at", retentionCutoff.toISOString());
 
-  const calendarIds = await connectedCalendarIds(userId);
-  if (calendarIds.length === 0) {
-    // Nothing connected: clear anything a previously-connected calendar left
-    // behind and stop. Not returning early before this would leave stale
-    // events visible to a partner after the last calendar was switched off.
+  const sharing = await sharedCalendars(userId);
+  if (sharing.size === 0) {
+    // Nothing shared: clear anything a previously-shared calendar left behind
+    // and stop. Returning early before this would leave stale events visible
+    // to a partner after the last calendar was switched off.
     await supabase
       .from("busy_blocks")
       .delete()
@@ -54,7 +59,7 @@ export async function syncBusyBlocks(coupleId: string, userId: string): Promise<
   const present = new Set(
     (await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT)).map((c) => c.id)
   );
-  const readable = calendarIds.filter((id) => present.has(id));
+  const readable = [...sharing.keys()].filter((id) => present.has(id));
   if (readable.length === 0) return;
 
   const windowEnd = new Date(now);
@@ -63,19 +68,23 @@ export async function syncBusyBlocks(coupleId: string, userId: string): Promise<
   const events = await Calendar.getEventsAsync(readable, now, windowEnd);
 
   const blocks = events
-    .map((e) => ({
-      couple_id: coupleId,
-      user_id: userId,
-      start_at: new Date(e.startDate).toISOString(),
-      end_at: new Date(e.endDate).toISOString(),
-      // Trimmed so an empty title doesn't become an empty-looking row, and
-      // capped so a pasted wall of notes doesn't travel with every sync.
-      title: clean(e.title, 200),
-      location: clean(e.location, 200),
-      notes: clean(e.notes, 500),
-      all_day: e.allDay === true,
-      calendar_id: e.calendarId ?? null,
-    }))
+    .map((e) => {
+      const full = e.calendarId ? sharing.get(e.calendarId) === "details" : false;
+
+      return {
+        couple_id: coupleId,
+        user_id: userId,
+        start_at: new Date(e.startDate).toISOString(),
+        end_at: new Date(e.endDate).toISOString(),
+        // Trimmed so an empty title doesn't become an empty-looking row, and
+        // capped so a pasted wall of notes doesn't travel with every sync.
+        title: full ? clean(e.title, 200) : null,
+        location: full ? clean(e.location, 200) : null,
+        notes: full ? clean(e.notes, 500) : null,
+        all_day: e.allDay === true,
+        calendar_id: e.calendarId ?? null,
+      };
+    })
     // Drop anything that somehow ends before it starts or is already past.
     .filter((b) => new Date(b.end_at) > new Date(b.start_at) && new Date(b.end_at) > now);
 

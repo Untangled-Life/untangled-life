@@ -83,12 +83,29 @@ export default function Privacy() {
               The part that matters most
             </p>
             <p className="mt-2 text-[15px] leading-7 text-text-secondary">
-              You choose, calendar by calendar, which of your calendars Untangled Life connects
-              to. Events in a connected calendar — including the title, location and notes — are
-              copied into your shared calendar, where <strong>your partner can read them</strong>.
-              Events in a calendar you have not connected never leave your phone at all. If you
-              keep a calendar you would rather your partner did not read, do not connect it. You
-              can disconnect a calendar at any time, and the events it contributed are deleted.
+              You choose, calendar by calendar, how much of it your partner sees. There are three
+              settings and the default is the most private one:
+            </p>
+            <ul className="mt-3 ml-5 list-disc space-y-2 text-[15px] leading-7 text-text-secondary">
+              <li>
+                <strong>Off</strong> — the calendar is never read. Nothing from it leaves your
+                phone. This is what every calendar starts as, including ones you add later.
+              </li>
+              <li>
+                <strong>Busy only</strong> — we upload the start and end time of each event and
+                nothing else. Your partner sees that you are busy, never what you are doing.
+              </li>
+              <li>
+                <strong>Full detail</strong> — times plus the title, location and notes. Assume
+                anything in a calendar set to full detail is something{" "}
+                <strong>your partner can read</strong>.
+              </li>
+            </ul>
+            <p className="mt-3 text-[15px] leading-7 text-text-secondary">
+              Turn a calendar down or off and what it shared is deleted straight away, not at some
+              later sync. Event titles are stripped before they are stored, not merely hidden in
+              the app — on <em>busy only</em>, the title never reaches our servers in the first
+              place.
             </p>
           </div>
 
@@ -131,12 +148,12 @@ export default function Privacy() {
                   visible to your partner.
                 </>,
                 <>
-                  <strong>Events from the calendars you connect.</strong> For each event in a
-                  connected calendar, we store its start and end time, whether it is an all-day
-                  event, and its title, location and notes where you have set them. This is how
-                  your phone&apos;s calendar appears inside the Untangled Life calendar rather than
-                  as an unexplained grey block. Section 4 sets out exactly which calendars this
-                  applies to and how to change your mind.
+                  <strong>Events from the calendars you share.</strong> For each event in a shared
+                  calendar we store its start and end time and whether it is an all-day event, and
+                  — only for calendars you have set to full detail — its title, location and notes.
+                  That is what lets your phone&apos;s calendar appear inside Untangled Life as
+                  something you can read rather than an unexplained grey block. Section 4 sets out
+                  the three settings and how to change your mind.
                 </>,
                 <>
                   <strong>Working hours and rosters.</strong> The regular hours, rotating pattern or
@@ -196,7 +213,8 @@ export default function Privacy() {
 
           <Section n={4} title="Your calendars">
             <p>
-              Calendar access is entirely optional, and it is granted one calendar at a time.
+              Calendar access is entirely optional, and it is granted one calendar at a time, at
+              whichever of the three levels above you pick.
             </p>
             <Bullets
               items={[
@@ -206,23 +224,22 @@ export default function Privacy() {
                   dates and use key dates, to-dos and wishlists without ever connecting a calendar.
                 </>,
                 <>
-                  Once permission is granted, you choose which of your calendars to connect. A
-                  calendar you have not connected is never read and never uploaded.
+                  Once permission is granted, you choose a level for each calendar. A calendar left
+                  off — which is what every calendar starts as — is never read and never uploaded.
                 </>,
                 <>
-                  For connected calendars we read events in a rolling window around today — the
-                  next 30 days ahead — and refresh them when you open the app. We do not read your
+                  For shared calendars we read events in a rolling window around today — the next
+                  30 days ahead — and refresh them when you open the app. We do not read your
                   distant past or the far future.
                 </>,
                 <>
-                  Those events are stored on our servers and are visible to your partner inside
-                  your shared calendar. Assume anything in a connected calendar is something your
-                  partner can read.
+                  What we store is visible to your partner inside your shared calendar: the times
+                  for a busy-only calendar, the times and the content for a full-detail one.
                 </>,
                 <>
-                  Disconnect a calendar, or turn calendar access off entirely, and the events it
-                  contributed are deleted from our servers the next time the app syncs, and no
-                  longer appear for your partner.
+                  Turn a calendar off, turn it down from full detail to busy only, or withdraw
+                  calendar access entirely, and what that calendar contributed is deleted from our
+                  servers immediately and stops appearing for your partner.
                 </>,
                 <>
                   When you book a date together, the app writes that one event into a calendar on
@@ -291,8 +308,8 @@ export default function Privacy() {
               items={[
                 <>
                   <strong>Your partner.</strong> Once you are paired, they can see everything the
-                  app shares within a couple: your busy times and the details of events from the
-                  calendars you connected, your working hours, your shared dates, key dates,
+                  app shares within a couple: your busy times, the content of events from any
+                  calendar you set to full detail, your working hours, your shared dates, key dates,
                   countdowns, to-dos, wishlists, your display name and your profile picture. This
                   is symmetrical — you see the same things about them. Our database is built so
                   that the only people who can read your couple&apos;s information are the two of

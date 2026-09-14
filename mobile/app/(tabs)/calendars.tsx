@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  Switch,
   Alert,
   ActivityIndicator,
   RefreshControl,
@@ -21,8 +20,10 @@ import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import {
   DeviceCalendar,
+  ShareLevel,
+  SHARE_LEVELS,
   listCalendars,
-  setCalendarConnected,
+  setShareLevel,
   declineUndecided,
 } from "@/lib/calendarPrefs";
 import { syncBusyBlocks } from "@/lib/calendarSync";
@@ -56,23 +57,24 @@ export default function Calendars() {
     if (result.status === "granted") load();
   }
 
-  async function toggle(calendar: DeviceCalendar, next: boolean) {
-    if (!session?.user.id || !profile?.couple_id) return;
+  async function choose(calendar: DeviceCalendar, next: ShareLevel) {
+    if (!session?.user.id || !profile?.couple_id || next === calendar.shareLevel) return;
     tapped();
     setBusyId(calendar.id);
 
-    // Optimistic: a switch that waits on the network before moving feels
+    // Optimistic: a control that waits on the network before moving feels
     // broken, and the write is a single upsert.
+    const previous = calendar.shareLevel;
     setCalendars((cs) =>
-      cs.map((c) => (c.id === calendar.id ? { ...c, connected: next, undecided: false } : c))
+      cs.map((c) => (c.id === calendar.id ? { ...c, shareLevel: next, undecided: false } : c))
     );
 
-    const { error } = await setCalendarConnected(session.user.id, calendar, next);
+    const { error } = await setShareLevel(session.user.id, calendar, next);
 
     if (error) {
       warned();
       setCalendars((cs) =>
-        cs.map((c) => (c.id === calendar.id ? { ...c, connected: !next } : c))
+        cs.map((c) => (c.id === calendar.id ? { ...c, shareLevel: previous } : c))
       );
       Alert.alert("Couldn't save that", error);
       setBusyId(null);
@@ -92,7 +94,8 @@ export default function Calendars() {
     router.back();
   }
 
-  const connectedCount = calendars.filter((c) => c.connected).length;
+  const sharedCount = calendars.filter((c) => c.shareLevel !== "off").length;
+  const detailedCount = calendars.filter((c) => c.shareLevel === "details").length;
 
   return (
     <ScrollView
@@ -107,9 +110,10 @@ export default function Calendars() {
 
       <Text style={styles.title}>Calendars</Text>
       <Text style={styles.intro}>
-        Pick which calendars Untangled Life reads. Events in a connected calendar — including their
-        titles, locations and notes — appear on your shared calendar, where {partnerName} can read
-        them. Anything you leave off never leaves this phone.
+        Pick what {partnerName} sees of each calendar. <Text style={styles.bold}>Busy only</Text>{" "}
+        shares the times and nothing else. <Text style={styles.bold}>Full detail</Text> shares the
+        title, place and notes as well. Anything left <Text style={styles.bold}>off</Text> is never
+        read and never leaves this phone.
       </Text>
 
       {permission !== "granted" ? (
@@ -117,7 +121,7 @@ export default function Calendars() {
           <Text style={styles.emptyTitle}>Calendar access is off</Text>
           <Text style={styles.emptyText}>
             Your phone has to let the app see your calendars before you can choose between them.
-            Nothing is read or uploaded until you connect a calendar below.
+            Nothing is read or uploaded until you set a calendar to share below.
           </Text>
           <Pressable style={press(styles.button)} onPress={requestAccess}>
             <Text style={styles.buttonText}>Allow calendar access</Text>
@@ -136,31 +140,48 @@ export default function Calendars() {
         <>
           <View style={styles.card}>
             {calendars.map((c, i) => (
-              <View key={c.id} style={[styles.row, i > 0 ? styles.rowDivider : null]}>
-                <View style={[styles.swatch, { backgroundColor: c.color ?? t.textMuted }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowLabel}>{c.title}</Text>
-                  {c.sourceName ? <Text style={styles.rowHint}>{c.sourceName}</Text> : null}
+              <View key={c.id} style={[styles.calendarBlock, i > 0 ? styles.rowDivider : null]}>
+                <View style={styles.row}>
+                  <View style={[styles.swatch, { backgroundColor: c.color ?? t.textMuted }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowLabel}>{c.title}</Text>
+                    {c.sourceName ? <Text style={styles.rowHint}>{c.sourceName}</Text> : null}
+                  </View>
+                  {busyId === c.id ? <ActivityIndicator /> : null}
                 </View>
-                {busyId === c.id ? (
-                  <ActivityIndicator />
-                ) : (
-                  <Switch
-                    value={c.connected}
-                    onValueChange={(next) => toggle(c, next)}
-                    trackColor={{ true: t.brand, false: t.surfaceSunken }}
-                  />
-                )}
+
+                <View style={styles.segmented}>
+                  {SHARE_LEVELS.map((level) => {
+                    const active = c.shareLevel === level.key;
+                    return (
+                      <Pressable
+                        key={level.key}
+                        style={press([styles.segment, active ? styles.segmentActive : null])}
+                        onPress={() => choose(c, level.key)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                      >
+                        <Text
+                          style={[styles.segmentText, active ? styles.segmentTextActive : null]}
+                        >
+                          {level.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.rowHint}>
+                  {SHARE_LEVELS.find((l) => l.key === c.shareLevel)?.blurb}
+                </Text>
               </View>
             ))}
           </View>
 
           <Text style={styles.footnote}>
-            {connectedCount === 0
-              ? "Nothing is connected, so nothing from your calendar is shared — and the app can't work out when you're free. Connect at least the calendar your commitments live in."
-              : connectedCount === 1
-                ? "1 calendar connected. Switching one off deletes the events it added straight away."
-                : `${connectedCount} calendars connected. Switching one off deletes the events it added straight away.`}
+            {sharedCount === 0
+              ? "Nothing is shared, so the app can't work out when you're free. Set at least the calendar your commitments live in to Busy only."
+              : `${sharedCount} of ${calendars.length} shared${detailedCount > 0 ? `, ${detailedCount} in full detail` : ""}. Turning one down deletes what it shared straight away — the times come back on the next sync if it's still on.`}
           </Text>
         </>
       )}
@@ -195,9 +216,27 @@ const createStyles = (t: Theme) =>
       flexDirection: "row",
       alignItems: "center",
       gap: t.space(3),
-      paddingVertical: t.space(4),
     },
+    calendarBlock: { paddingVertical: t.space(4) },
     rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border },
+    bold: { fontWeight: "700", color: t.textPrimary },
+    segmented: {
+      flexDirection: "row",
+      backgroundColor: t.surfaceSunken,
+      borderRadius: t.radius.md,
+      padding: 3,
+      marginTop: t.space(3),
+      marginBottom: t.space(2),
+    },
+    segment: {
+      flex: 1,
+      paddingVertical: t.space(2),
+      borderRadius: t.radius.sm,
+      alignItems: "center",
+    },
+    segmentActive: { backgroundColor: t.surface, ...t.shadow },
+    segmentText: { fontSize: 13, fontWeight: "600", color: t.textMuted },
+    segmentTextActive: { color: t.brand },
     swatch: { width: 10, height: 10, borderRadius: 5 },
     rowLabel: { fontSize: 15, fontWeight: "500", color: t.textPrimary },
     rowHint: { fontSize: 12, color: t.textMuted, marginTop: 2 },

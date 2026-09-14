@@ -175,7 +175,7 @@ export default function Home() {
     if (permissionResult.status === PermissionStatus.GRANTED && session?.user.id) {
       const all = await listCalendars(session.user.id);
       setCalendarCount(all.length);
-      setConnectedCount(all.filter((c) => c.connected).length);
+      setConnectedCount(all.filter((c) => c.shareLevel !== "off").length);
     }
 
     await Promise.all([loadKeyDates(), loadPlans()]);
@@ -331,8 +331,8 @@ export default function Home() {
         }
       : connectedCount === 0
         ? {
-            label: "Choose which calendars to share",
-            why: "Nothing is shared until you pick at least one",
+            label: "Choose what you share",
+            why: "Nothing is shared until you set at least one calendar",
             onPress: () => router.push("/calendars"),
           }
         : null,
@@ -498,8 +498,8 @@ export default function Home() {
       ) : connectedCount === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyText}>
-            No calendars connected yet, so there&apos;s nothing to work from. Choose which ones to
-            share below.
+            No calendars shared yet, so there&apos;s nothing to work from. Choose what to share
+            below.
           </Text>
         </View>
       ) : syncing && freeWindows.length === 0 ? (
@@ -579,8 +579,8 @@ export default function Home() {
             <Text style={styles.cardTitle}>Calendars</Text>
             <Text style={styles.cardBody}>
               {connectedCount === 0
-                ? `None of the ${calendarCount ?? 0} calendars on this phone are connected, so nothing from them is shared.`
-                : `${connectedCount} of ${calendarCount ?? connectedCount} connected. Their events — titles and all — show on your shared calendar. Tap to change.`}
+                ? `None of the ${calendarCount ?? 0} calendars on this phone are shared, so nothing from them reaches your partner.`
+                : `${connectedCount} of ${calendarCount ?? connectedCount} shared. Tap to change what each one gives away — busy times only, or the full detail.`}
             </Text>
           </Pressable>
         </Link>
@@ -589,8 +589,8 @@ export default function Home() {
           <Text style={styles.cardTitle}>Calendar access</Text>
           <Text style={styles.cardBody}>
             Not connected yet. We read the calendars already synced to your phone, so this covers
-            Google and Apple/iCloud without a separate sign-in for each — and you choose which ones,
-            one at a time.
+            Google and Apple/iCloud without a separate sign-in for each — and you choose, calendar
+            by calendar, whether your partner sees just your busy times or the full detail.
           </Text>
           <Pressable style={press(styles.button)} onPress={requestAccess}>
             <Text style={styles.buttonText}>Connect my calendar</Text>

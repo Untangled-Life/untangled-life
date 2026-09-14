@@ -103,10 +103,16 @@ reach Google's verification team unnoticed.
 
 - [x] **Run `supabase/calendar-detail.sql` and `supabase/photos.sql`.** Both
       run 14 Sep. Not yet verified from the app.
-- [ ] **Per-calendar connection.** Every calendar now starts DISCONNECTED, so
-      on first open after this update Roy and Alyssa will both see no free time
-      until they pick calendars on the new Calendars screen. That is the
-      designed behaviour, not a bug, but it is the first thing to check.
+- [ ] **Run `supabase/calendar-sharing.sql`** — replaces the connected boolean
+      with off / busy-only / full-detail, and clears `busy_blocks` once so no
+      row outlives the setting that allowed it.
+- [ ] **Per-calendar sharing.** Every calendar starts OFF, so on first open
+      after this update Roy and Alyssa will both see no free time until they
+      choose on the new Calendars screen. Designed behaviour, but it is the
+      first thing to check.
+- [ ] **Busy-only really is busy-only.** Set a calendar to Busy only, sync, and
+      confirm in Supabase that `title` is null on those rows. The promise is
+      that titles never reach the server, not that the app hides them.
 - [ ] **Event detail on the shared calendar.** A connected calendar's events
       should show their title, location and notes, not a grey block.
 - [ ] **Disconnecting a calendar** should remove its events from the partner's

@@ -148,7 +148,7 @@ export default function Settings() {
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
             <Text style={styles.rowLabel}>Calendars</Text>
-            <Text style={styles.rowHint}>Which ones your partner can see</Text>
+            <Text style={styles.rowHint}>What your partner sees of each one</Text>
           </View>
           <ChevronRightIcon size={18} color={t.textMuted} />
         </View>
