@@ -94,13 +94,15 @@ reach Google's verification team unnoticed.
       someone pairs with the wrong account, or a relationship ends.
 - [ ] **Google / Outlook OAuth sync** (v1.5) — planned, not started. Google
       treats the Calendar scope as "sensitive": beyond ~100 test accounts it
-      needs data-access verification with a privacy policy, a demo video, and
-      3–5 business days of review. Start early.
+      needs verification with a privacy policy, a demo video, and 3–5 business
+      days of review. **Step-by-step console instructions are now in
+      `launch/google-cloud-setup.md`** — everything but the demo video can be
+      done today, and the review clock is the longest lead time on the project.
 
 ## New on 14 Sep — needs device testing tonight
 
-- [ ] **Run `supabase/calendar-detail.sql` and `supabase/photos.sql`.** Nothing
-      below works until both have run.
+- [x] **Run `supabase/calendar-detail.sql` and `supabase/photos.sql`.** Both
+      run 14 Sep. Not yet verified from the app.
 - [ ] **Per-calendar connection.** Every calendar now starts DISCONNECTED, so
       on first open after this update Roy and Alyssa will both see no free time
       until they pick calendars on the new Calendars screen. That is the
