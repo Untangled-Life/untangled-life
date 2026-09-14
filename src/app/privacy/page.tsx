@@ -207,7 +207,11 @@ export default function Privacy() {
             <p>
               This website uses no analytics, no advertising tags and no tracking cookies. The app
               contains no third-party advertising or analytics software either. We do not build a
-              profile of you and we do not track you across other apps or websites.
+              profile of you and we do not track you across other apps or websites. Our{" "}
+              <Link href="/cookies" className="text-brand-green underline underline-offset-2">
+                Cookie Policy
+              </Link>{" "}
+              sets this out in full.
             </p>
           </Section>
 
