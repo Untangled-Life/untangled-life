@@ -66,6 +66,10 @@ export default function EventEditor() {
     busy?: string;
     date?: string;
     start?: string;
+    /** Pre-filled by the ideas screen, so "Book it" opens a form already filled in. */
+    title?: string;
+    /** How long the idea wants, in minutes. Sets the end time. */
+    minutes?: string;
   }>();
   const editingId = params.id ?? null;
   const busyId = params.busy ?? null;
@@ -118,6 +122,16 @@ export default function EventEditor() {
    * the last hour of the day was unsaveable, and the alert pointed at the
    * times rather than the date that was actually wrong.
    */
+  /** A start plus a number of minutes, rolling the date when it crosses midnight. */
+  function endAfter(date: string, time: string, minutes: number): { date: string; time: string } {
+    const day = fromISODate(date) ?? new Date();
+    const at = fromTimeString(time);
+    day.setHours(at.getHours(), at.getMinutes(), 0, 0);
+
+    const finish = new Date(day.getTime() + minutes * 60 * 1000);
+    return { date: toISODate(finish), time: toTimeString(finish) };
+  }
+
   function defaultEnd(date: string, time: string): { date: string; time: string } {
     const at = fromTimeString(time);
     const rolled = at.getHours() + 1 >= 24;
@@ -137,7 +151,7 @@ export default function EventEditor() {
    * reopens the 10am draft, title and all -- and saves an event at a time
    * nobody chose.
    */
-  const routeKey = `${params.id ?? ""}|${params.busy ?? ""}|${params.date ?? ""}|${params.start ?? ""}`;
+  const routeKey = `${params.id ?? ""}|${params.busy ?? ""}|${params.date ?? ""}|${params.start ?? ""}|${params.title ?? ""}|${params.minutes ?? ""}`;
   useEffect(() => {
     setMissing(false);
 
@@ -158,9 +172,17 @@ export default function EventEditor() {
 
     const date = params.date ?? toISODate(new Date());
     const time = params.start ?? "09:00";
-    const end = defaultEnd(date, time);
 
-    setTitle("");
+    // An idea knows roughly how long it wants, so "Book it" from the ideas
+    // screen opens a form that is already right rather than one that says an
+    // hour and has to be corrected.
+    const wanted = Number(params.minutes);
+    const end =
+      Number.isFinite(wanted) && wanted > 0
+        ? endAfter(date, time, wanted)
+        : defaultEnd(date, time);
+
+    setTitle(params.title ?? "");
     setNotes("");
     setLocation("");
     setStartDate(date);

@@ -14,6 +14,16 @@ import { InboxItem, buildInbox } from "@/lib/inbox";
 import { KeyDateRow } from "@/lib/keyDates";
 import { UpcomingPlan, loadUpcomingPlans } from "@/lib/plannedEvents";
 import { shouldNudge } from "@/lib/dateNudge";
+import {
+  DateProposal,
+  answerProposal,
+  loadOpenProposals,
+  splitProposals,
+} from "@/lib/dateProposals";
+import { formatWindow } from "@/lib/freeTime";
+import { succeeded, tapped, warned } from "@/lib/haptics";
+import { Alert } from "react-native";
+import { syncPlannedEventsToDevice } from "@/lib/plannedEvents";
 import { Theme } from "@/theme/tokens";
 
 /**
@@ -33,6 +43,8 @@ export default function Inbox() {
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [plans, setPlans] = useState<UpcomingPlan[]>([]);
   const [lastPlannedAt, setLastPlannedAt] = useState<Date | null>(null);
+  const [proposals, setProposals] = useState<DateProposal[]>([]);
+  const [answering, setAnswering] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     await loadOnboarding();
@@ -51,6 +63,8 @@ export default function Inbox() {
         .maybeSingle(),
     ]);
 
+    setProposals(await loadOpenProposals());
+
     if (keyRes.data) setKeyDates(keyRes.data as KeyDateRow[]);
     setPlans(upcoming);
     setLastPlannedAt(
@@ -65,13 +79,44 @@ export default function Inbox() {
     return partner?.display_name ?? "Your partner";
   }
 
+  const { forYou } = splitProposals(proposals, session?.user.id ?? "");
+
   const items = buildInbox({
     outstanding,
     keyDates,
     plans,
     nudging: shouldNudge(plans, lastPlannedAt),
     nameFor,
+    proposalsForYou: forYou,
   });
+
+  const proposalById = new Map(forYou.map((p) => [p.id, p]));
+
+  async function answer(id: string, decision: "accepted" | "declined", optionIndex = 0) {
+    if (answering) return;
+    tapped();
+    setAnswering(id);
+
+    const { error } = await answerProposal(id, decision, optionIndex);
+    setAnswering(null);
+
+    if (error) {
+      warned();
+      Alert.alert("Couldn't answer that", error.message);
+      return;
+    }
+
+    succeeded();
+
+    // Accepting creates the event, so this phone should carry it away with it
+    // rather than waiting for the next open. The partner's picks it up on
+    // theirs, since a phone can only write to its own calendar.
+    if (decision === "accepted" && session?.user.id) {
+      await syncPlannedEventsToDevice(session.user.id).catch(() => {});
+    }
+
+    await load();
+  }
 
   if (!loaded && !session) {
     return (
@@ -105,12 +150,48 @@ export default function Inbox() {
       ) : (
         <View style={styles.list}>
           {items.map((item, i) => (
+            item.kind === "proposal" ? (
+              // Answered where it sits. Routing somebody to another screen to
+              // press one of two buttons is a screen for nothing.
+              <View key={item.id} style={[styles.item, i > 0 ? styles.itemDivider : null]}>
+                <View style={[styles.pip, styles.pip_proposal]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemTitle}>{item.title}</Text>
+                  <Text style={styles.itemDetail}>{item.detail}</Text>
+
+                  <View style={styles.options}>
+                    {(proposalById.get(item.proposalId ?? "")?.options ?? []).map((o, index) => (
+                      <Pressable
+                        key={index}
+                        style={press(styles.option)}
+                        disabled={answering === item.proposalId}
+                        onPress={() => answer(item.proposalId as string, "accepted", index)}
+                      >
+                        <Text style={styles.optionText}>
+                          {formatWindow({ start: new Date(o.start_at), end: new Date(o.end_at) })}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  <Pressable
+                    onPress={() => answer(item.proposalId as string, "declined")}
+                    hitSlop={8}
+                    disabled={answering === item.proposalId}
+                  >
+                    <Text style={styles.decline}>
+                      {answering === item.proposalId ? "Just a moment\u2026" : "None of those"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
             <Pressable
               key={item.id}
               style={press([styles.item, i > 0 ? styles.itemDivider : null])}
-              onPress={() => router.push(item.route as never)}
+              onPress={() => (item.route ? router.push(item.route as never) : undefined)}
             >
-              <View style={[styles.pip, styles[`pip_${item.kind}` as const]]} />
+              <View style={[styles.pip, styles[`pip_${item.kind}` as "pip_setup"]]} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemTitle}>{item.title}</Text>
                 <Text style={styles.itemDetail} numberOfLines={2}>
@@ -119,6 +200,7 @@ export default function Inbox() {
               </View>
               <ChevronRightIcon size={18} color={t.textMuted} />
             </Pressable>
+            )
           ))}
         </View>
       )}
@@ -161,6 +243,17 @@ const createStyles = (t: Theme) =>
     pip_keyDate: { backgroundColor: t.accent },
     pip_nudge: { backgroundColor: t.brand },
     pip_setup: { backgroundColor: t.dotWork },
+    pip_proposal: { backgroundColor: t.brand },
+    options: { gap: t.space(2), marginTop: t.space(3) },
+    option: {
+      borderRadius: t.radius.md,
+      borderWidth: 1,
+      borderColor: t.brand,
+      paddingVertical: t.space(3),
+      paddingHorizontal: t.space(4),
+    },
+    optionText: { ...t.type.label, color: t.brand },
+    decline: { ...t.type.label, color: t.textMuted, marginTop: t.space(3) },
     itemTitle: { ...t.type.heading, color: t.textPrimary },
     itemDetail: { ...t.type.caption, color: t.textSecondary, marginTop: 2 },
 

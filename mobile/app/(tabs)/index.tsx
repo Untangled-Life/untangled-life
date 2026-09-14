@@ -25,9 +25,11 @@ import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { KeyDateRow, daysUntil, displayTitleFor, countdownLabel } from "@/lib/keyDates";
 import { HomeHero } from "@/components/home-hero";
 import { TopScrim } from "@/components/top-scrim";
-import { shouldNudge, suggestedSlot } from "@/lib/dateNudge";
+import { shouldNudge } from "@/lib/dateNudge";
+import { loadFreeWindows as loadFreeWindowsData } from "@/lib/freeWindows";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { buildInbox } from "@/lib/inbox";
+import { loadOpenProposals, splitProposals, DateProposal } from "@/lib/dateProposals";
 import { InboxBadge } from "@/app/(tabs)/inbox";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
@@ -39,12 +41,9 @@ import { dualTimeText, zoneGapSentence } from "@/components/dual-time";
 import { HomeSection, resolveHomeLayout, visibleSections } from "@/lib/homeLayout";
 import {
   Interval,
-  nextSharedFreeWindows,
   formatWindow,
-  FreeTimePrefs,
-  DEFAULT_FREE_TIME_PREFS,
 } from "@/lib/freeTime";
-import { WorkPattern, WorkShift, expandWorkHours, toDateKey } from "@/lib/workHours";
+import { WorkPattern } from "@/lib/workHours";
 import {
   PlannedEvent,
   createPlannedEvent,
@@ -81,6 +80,7 @@ export default function Home() {
   // When the couple last put ANYTHING in the diary, which is a different
   // question from what is coming up. See lib/dateNudge.ts.
   const [lastPlannedAt, setLastPlannedAt] = useState<Date | null>(null);
+  const [proposals, setProposals] = useState<DateProposal[]>([]);
 
   // Drives the top scrim. Home is the one screen where the fade cannot simply
   // be there: the cover photo runs to the top edge on purpose, so the wash has
@@ -127,6 +127,7 @@ export default function Home() {
 
   const loadPlans = useCallback(async () => {
     await loadOnboarding();
+    setProposals(await loadOpenProposals());
     setPlans(await loadUpcomingPlans());
 
     // When anything was last put in the diary, which is a different question
@@ -148,106 +149,20 @@ export default function Home() {
     // after the first photo was added.
   }, [loadOnboarding]);
 
+  // The same reader Plan a date uses. Worked out twice it would eventually
+  // disagree with itself, and "Plan a date offered me a window Home does not
+  // show" is exactly the shape of every hard bug this app has had.
   const loadFreeWindows = useCallback(async () => {
     if (!session?.user.id) return;
-    const windowEnd = new Date();
-    windowEnd.setDate(windowEnd.getDate() + 8);
 
-    // all_day is excluded on purpose. An all-day event now syncs (it's worth
-    // seeing "Alyssa - annual leave" on the shared calendar) but treating it
-    // as 24 hours of busy would wipe out every free window on that day, and
-    // being on leave is the opposite of being unavailable.
-    // What counts as a free window is a per-couple setting now, not a constant.
-    // Read it alongside the busy blocks rather than in its own effect, so the
-    // windows are never computed once with the defaults and again with the
-    // real values -- which shows as the list visibly changing under you.
-    const prefsRes = await supabase
-      .from("couples")
-      .select("day_start_hour, day_end_hour, min_free_minutes")
-      .eq("id", profile?.couple_id ?? "")
-      .maybeSingle();
-
-    const prefs: FreeTimePrefs = prefsRes.data
-      ? {
-          dayStartHour:
-            (prefsRes.data.day_start_hour as number) ?? DEFAULT_FREE_TIME_PREFS.dayStartHour,
-          dayEndHour: (prefsRes.data.day_end_hour as number) ?? DEFAULT_FREE_TIME_PREFS.dayEndHour,
-          minFreeMinutes:
-            (prefsRes.data.min_free_minutes as number) ?? DEFAULT_FREE_TIME_PREFS.minFreeMinutes,
-        }
-      : DEFAULT_FREE_TIME_PREFS;
-
-    const { data } = await supabase
-      .from("busy_blocks")
-      .select("user_id, start_at, end_at")
-      .eq("all_day", false)
-      .lte("start_at", windowEnd.toISOString())
-      .gte("end_at", new Date().toISOString());
-
-    if (!data) return;
-
-    const toInterval = (b: { start_at: string; end_at: string }): Interval => ({
-      start: new Date(b.start_at),
-      end: new Date(b.end_at),
+    const result = await loadFreeWindowsData(session.user.id, profile?.couple_id ?? null, {
+      mine: myZone,
+      theirs: partnerZone,
     });
 
-    const mine = data.filter((b) => b.user_id === session.user.id).map(toInterval);
-    const theirs = data.filter((b) => b.user_id !== session.user.id).map(toInterval);
-
-    // Working hours count as busy too -- without them, "free together" happily
-    // suggests the middle of a shift.
-    const now = new Date();
-    const [patternRes, shiftRes] = await Promise.all([
-      supabase.from("work_patterns").select("id, user_id, mode, cycle_weeks, anchor_date, shifts, time_zone"),
-      supabase
-        .from("work_shifts")
-        .select("id, user_id, date, start_time, end_time, kind, time_zone")
-        .gte("date", toDateKey(now))
-        .lte("date", toDateKey(windowEnd)),
-    ]);
-
-    const patterns = (patternRes.data as WorkPattern[]) ?? [];
-    const workShifts = (shiftRes.data as WorkShift[]) ?? [];
-    const userIds = new Set<string>([
-      ...patterns.map((p) => p.user_id),
-      ...workShifts.map((w) => w.user_id),
-    ]);
-
-    const myWork: Interval[] = [];
-    const theirWork: Interval[] = [];
-
-    for (const uid of userIds) {
-      const intervals = expandWorkHours(
-        patterns.find((p) => p.user_id === uid) ?? null,
-        workShifts.filter((w) => w.user_id === uid),
-        now,
-        windowEnd
-      );
-      if (uid === session.user.id) myWork.push(...intervals);
-      else theirWork.push(...intervals);
-    }
-
-    setMyPattern(patterns.find((p) => p.user_id === session.user.id) ?? null);
-
-    const zones = { mine: myZone, theirs: partnerZone };
-    const windows = nextSharedFreeWindows(
-      [...mine, ...myWork],
-      [...theirs, ...theirWork],
-      prefs,
-      zones
-    );
-
-    setFreeWindows(windows);
-    // Only asked when the answer was empty: run the same calculation with
-    // nothing in either diary AND no minimum length. Still empty means the
-    // waking hours themselves never meet, which is a different problem with a
-    // different fix. Keeping the minimum in the probe would blame the zones for
-    // an overlap that exists but is shorter than the couple asked to hear
-    // about, and send them to the wrong setting.
-    setNoZoneOverlap(
-      windows.length === 0 &&
-        nextSharedFreeWindows([], [], { ...prefs, minFreeMinutes: 0 }, zones).length === 0
-    );
+    setMyPattern(result.myPattern);
+    setFreeWindows(result.windows);
+    setNoZoneOverlap(result.noZoneOverlap);
   }, [session?.user.id, profile?.couple_id, myZone, partnerZone]);
 
   const syncAndLoad = useCallback(async () => {
@@ -378,7 +293,7 @@ export default function Home() {
    */
   function planADate() {
     tapped();
-    router.push({ pathname: "/event", params: suggestedSlot(freeWindows) });
+    router.push("/plan");
   }
 
   function confirmCancel(plan: PlannedEvent) {
@@ -512,6 +427,7 @@ export default function Home() {
     plans,
     nudging,
     nameFor,
+    proposalsForYou: splitProposals(proposals, session?.user.id ?? "").forYou,
   });
 
   // Each Home section, keyed so the arrangement can decide what appears

@@ -100,3 +100,37 @@ describe("badgeLabel", () => {
     expect(badgeLabel(400)).toBe("9+");
   });
 });
+
+describe("proposals in the bell", () => {
+  beforeAll(() => jest.useFakeTimers().setSystemTime(new Date(2026, 8, 15, 9, 0, 0)));
+  afterAll(() => jest.useRealTimers());
+
+  const proposal = { id: "p1", title: "Dinner", options: [{}, {}], proposed_by: "her" };
+
+  // Somebody asked you a question and is waiting. The cost of ignoring it is
+  // that they think you did not care, which beats forgetting a date.
+  it("sits above everything else", () => {
+    const items = buildInbox({
+      ...empty,
+      proposalsForYou: [proposal],
+      keyDates: [keyDate({ date: "2026-09-15" })],
+      outstanding: [step("photo", "Add your photo")],
+      nudging: true,
+    });
+
+    expect(items[0].kind).toBe("proposal");
+    expect(items[0].detail).toBe("Alyssa suggested 2 times");
+  });
+
+  it("says 'a time' when there is only one", () => {
+    const one = { ...proposal, options: [{}] };
+    const items = buildInbox({ ...empty, proposalsForYou: [one] });
+    expect(items[0].detail).toBe("Alyssa suggested a time");
+  });
+
+  it("is answered where it sits rather than routing somewhere", () => {
+    const items = buildInbox({ ...empty, proposalsForYou: [proposal] });
+    expect(items[0].route).toBeNull();
+    expect(items[0].proposalId).toBe("p1");
+  });
+});

@@ -13,17 +13,19 @@ import { UpcomingPlan } from "@/lib/plannedEvents";
  * Ordered by what it costs to ignore, not by type: a birthday tomorrow beats
  * an unfinished setup step, every time.
  */
-export type InboxItemKind = "setup" | "keyDate" | "nudge";
+export type InboxItemKind = "setup" | "keyDate" | "nudge" | "proposal";
 
 export type InboxItem = {
   id: string;
   kind: InboxItemKind;
   title: string;
   detail: string;
-  /** Where tapping it goes. */
-  route: string;
+  /** Where tapping it goes. Null for something answered where it sits. */
+  route: string | null;
   /** Lower sorts first. */
   urgency: number;
+  /** Set on a proposal, so the bell can offer its options inline. */
+  proposalId?: string;
 };
 
 export function buildInbox(input: {
@@ -32,8 +34,27 @@ export function buildInbox(input: {
   plans: UpcomingPlan[];
   nudging: boolean;
   nameFor: (userId: string | null) => string;
+  /** Open proposals waiting on THIS person, not the ones they sent. */
+  proposalsForYou?: { id: string; title: string; options: unknown[]; proposed_by: string }[];
 }): InboxItem[] {
   const items: InboxItem[] = [];
+
+  // Top of the list, above a birthday tomorrow. Somebody asked you a question
+  // and is waiting on the answer, and the cost of ignoring it is that they
+  // think you did not care rather than that you forgot a date.
+  for (const p of input.proposalsForYou ?? []) {
+    items.push({
+      id: `proposal:${p.id}`,
+      kind: "proposal",
+      title: p.title,
+      detail: `${input.nameFor(p.proposed_by)} suggested ${
+        p.options.length === 1 ? "a time" : `${p.options.length} times`
+      }`,
+      route: null,
+      urgency: -1,
+      proposalId: p.id,
+    });
+  }
 
   // A key date inside its own reminder window. Not every key date -- one 300
   // days out is not news, and a bell that is always lit is a bell nobody
