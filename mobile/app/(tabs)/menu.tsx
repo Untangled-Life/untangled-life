@@ -215,12 +215,12 @@ const createStyles = (t: Theme) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    rowLabel: { fontSize: 15, fontWeight: "500", color: t.textPrimary },
-    rowHint: { fontSize: 12, color: t.textMuted, marginTop: 1 },
+    rowLabel: { ...t.type.heading, color: t.textPrimary },
+    rowHint: { ...t.type.caption, color: t.textMuted, marginTop: 1 },
     version: {
       textAlign: "center",
       color: t.textMuted,
-      fontSize: 12,
+      ...t.type.caption,
       marginTop: t.space(8),
     },
   });

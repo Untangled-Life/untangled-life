@@ -50,13 +50,19 @@ export default function SignUp() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Untangled Life</Text>
-      <Text style={styles.subtitle}>Create your account</Text>
+      {/* The brand is a mark, not the headline. Setting "Untangled Life"
+          in the largest type on the screen spends it on something the person
+          already knows -- they just tapped the icon. */}
+      <Text style={styles.wordmark}>Untangled Life</Text>
+      <Text style={styles.title}>Get started</Text>
+      <Text style={styles.subtitle}>It takes a minute, and you only do it once.</Text>
 
-      <TextInput style={styles.input} placeholder="Your name" value={name} onChangeText={setName} />
+      <TextInput style={styles.input} placeholder="Your name"
+        placeholderTextColor={t.textMuted} value={name} onChangeText={setName} />
       <TextInput
         style={styles.input}
         placeholder="you@email.com"
+        placeholderTextColor={t.textMuted}
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
@@ -65,6 +71,7 @@ export default function SignUp() {
       <TextInput
         style={styles.input}
         placeholder="Password (8+ characters)"
+        placeholderTextColor={t.textMuted}
         secureTextEntry
         value={password}
         onChangeText={setPassword}
@@ -86,15 +93,21 @@ export default function SignUp() {
 const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: t.bg },
-  title: { ...t.type.display, textAlign: "center", marginBottom: 4 },
-  subtitle: { fontSize: 16, color: t.textSecondary, textAlign: "center", marginBottom: 24 },
+  wordmark: {
+    ...t.type.eyebrow,
+    color: t.brand,
+    textAlign: "center",
+    marginBottom: t.space(3),
+  },
+  title: { ...t.type.display, color: t.textPrimary, textAlign: "center", marginBottom: t.space(1) },
+  subtitle: { ...t.type.body, color: t.textSecondary, textAlign: "center", marginBottom: t.space(7) },
   input: {
     backgroundColor: t.surface,
     borderRadius: t.radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 12,
-    fontSize: 15,
+    ...t.type.body,
     color: t.textPrimary,
   },
   button: {
@@ -104,7 +117,7 @@ const createStyles = (t: Theme) =>
     alignItems: "center",
     marginTop: 8,
   },
-  buttonText: { color: t.surface, fontWeight: "600", fontSize: 15 },
-  error: { color: t.danger, marginBottom: 8, fontSize: 13 },
-  link: { marginTop: 20, textAlign: "center", color: t.accent, fontSize: 14 },
+  buttonText: { color: t.textOnBrand, ...t.type.heading },
+  error: { color: t.danger, marginBottom: 8, ...t.type.caption },
+  link: { marginTop: 20, textAlign: "center", color: t.accent, ...t.type.body },
   });

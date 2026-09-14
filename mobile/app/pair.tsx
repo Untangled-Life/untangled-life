@@ -150,6 +150,7 @@ export default function Pair() {
           <TextInput
             style={styles.input}
             placeholder="Enter partner's code"
+        placeholderTextColor={t.textMuted}
             autoCapitalize="characters"
             value={code}
             onChangeText={setCode}
@@ -179,15 +180,15 @@ export default function Pair() {
 const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: t.bg },
-  title: { ...t.type.display, textAlign: "center", marginBottom: 8 },
-  subtitle: { fontSize: 14, color: t.textSecondary, textAlign: "center", marginBottom: 24, lineHeight: 20 },
+  title: { ...t.type.display, color: t.textPrimary, textAlign: "center", marginBottom: 8 },
+  subtitle: { ...t.type.body, color: t.textSecondary, textAlign: "center", marginBottom: 24, lineHeight: 20 },
   input: {
     backgroundColor: t.surface,
     borderRadius: t.radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 12,
-    fontSize: 15,
+    ...t.type.body,
     textAlign: "center",
     letterSpacing: 2,
     color: t.textPrimary,
@@ -198,7 +199,7 @@ const createStyles = (t: Theme) =>
     paddingVertical: 14,
     alignItems: "center",
   },
-  buttonText: { color: t.surface, fontWeight: "600", fontSize: 15 },
+  buttonText: { color: t.textOnBrand, ...t.type.heading },
   buttonSecondary: {
     backgroundColor: t.surface,
     borderRadius: t.radius.pill,
@@ -207,14 +208,14 @@ const createStyles = (t: Theme) =>
     borderWidth: 1,
     borderColor: t.accent,
   },
-  buttonSecondaryText: { color: t.accent, fontWeight: "600", fontSize: 15 },
+  buttonSecondaryText: { color: t.accent, ...t.type.heading },
   codeBox: { alignItems: "center", marginTop: 8, marginBottom: 16 },
-  codeLabel: { fontSize: 12, color: t.textSecondary, marginBottom: 4 },
+  codeLabel: { ...t.type.caption, color: t.textSecondary, marginBottom: 4 },
   // The invite code is the one thing on this screen anybody reads out loud.
-  code: { ...t.type.hero, letterSpacing: 6 },
+  code: { ...t.type.hero, color: t.brand, letterSpacing: 6 },
   waitingRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
-  waitingText: { fontSize: 13, color: t.textSecondary, flexShrink: 1 },
+  waitingText: { ...t.type.caption, color: t.textSecondary, flexShrink: 1 },
   orText: { textAlign: "center", color: t.textMuted, marginVertical: 16 },
-  error: { color: t.danger, marginBottom: 8, fontSize: 13, textAlign: "center" },
-  link: { textAlign: "center", color: t.textMuted, fontSize: 13 },
+  error: { color: t.danger, marginBottom: 8, ...t.type.caption, textAlign: "center" },
+  link: { textAlign: "center", color: t.textMuted, ...t.type.caption },
   });

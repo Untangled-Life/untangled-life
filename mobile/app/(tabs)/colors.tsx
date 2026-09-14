@@ -170,9 +170,9 @@ const createStyles = (t: Theme) =>
       paddingTop: t.space(16),
       paddingBottom: t.space(12),
     },
-    back: { fontSize: 15, color: t.accent, fontWeight: "600", marginBottom: t.space(3) },
+    back: { ...t.type.label, color: t.accent, marginBottom: t.space(3) },
     title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(2) },
-    intro: { fontSize: 14, lineHeight: 21, color: t.textSecondary, marginBottom: t.space(5) },
+    intro: { ...t.type.body, lineHeight: 21, color: t.textSecondary, marginBottom: t.space(5) },
     preview: { gap: t.space(2), marginBottom: t.space(6) },
     previewBlock: {
       borderRadius: t.radius.sm,
@@ -180,8 +180,8 @@ const createStyles = (t: Theme) =>
       paddingHorizontal: t.space(3),
       paddingVertical: t.space(2),
     },
-    previewLabel: { fontSize: 12, fontWeight: "700" },
-    previewTime: { fontSize: 11, marginTop: 1 },
+    previewLabel: { ...t.type.label },
+    previewTime: { ...t.type.caption, marginTop: 1 },
     swatches: { flexDirection: "row", flexWrap: "wrap", gap: t.space(3), justifyContent: "flex-start" },
     swatchWrap: { alignItems: "center", width: "21%" },
     swatch: {
@@ -196,5 +196,5 @@ const createStyles = (t: Theme) =>
     tick: { fontSize: 18, fontWeight: "700" },
     swatchLabel: { fontSize: 10, color: t.textMuted, marginTop: 5, textAlign: "center" },
     swatchLabelOn: { color: t.textPrimary, fontWeight: "700" },
-    footnote: { fontSize: 12, lineHeight: 18, color: t.textMuted, marginTop: t.space(6) },
+    footnote: { ...t.type.caption, lineHeight: 18, color: t.textMuted, marginTop: t.space(6) },
   });

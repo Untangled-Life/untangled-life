@@ -667,7 +667,7 @@ const createStyles = (t: Theme) =>
     block_busy: { backgroundColor: t.surfaceSunken, borderLeftColor: t.dotBusy },
     block_work: { backgroundColor: t.surfaceSunken, borderLeftColor: t.dotWork },
     blockLabel: { ...t.type.caption, fontWeight: "700", color: t.textPrimary },
-    blockTime: { ...t.type.caption, fontSize: 11, color: t.textSecondary },
+    blockTime: { ...t.type.caption, ...t.type.caption, color: t.textSecondary },
     nowLine: {
       position: "absolute",
       left: GUTTER - 5,

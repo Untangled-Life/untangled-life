@@ -932,5 +932,5 @@ const createStyles = (t: Theme) =>
     alignItems: "center",
   },
   buttonText: { ...t.type.label, color: t.textOnBrand },
-  link: { textAlign: "center", color: t.textMuted, fontSize: 13 },
+  link: { textAlign: "center", color: t.textMuted, ...t.type.caption },
   });

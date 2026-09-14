@@ -31,7 +31,7 @@ const createStyles = (t: Theme) =>
     },
     title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(3) },
     body: {
-      fontSize: 14,
+      ...t.type.body,
       color: t.textSecondary,
       textAlign: "center",
       lineHeight: 21,
@@ -43,5 +43,5 @@ const createStyles = (t: Theme) =>
       paddingVertical: t.space(3),
       paddingHorizontal: t.space(8),
     },
-    buttonText: { color: t.textOnBrand, fontWeight: "600", fontSize: 14 },
+    buttonText: { color: t.textOnBrand, ...t.type.heading },
   });

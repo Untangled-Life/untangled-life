@@ -201,6 +201,7 @@ export default function WishlistDetail() {
         <TextInput
           style={styles.addInput}
           placeholder="Add an item..."
+        placeholderTextColor={t.textMuted}
           value={title}
           onChangeText={setTitle}
           onSubmitEditing={addItem}
@@ -217,13 +218,13 @@ export default function WishlistDetail() {
 const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 80, paddingBottom: 16 },
-  back: { fontSize: 14, color: t.accent, fontWeight: "600" },
+  back: { ...t.type.label, color: t.accent },
   title: { ...t.type.display, color: t.textPrimary, marginBottom: 20 },
   emptyCard: { ...t.card, padding: t.space(5) },
-  emptyText: { fontSize: 13, color: t.textSecondary },
+  emptyText: { ...t.type.caption, color: t.textSecondary },
   itemRow: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 14, marginBottom: 8 },
   editInput: {
-    fontSize: 15,
+    ...t.type.body,
     color: t.textPrimary,
     backgroundColor: t.surfaceSunken,
     borderRadius: t.radius.sm,
@@ -231,13 +232,13 @@ const createStyles = (t: Theme) =>
     paddingVertical: 10,
     marginBottom: 8,
   },
-  editInputLink: { fontSize: 13 },
+  editInputLink: { ...t.type.caption },
   editActions: { flexDirection: "row", justifyContent: "flex-end", gap: 18, paddingTop: 2 },
-  editCancel: { fontSize: 14, color: t.textMuted },
-  editSave: { fontSize: 14, color: t.accent, fontWeight: "700" },
-  itemLink: { fontSize: 12, color: t.accent, marginTop: 4 },
-  hint: { fontSize: 12, color: t.textMuted, textAlign: "center", marginTop: 4 },
-  itemText: { fontSize: 14, color: t.textPrimary },
+  editCancel: { ...t.type.body, color: t.textMuted },
+  editSave: { ...t.type.body, color: t.accent, fontWeight: "700" },
+  itemLink: { ...t.type.caption, color: t.accent, marginTop: 4 },
+  hint: { ...t.type.caption, color: t.textMuted, textAlign: "center", marginTop: 4 },
+  itemText: { ...t.type.body, color: t.textPrimary },
   addBar: {
     flexDirection: "row",
     gap: 8,
@@ -252,7 +253,7 @@ const createStyles = (t: Theme) =>
     borderRadius: t.radius.pill,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 14,
+    ...t.type.body,
     color: t.textPrimary,
   },
   addButton: {
@@ -261,5 +262,5 @@ const createStyles = (t: Theme) =>
     paddingHorizontal: 20,
     justifyContent: "center",
   },
-  addButtonText: { color: t.surface, fontWeight: "600", fontSize: 14 },
+  addButtonText: { color: t.textOnBrand, ...t.type.heading },
   });

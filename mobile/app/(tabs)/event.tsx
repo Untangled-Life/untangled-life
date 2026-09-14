@@ -731,7 +731,7 @@ const createStyles = (t: Theme) =>
   StyleSheet.create({
     loading: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: t.bg },
     missing: {
-      fontSize: 15,
+      ...t.type.body,
       color: t.textSecondary,
       textAlign: "center",
       paddingHorizontal: t.space(10),
@@ -750,10 +750,10 @@ const createStyles = (t: Theme) =>
       justifyContent: "space-between",
       marginBottom: t.space(5),
     },
-    back: { fontSize: 15, color: t.textSecondary },
-    save: { fontSize: 15, color: t.accent, fontWeight: "700" },
+    back: { ...t.type.body, color: t.textSecondary },
+    save: { ...t.type.body, color: t.accent, fontWeight: "700" },
     saveOff: { color: t.textMuted },
-    readOnlyTag: { fontSize: 13, color: t.textMuted, fontWeight: "600" },
+    readOnlyTag: { ...t.type.caption, color: t.textMuted, fontWeight: "600" },
     banner: {
       backgroundColor: t.accentSoft,
       borderRadius: t.radius.md,
@@ -761,7 +761,7 @@ const createStyles = (t: Theme) =>
       marginTop: t.space(4),
     },
     bannerWarn: { backgroundColor: t.surfaceSunken },
-    bannerText: { fontSize: 12, lineHeight: 18, color: t.textSecondary },
+    bannerText: { ...t.type.caption, lineHeight: 18, color: t.textSecondary },
     titleInput: {
       ...t.card,
       paddingHorizontal: t.space(4),
@@ -783,7 +783,7 @@ const createStyles = (t: Theme) =>
       padding: t.space(4),
       marginBottom: t.space(3),
     },
-    fieldLabel: { fontSize: 13, fontWeight: "600", color: t.textSecondary, marginBottom: t.space(2) },
+    fieldLabel: { ...t.type.label, color: t.textSecondary, marginBottom: t.space(2) },
     segmented: {
       flexDirection: "row",
       backgroundColor: t.surfaceSunken,
@@ -792,9 +792,9 @@ const createStyles = (t: Theme) =>
     },
     segment: { flex: 1, paddingVertical: t.space(2), borderRadius: t.radius.sm, alignItems: "center" },
     segmentActive: { backgroundColor: t.surface, ...t.shadow },
-    segmentText: { fontSize: 13, fontWeight: "600", color: t.textMuted },
+    segmentText: { ...t.type.label, color: t.textMuted },
     segmentTextActive: { color: t.brand },
-    hint: { fontSize: 11, color: t.textMuted, marginTop: t.space(2), lineHeight: 16 },
+    hint: { ...t.type.caption, color: t.textMuted, marginTop: t.space(2), lineHeight: 16 },
     pushRow: { flexDirection: "row", alignItems: "center", gap: t.space(3), paddingVertical: t.space(2) },
     rowDivider: {
       borderTopWidth: StyleSheet.hairlineWidth,
@@ -802,16 +802,16 @@ const createStyles = (t: Theme) =>
       marginTop: t.space(2),
       paddingTop: t.space(3),
     },
-    rowLabel: { fontSize: 15, fontWeight: "500", color: t.textPrimary },
+    rowLabel: { ...t.type.heading, color: t.textPrimary },
     input: {
       backgroundColor: t.surface,
       borderRadius: t.radius.md,
       paddingHorizontal: t.space(4),
       paddingVertical: t.space(3),
-      fontSize: 15,
+      ...t.type.body,
       color: t.textPrimary,
     },
     notesInput: { minHeight: 96, textAlignVertical: "top", paddingTop: t.space(3) },
     deleteButton: { alignItems: "center", marginTop: t.space(8) },
-    deleteText: { fontSize: 15, fontWeight: "600", color: t.danger },
+    deleteText: { ...t.type.heading, color: t.danger },
   });

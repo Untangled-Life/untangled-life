@@ -183,16 +183,16 @@ const createStyles = (t: Theme) =>
       paddingTop: t.space(16),
       paddingBottom: t.space(12),
     },
-    back: { fontSize: 15, color: t.accent, fontWeight: "600", marginBottom: t.space(3) },
+    back: { ...t.type.label, color: t.accent, marginBottom: t.space(3) },
     title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(2) },
-    intro: { fontSize: 14, lineHeight: 21, color: t.textSecondary, marginBottom: t.space(6) },
+    intro: { ...t.type.body, lineHeight: 21, color: t.textSecondary, marginBottom: t.space(6) },
     card: {
       ...t.card,
       padding: t.space(4),
       marginBottom: t.space(4)
     },
-    label: { fontSize: 13, fontWeight: "700", color: t.textSecondary, marginBottom: t.space(3) },
-    hint: { fontSize: 12, color: t.textMuted, marginTop: t.space(3), lineHeight: 17 },
+    label: { ...t.type.label, color: t.textSecondary, marginBottom: t.space(3) },
+    hint: { ...t.type.caption, color: t.textMuted, marginTop: t.space(3), lineHeight: 17 },
     chipScroll: { marginHorizontal: -4 },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     chip: {
@@ -203,7 +203,7 @@ const createStyles = (t: Theme) =>
       marginHorizontal: 4,
     },
     chipOn: { backgroundColor: t.accentSoft },
-    chipText: { fontSize: 13, fontWeight: "600", color: t.textMuted },
+    chipText: { ...t.type.label, color: t.textMuted },
     chipTextOn: { color: t.accent },
-    summary: { fontSize: 13, color: t.textSecondary, textAlign: "center", marginTop: t.space(2) },
+    summary: { ...t.type.caption, color: t.textSecondary, textAlign: "center", marginTop: t.space(2) },
   });

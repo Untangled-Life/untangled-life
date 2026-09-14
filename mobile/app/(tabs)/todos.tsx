@@ -271,6 +271,7 @@ export default function Todos() {
         <TextInput
           style={styles.addInput}
           placeholder="To-do..."
+        placeholderTextColor={t.textMuted}
           value={newTitle}
           onChangeText={setNewTitle}
           onSubmitEditing={addTodo}
@@ -309,11 +310,11 @@ const createStyles = (t: Theme) =>
     alignItems: "center",
   },
   chipActive: { backgroundColor: t.accent },
-  chipText: { fontSize: 13, fontWeight: "600", color: t.textSecondary },
+  chipText: { ...t.type.label, color: t.textSecondary },
   chipTextActive: { color: t.surface },
   editInput: {
     flex: 1,
-    fontSize: 15,
+    ...t.type.body,
     color: t.textPrimary,
     paddingVertical: 0,
   },
@@ -323,17 +324,17 @@ const createStyles = (t: Theme) =>
     alignItems: "center",
     justifyContent: "center",
   },
-  checkboxTick: { color: t.textOnBrand, fontSize: 13, fontWeight: "700" },
+  checkboxTick: { color: t.textOnBrand, ...t.type.label },
   todoTextDone: { color: t.textMuted, textDecorationLine: "line-through" },
-  hint: { fontSize: 12, color: t.textMuted, textAlign: "center", marginBottom: 8 },
-  bucketTitle: { fontSize: 14, fontWeight: "600", color: t.textPrimary, marginBottom: 8 },
+  hint: { ...t.type.caption, color: t.textMuted, textAlign: "center", marginBottom: 8 },
+  bucketTitle: { ...t.type.heading, color: t.textPrimary, marginBottom: 8 },
   emptyCard: {
     ...t.card,
     padding: t.space(5),
     marginBottom: t.space(5)
   },
-  emptyTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary, marginBottom: t.space(1.5) },
-  emptyBody: { fontSize: 13, color: t.textSecondary, lineHeight: 19 },
+  emptyTitle: { ...t.type.heading, color: t.textPrimary, marginBottom: t.space(1.5) },
+  emptyBody: { ...t.type.caption, color: t.textSecondary, lineHeight: 19 },
   todoRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -350,7 +351,7 @@ const createStyles = (t: Theme) =>
     borderColor: t.brand,
     marginRight: 12,
   },
-  todoText: { fontSize: 14, color: t.textPrimary, flex: 1 },
+  todoText: { ...t.type.body, color: t.textPrimary, flex: 1 },
   addBar: {
     flexDirection: "row",
     gap: 8,
@@ -365,7 +366,7 @@ const createStyles = (t: Theme) =>
     borderRadius: t.radius.pill,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 14,
+    ...t.type.body,
     color: t.textPrimary,
   },
   addButton: {
@@ -374,5 +375,5 @@ const createStyles = (t: Theme) =>
     paddingHorizontal: 20,
     justifyContent: "center",
   },
-  addButtonText: { color: t.surface, fontWeight: "600", fontSize: 14 },
+  addButtonText: { color: t.textOnBrand, ...t.type.heading },
   });

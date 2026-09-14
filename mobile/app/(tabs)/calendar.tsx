@@ -924,9 +924,9 @@ const createStyles = (t: Theme) =>
     marginLeft: 8,
   },
   swipeActionSoft: { backgroundColor: t.surfaceSunken },
-  swipeActionText: { color: t.surface, fontWeight: "600", fontSize: 13 },
+  swipeActionText: { color: t.textOnBrand, ...t.type.label },
   swipeActionTextSoft: { color: t.textSecondary },
   footnote: { ...t.type.caption, color: t.textMuted, marginTop: t.space(2) },
   entryDetail: { ...t.type.caption, color: t.textSecondary, marginTop: 2 },
-  entryNote: { fontSize: 12, color: t.textMuted, marginTop: 4, lineHeight: 17 },
+  entryNote: { ...t.type.caption, color: t.textMuted, marginTop: 4, lineHeight: 17 },
   });

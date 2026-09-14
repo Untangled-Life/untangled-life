@@ -138,9 +138,9 @@ const createStyles = (t: Theme) =>
       paddingTop: t.space(16),
       paddingBottom: t.space(12),
     },
-    back: { fontSize: 15, color: t.accent, fontWeight: "600", marginBottom: t.space(3) },
+    back: { ...t.type.label, color: t.accent, marginBottom: t.space(3) },
     title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(2) },
-    intro: { fontSize: 14, lineHeight: 21, color: t.textSecondary, marginBottom: t.space(6) },
+    intro: { ...t.type.body, lineHeight: 21, color: t.textSecondary, marginBottom: t.space(6) },
     card: {
       ...t.card,
       paddingHorizontal: t.space(4)
@@ -153,10 +153,10 @@ const createStyles = (t: Theme) =>
     },
     rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border },
     arrows: { width: 28, alignItems: "center", gap: 2 },
-    arrow: { fontSize: 13, color: t.accent },
+    arrow: { ...t.type.caption, color: t.accent },
     arrowOff: { color: t.surfaceSunken },
-    rowLabel: { fontSize: 15, fontWeight: "500", color: t.textPrimary },
+    rowLabel: { ...t.type.heading, color: t.textPrimary },
     rowLabelOff: { color: t.textMuted },
-    rowHint: { fontSize: 12, color: t.textMuted, marginTop: 2 },
-    footnote: { fontSize: 12, lineHeight: 18, color: t.textMuted, marginTop: t.space(4) },
+    rowHint: { ...t.type.caption, color: t.textMuted, marginTop: 2 },
+    footnote: { ...t.type.caption, lineHeight: 18, color: t.textMuted, marginTop: t.space(4) },
   });

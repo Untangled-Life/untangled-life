@@ -193,6 +193,7 @@ export default function Wishlists() {
             <TextInput
               style={styles.input}
               placeholder="e.g. Date Ideas"
+        placeholderTextColor={t.textMuted}
               value={name}
               onChangeText={setName}
             />
@@ -219,9 +220,9 @@ const createStyles = (t: Theme) =>
   container: { flexGrow: 1, padding: 24, paddingTop: 80 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   title: { ...t.type.display, color: t.textPrimary },
-  addLink: { fontSize: 14, fontWeight: "600", color: t.accent },
+  addLink: { ...t.type.heading, color: t.accent },
   emptyCard: { ...t.card, padding: t.space(5) },
-  emptyText: { fontSize: 13, color: t.textSecondary, lineHeight: 18 },
+  emptyText: { ...t.type.caption, color: t.textSecondary, lineHeight: 18 },
   card: { ...t.card, padding: t.space(5), marginBottom: 12 },
   renameInput: {
     fontSize: 16,
@@ -233,11 +234,11 @@ const createStyles = (t: Theme) =>
     paddingVertical: 10,
   },
   renameActions: { flexDirection: "row", justifyContent: "flex-end", gap: 18, marginTop: 10 },
-  renameCancel: { fontSize: 14, color: t.textMuted },
-  renameSave: { fontSize: 14, color: t.accent, fontWeight: "700" },
-  hint: { fontSize: 12, color: t.textMuted, textAlign: "center", marginTop: 4 },
+  renameCancel: { ...t.type.body, color: t.textMuted },
+  renameSave: { ...t.type.body, color: t.accent, fontWeight: "700" },
+  hint: { ...t.type.caption, color: t.textMuted, textAlign: "center", marginTop: 4 },
   cardTitle: { ...t.type.title, color: t.textPrimary, marginBottom: 4 },
-  cardCount: { fontSize: 13, color: t.textMuted },
+  cardCount: { ...t.type.caption, color: t.textMuted },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 24 },
   modalCard: { ...t.card, padding: t.space(5) },
   modalTitle: { ...t.type.title, marginBottom: 16, color: t.textPrimary },
@@ -246,9 +247,9 @@ const createStyles = (t: Theme) =>
     borderRadius: t.radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    fontSize: 15,
+    ...t.type.body,
     color: t.textPrimary,
   },
   button: { backgroundColor: t.accent, borderRadius: t.radius.pill, paddingVertical: 12, alignItems: "center" },
-  buttonText: { color: t.surface, fontWeight: "600", fontSize: 14 },
+  buttonText: { color: t.textOnBrand, ...t.type.heading },
   });
