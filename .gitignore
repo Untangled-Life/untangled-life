@@ -47,3 +47,8 @@ next-env.d.ts
 # saved to this folder. They're copies of things already in supabase/ and
 # launch/, not source.
 /Claude outputs/
+
+# A generated concatenation of supabase/*.sql for pasting into the SQL
+# editor. Regenerate it rather than edit it; the files it is built from are
+# the source.
+/untangled-run-these.sql
