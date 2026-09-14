@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { LegalFooter } from "@/components/legal-footer";
 
 export const metadata: Metadata = {
   title: "Terms of Service - Untangled Life",
@@ -481,11 +482,7 @@ export default function Terms() {
         </div>
       </main>
 
-      <footer className="border-t border-border px-6 py-8 text-center">
-        <Link href="/" className="text-[13px] text-text-muted hover:text-text-secondary">
-          untangledlife.com.au
-        </Link>
-      </footer>
+      <LegalFooter current="/terms" />
     </>
   );
 }

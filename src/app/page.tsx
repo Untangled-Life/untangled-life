@@ -149,12 +149,15 @@ export default function Home() {
           <p className="mt-2 text-[13px] text-text-muted">
             The founders of Untangled Life
           </p>
-          <p className="mt-6 flex items-center justify-center gap-4 text-[13px]">
+          <p className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[13px]">
             <a href="/privacy" className="text-text-muted underline underline-offset-2 hover:text-text-secondary">
               Privacy policy
             </a>
             <a href="/cookies" className="text-text-muted underline underline-offset-2 hover:text-text-secondary">
               Cookie policy
+            </a>
+            <a href="/terms" className="text-text-muted underline underline-offset-2 hover:text-text-secondary">
+              Terms of service
             </a>
           </p>
         </div>

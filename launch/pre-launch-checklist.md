@@ -64,7 +64,9 @@ Full detail in `supabase/functions/README.md`. In order:
 
 - [ ] Replace the placeholder testimonial in `src/app/page.tsx` (marked with a
       comment in the code) with a real one.
-- [x] Add the privacy policy page. Live at /privacy, rewritten 14 Sep to
+- [x] Add the privacy policy page.
+- [x] Terms of service and cookie policy pages, linked from the home footer and
+      from each other. The app menu links to the privacy policy and the terms. Live at /privacy, rewritten 14 Sep to
       cover full event detail, photos, and the per-calendar choice.
 - [ ] Decide what the site says once the app is downloadable rather than a
       waitlist.

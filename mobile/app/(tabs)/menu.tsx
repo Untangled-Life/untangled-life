@@ -89,6 +89,13 @@ export default function Menu() {
           onPress: () => Linking.openURL("https://untangledlife.com.au/privacy"),
         },
         {
+          // Apple checks that the terms are reachable from inside the app, not
+          // only from the store listing.
+          label: "Terms of service",
+          icon: (p) => <ShieldIcon {...p} />,
+          onPress: () => Linking.openURL("https://untangledlife.com.au/terms"),
+        },
+        {
           label: "Follow us",
           hint: "Coming soon",
           icon: (p) => <HeartIcon {...p} />,
