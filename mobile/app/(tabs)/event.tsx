@@ -41,6 +41,7 @@ import {
   updateDeviceEvent,
 } from "@/lib/deviceEvents";
 import { syncBusyBlocks } from "@/lib/calendarSync";
+import { REPEAT_OPTIONS, RepeatEvery } from "@/lib/recurrence";
 
 /** Combine an ISO date and an HH:MM time into a real instant. */
 function combine(isoDate: string, time: string): Date {
@@ -98,6 +99,8 @@ export default function EventEditor() {
   // orphan the event, and the colour follows the person.
   const [owner, setOwner] = useState<string | null>(null);
   const [pushTo, setPushTo] = useState<string[]>([]);
+  const [repeatEvery, setRepeatEvery] = useState<RepeatEvery>("none");
+  const [repeatUntil, setRepeatUntil] = useState<string | null>(null);
 
   /**
    * An hour after the start -- rolling the DATE forward when that crosses
@@ -148,6 +151,8 @@ export default function EventEditor() {
     setEndTime(end.time);
     setOwner(null);
     setPushTo([]);
+    setRepeatEvery("none");
+    setRepeatUntil(null);
     setLoaded(true);
     // routeKey collapses the params this depends on into one value, so the
     // draft is reset exactly when a new event is started.
@@ -201,6 +206,8 @@ export default function EventEditor() {
       setEndTime(toTimeString(end));
       setOwner(ev.owner_user_id);
       setPushTo(ev.push_to ?? []);
+      setRepeatEvery(ev.repeat_every ?? "none");
+      setRepeatUntil(ev.repeat_until ?? null);
     }
     setLoaded(true);
   }, [editingId]);
@@ -315,6 +322,8 @@ export default function EventEditor() {
           notes: notes.trim() || null,
           ownerUserId: owner,
           pushTo,
+          repeatEvery,
+          repeatUntil,
         })
       : await createPlannedEvent({
           coupleId: profile.couple_id,
@@ -326,6 +335,8 @@ export default function EventEditor() {
           notes: notes.trim() || undefined,
           ownerUserId: owner,
           pushTo,
+          repeatEvery,
+          repeatUntil,
         });
 
     if (error) {
@@ -539,6 +550,53 @@ export default function EventEditor() {
           <TimeField value={endTime} onChange={setEndTime} />
         </View>
       </View>
+
+      {deviceEvent ? null : <Text style={styles.groupTitle}>Repeats</Text>}
+      {deviceEvent ? null : (
+        <View style={styles.segmented}>
+          {REPEAT_OPTIONS.map((option) => {
+            const active = repeatEvery === option.key;
+            return (
+              <Pressable
+                key={option.key}
+                style={press([styles.segment, active ? styles.segmentActive : null])}
+                onPress={() => {
+                  setRepeatEvery(option.key);
+                  // An end date on something that no longer repeats is a
+                  // contradiction the database rejects, so clearing the repeat
+                  // clears the end with it.
+                  if (option.key === "none") setRepeatUntil(null);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.segmentText, active ? styles.segmentTextActive : null]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {!deviceEvent && repeatEvery !== "none" ? (
+        <View style={[styles.card, { marginTop: 12 }]}>
+          <Text style={styles.fieldLabel}>Until (optional)</Text>
+          <DateField
+            value={repeatUntil}
+            placeholder="Keeps going"
+            minimumDate={fromISODate(startDate) ?? undefined}
+            onChange={setRepeatUntil}
+          />
+          {repeatUntil ? (
+            <Pressable onPress={() => setRepeatUntil(null)} hitSlop={8}>
+              <Text style={[styles.hint, { color: t.accent, fontWeight: "600" }]}>
+                Remove the end date
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
 
       {deviceEvent ? null : <Text style={styles.groupTitle}>Push to calendar</Text>}
       {deviceEvent ? null : (

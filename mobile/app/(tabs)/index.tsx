@@ -29,6 +29,7 @@ import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
 import { syncBusyBlocks } from "@/lib/calendarSync";
 import { listCalendars } from "@/lib/calendarPrefs";
 import { deviceTimeZone } from "@/lib/timezone";
+import { repeatLabel } from "@/lib/recurrence";
 import { dualTimeText, zoneGapSentence } from "@/components/dual-time";
 import { HomeSection, resolveHomeLayout, visibleSections } from "@/lib/homeLayout";
 import {
@@ -46,6 +47,7 @@ import {
   syncPlannedEventsToDevice,
   loadUpcomingPlans,
   formatPlanWhen,
+  UpcomingPlan,
 } from "@/lib/plannedEvents";
 
 const DEFAULT_PLAN_HOURS = 2;
@@ -66,7 +68,7 @@ export default function Home() {
   const [freeWindows, setFreeWindows] = useState<Interval[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [myPattern, setMyPattern] = useState<WorkPattern | null>(null);
-  const [plans, setPlans] = useState<PlannedEvent[]>([]);
+  const [plans, setPlans] = useState<UpcomingPlan[]>([]);
   const [bookingIndex, setBookingIndex] = useState<number | null>(null);
   const [bookingTitle, setBookingTitle] = useState("");
   const [booking, setBooking] = useState(false);
@@ -505,7 +507,13 @@ export default function Home() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.planTitle}>{plan.title}</Text>
                     <Text style={styles.planWhen}>
-                      {formatPlanWhen(plan.start_at, plan.end_at)}
+                      {formatPlanWhen(
+                        plan.occurrenceStart.toISOString(),
+                        plan.occurrenceEnd.toISOString()
+                      )}
+                      {plan.repeat_every && plan.repeat_every !== "none"
+                        ? ` · ${repeatLabel(plan.repeat_every).toLowerCase()}`
+                        : ""}
                       {plan.created_by === session?.user.id ? "" : ` · ${partnerName} booked this`}
                     </Text>
                   </View>

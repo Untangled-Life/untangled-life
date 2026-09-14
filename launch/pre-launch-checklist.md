@@ -355,6 +355,21 @@ Step by step in `launch/development-build.md`. The short version:
       building for iOS.
 - [ ] Then the Edge Function, the three webhooks, and FCM/APNs credentials.
 
+## Recurring events (14 Sep) -- needs device testing
+
+- [ ] **Run `supabase/recurring-events.sql`.**
+- [ ] **Create a weekly date night** and check it appears on every week in the
+      month grid and the day view, not just the week you made it.
+- [ ] **Monthly on the 31st.** Should land on the 30th in September and the
+      28th in February, then go back to the 31st in March rather than sticking
+      at the 28th. Covered by tests, but worth seeing.
+- [ ] **Push it to a phone calendar.** It should arrive as ONE repeating event
+      in the phone's calendar, not fifty-two separate entries. Fortnightly is
+      sent as weekly-with-interval-2, since there is no fortnightly frequency.
+- [ ] **An end date.** "Until the 30th" has to include the 30th.
+- [ ] **Clear the repeat on an existing one.** The end date has to clear with
+      it, or the database constraint rejects the save.
+
 ## Known rough edges
 
 - Everything is verified on two iPhones only, with one couple, on one Supabase

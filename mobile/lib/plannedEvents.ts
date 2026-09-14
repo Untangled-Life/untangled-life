@@ -1,5 +1,6 @@
 import * as Calendar from "expo-calendar/legacy";
 import { supabase } from "@/lib/supabase";
+import { RepeatEvery, occurrencesBetween } from "@/lib/recurrence";
 
 export type PlannedEvent = {
   id: string;
@@ -14,10 +15,13 @@ export type PlannedEvent = {
   owner_user_id: string | null;
   /** Whose phone calendar it should appear in. Empty means neither. */
   push_to: string[];
+  repeat_every: RepeatEvery;
+  /** Last day it may fall on, as YYYY-MM-DD. Null means it keeps going. */
+  repeat_until: string | null;
 };
 
 export const EVENT_COLUMNS =
-  "id, title, start_at, end_at, location, notes, cancelled, created_by, owner_user_id, push_to";
+  "id, title, start_at, end_at, location, notes, cancelled, created_by, owner_user_id, push_to, repeat_every, repeat_until";
 
 /**
  * Create a plan. This only writes the shared record -- getting it onto the
@@ -36,6 +40,9 @@ export async function createPlannedEvent(input: {
   ownerUserId?: string | null;
   /** Whose phone calendar it goes to. Defaults to nobody's. */
   pushTo?: string[];
+  repeatEvery?: RepeatEvery;
+  /** YYYY-MM-DD. */
+  repeatUntil?: string | null;
 }) {
   return supabase.from("planned_events").insert({
     couple_id: input.coupleId,
@@ -47,6 +54,8 @@ export async function createPlannedEvent(input: {
     notes: input.notes ?? null,
     owner_user_id: input.ownerUserId ?? null,
     push_to: input.pushTo ?? [],
+    repeat_every: input.repeatEvery ?? "none",
+    repeat_until: input.repeatEvery && input.repeatEvery !== "none" ? (input.repeatUntil ?? null) : null,
   });
 }
 
@@ -62,6 +71,8 @@ export async function updatePlannedEvent(
     notes?: string | null;
     ownerUserId?: string | null;
     pushTo?: string[];
+    repeatEvery?: RepeatEvery;
+    repeatUntil?: string | null;
   }
 ) {
   const row: Record<string, unknown> = {};
@@ -76,6 +87,16 @@ export async function updatePlannedEvent(
   if (patch.notes !== undefined) row.notes = patch.notes;
   if (patch.ownerUserId !== undefined) row.owner_user_id = patch.ownerUserId;
   if (patch.pushTo !== undefined) row.push_to = patch.pushTo;
+  if (patch.repeatEvery !== undefined) {
+    row.repeat_every = patch.repeatEvery;
+    // An end date on something that no longer repeats is a contradiction, and
+    // the database constraint rejects it -- so clearing the repeat has to
+    // clear the end with it rather than failing the save.
+    if (patch.repeatEvery === "none") row.repeat_until = null;
+    else if (patch.repeatUntil !== undefined) row.repeat_until = patch.repeatUntil;
+  } else if (patch.repeatUntil !== undefined) {
+    row.repeat_until = patch.repeatUntil;
+  }
 
   return supabase.from("planned_events").update(row).eq("id", id);
 }
@@ -93,6 +114,29 @@ export async function cancelPlannedEvent(id: string, byUserId?: string) {
     .from("planned_events")
     .update({ cancelled: true, ...(byUserId ? { updated_by: byUserId } : {}) })
     .eq("id", id);
+}
+
+/**
+ * The repeat, in the shape expo-calendar wants.
+ *
+ * A fortnight is a weekly rule with an interval of two -- there is no
+ * fortnightly frequency, and inventing one produces an event that silently
+ * does not repeat.
+ */
+function recurrenceRuleFor(ev: PlannedEvent) {
+  if (!ev.repeat_every || ev.repeat_every === "none") return undefined;
+
+  const endDate = ev.repeat_until ? new Date(`${ev.repeat_until}T23:59:59`) : undefined;
+
+  if (ev.repeat_every === "month") {
+    return { frequency: Calendar.Frequency.MONTHLY, endDate };
+  }
+
+  return {
+    frequency: Calendar.Frequency.WEEKLY,
+    interval: ev.repeat_every === "fortnight" ? 2 : 1,
+    endDate,
+  };
 }
 
 export type PlanSyncResult = {
@@ -247,6 +291,7 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
           endDate: new Date(ev.end_at),
           location: ev.location ?? undefined,
           notes: ev.notes ?? undefined,
+          recurrenceRule: recurrenceRuleFor(ev),
         });
       } catch {
         // An update can fail because the event was deleted by hand -- or
@@ -289,6 +334,11 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
         endDate: new Date(ev.end_at),
         location: ev.location ?? undefined,
         notes: ev.notes ?? undefined,
+        // One event carrying the rule, not one per occurrence. The phone's own
+        // calendar understands repeats, so handing it the rule keeps a weekly
+        // date night as a single thing you can move rather than fifty-two
+        // separate entries to clean up.
+        recurrenceRule: recurrenceRuleFor(ev),
       });
 
       const { error: linkError } = await supabase
@@ -318,17 +368,55 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
   return result;
 }
 
-/** Upcoming, non-cancelled plans for the couple, soonest first. */
-export async function loadUpcomingPlans(): Promise<PlannedEvent[]> {
+/**
+ * What's coming up, soonest first, with repeating events resolved to their
+ * next occurrence.
+ *
+ * A repeating row is fetched whatever its start date -- a weekly dinner set up
+ * in January is still on in December -- and then reported at the next time it
+ * actually happens, because "Booked in" showing a date from ten months ago is
+ * worse than not showing it.
+ */
+export async function loadUpcomingPlans(): Promise<UpcomingPlan[]> {
+  const now = new Date();
+  const horizon = new Date(now);
+  horizon.setDate(horizon.getDate() + LOOKAHEAD_DAYS);
+
   const { data } = await supabase
     .from("planned_events")
     .select(EVENT_COLUMNS)
     .eq("cancelled", false)
-    .gte("end_at", new Date().toISOString())
-    .order("start_at", { ascending: true });
+    .or(`end_at.gte.${now.toISOString()},repeat_every.neq.none`);
 
-  return (data as PlannedEvent[]) ?? [];
+  const rows = (data as PlannedEvent[]) ?? [];
+  const out: UpcomingPlan[] = [];
+
+  for (const ev of rows) {
+    const [next] = occurrencesBetween(
+      {
+        start: new Date(ev.start_at),
+        end: new Date(ev.end_at),
+        repeatEvery: ev.repeat_every ?? "none",
+        repeatUntil: ev.repeat_until ? new Date(`${ev.repeat_until}T00:00:00`) : null,
+      },
+      now,
+      horizon
+    );
+
+    if (next) out.push({ ...ev, occurrenceStart: next.start, occurrenceEnd: next.end });
+  }
+
+  return out.sort((a, b) => a.occurrenceStart.getTime() - b.occurrenceStart.getTime());
 }
+
+/** A plan plus the specific occurrence being shown. */
+export type UpcomingPlan = PlannedEvent & {
+  occurrenceStart: Date;
+  occurrenceEnd: Date;
+};
+
+/** How far ahead "coming up" looks. A repeat beyond this is not news yet. */
+const LOOKAHEAD_DAYS = 60;
 
 export function formatPlanWhen(startAt: string, endAt: string): string {
   const start = new Date(startAt);

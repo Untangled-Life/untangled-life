@@ -27,6 +27,7 @@ import { Avatar } from "@/components/avatar";
 import { Interval } from "@/lib/freeTime";
 import { KeyDateRow, displayTitleFor, nextOccurrence, tripNights } from "@/lib/keyDates";
 import { EVENT_COLUMNS, PlannedEvent, formatPlanWhen } from "@/lib/plannedEvents";
+import { occurrencesBetween } from "@/lib/recurrence";
 import { WorkPattern, WorkShift, expandWorkOccurrences, WorkSource, toDateKey } from "@/lib/workHours";
 import { daysCovered, lastCoveredDay } from "@/lib/daySpan";
 
@@ -281,10 +282,14 @@ export default function CalendarScreen() {
     const [planRes, keyRes, busyRes, patternRes, shiftRes] = await Promise.all([
       supabase
         .from("planned_events")
+        // Repeating events come back whatever their start date: a weekly
+        // dinner created in January is still on in December, and filtering on
+        // start_at would hide it from every month but the first.
         .select(EVENT_COLUMNS)
         .eq("cancelled", false)
-        .gte("end_at", rangeStart.toISOString())
-        .lte("start_at", rangeEnd.toISOString()),
+        .or(
+          `and(end_at.gte.${rangeStart.toISOString()},start_at.lte.${rangeEnd.toISOString()}),repeat_every.neq.none`
+        ),
       supabase.from("key_dates").select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned"),
       supabase
         .from("busy_blocks")
@@ -354,17 +359,36 @@ export default function CalendarScreen() {
     };
 
     for (const p of plans) {
-      const start = new Date(p.start_at);
-      push(toDateKey(start), {
-        kind: "plan",
-        label: p.title,
-        detail: formatPlanWhen(p.start_at, p.end_at).split(", ").slice(1).join(", "),
-        // An event belongs to whoever it's FOR, not whoever typed it in, so
-        // the avatar and colour follow owner_user_id. Roy entering Alyssa's
-        // dentist appointment should read as hers.
-        whose: p.owner_user_id,
-        action: { type: "cancelPlan", id: p.id },
-      });
+      // A repeating event is one row, so every occurrence landing in this
+      // month has to be drawn -- otherwise a weekly date night shows up in the
+      // week it was created and nowhere else.
+      const occurrences = occurrencesBetween(
+        {
+          start: new Date(p.start_at),
+          end: new Date(p.end_at),
+          repeatEvery: p.repeat_every ?? "none",
+          repeatUntil: p.repeat_until ? new Date(`${p.repeat_until}T00:00:00`) : null,
+        },
+        startOfMonth(month),
+        endOfMonth(month)
+      );
+
+      for (const at of occurrences) {
+        push(toDateKey(at.start), {
+          kind: "plan",
+          label: p.title,
+          detail: formatPlanWhen(at.start.toISOString(), at.end.toISOString())
+            .split(", ")
+            .slice(1)
+            .join(", "),
+          // An event belongs to whoever it's FOR, not whoever typed it in, so
+          // the avatar and colour follow owner_user_id. Roy entering Alyssa's
+          // dentist appointment should read as hers.
+          whose: p.owner_user_id,
+          open: { kind: "event", id: p.id },
+          action: { type: "cancelPlan", id: p.id },
+        });
+      }
     }
 
     for (const kd of keyDates) {

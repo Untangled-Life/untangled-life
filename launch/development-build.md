@@ -40,10 +40,21 @@ secrets. The service role key is the one that must never leave Supabase.
 
 ---
 
-## 1. Log in and create the project
+## 0. Add the dev client
 
 ```
 cd ~/Documents/untangled-life/mobile
+npx expo install expo-dev-client
+```
+
+Deliberately not installed yet. It is a native module, and a native module that
+Expo Go does not ship is how this project has crashed twice. Until the build
+exists, Expo Go is what you are testing in, so the dependency stays out of the
+way until the day you need it.
+
+## 1. Log in and create the project
+
+```
 npx eas-cli login
 npx eas-cli init
 ```

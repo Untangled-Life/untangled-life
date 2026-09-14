@@ -21,6 +21,7 @@ import { supabase } from "@/lib/supabase";
 import { shadeFor } from "@/lib/palette";
 import { toISODate, fromISODate, toTimeString } from "@/lib/dates";
 import { EVENT_COLUMNS, PlannedEvent } from "@/lib/plannedEvents";
+import { occurrencesBetween } from "@/lib/recurrence";
 import { KeyDateRow, displayTitleFor, nextOccurrence, tripNights } from "@/lib/keyDates";
 import { WorkPattern, WorkShift, expandWorkOccurrences, toDateKey } from "@/lib/workHours";
 import { daysCovered } from "@/lib/daySpan";
@@ -133,12 +134,14 @@ export default function DayView() {
     to.setDate(to.getDate() + 1);
 
     const [eventRes, keyRes, busyRes, patternRes, shiftRes] = await Promise.all([
+      // Repeating events are fetched whatever their start date: a weekly
+      // dinner created in January is still on in December, and filtering on
+      // start_at would hide it from every day but the first.
       supabase
         .from("planned_events")
         .select(EVENT_COLUMNS)
         .eq("cancelled", false)
-        .gte("end_at", from.toISOString())
-        .lte("start_at", to.toISOString()),
+        .or(`and(end_at.gte.${from.toISOString()},start_at.lte.${to.toISOString()}),repeat_every.neq.none`),
       supabase
         .from("key_dates")
         .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned"),
@@ -202,18 +205,39 @@ export default function DayView() {
     const timed: Entry[] = [];
     const allDay: AllDayEntry[] = [];
 
+    const dayOpen = startOfDay(day);
+    const dayShut = new Date(dayOpen);
+    dayShut.setDate(dayShut.getDate() + 1);
+
     for (const ev of events) {
-      timed.push({
-        key: `event-${ev.id}`,
-        kind: "event",
-        start: new Date(ev.start_at),
-        end: new Date(ev.end_at),
-        label: ev.title,
-        detail: ev.location,
-        ownerUserId: ev.owner_user_id,
-        eventId: ev.id,
-        busyId: null,
-      });
+      // A repeating event is one row. Every occurrence that lands on this day
+      // has to be drawn, or a weekly date night would only ever appear on the
+      // week it was created.
+      const occurrences = occurrencesBetween(
+        {
+          start: new Date(ev.start_at),
+          end: new Date(ev.end_at),
+          repeatEvery: ev.repeat_every ?? "none",
+          repeatUntil: ev.repeat_until ? new Date(`${ev.repeat_until}T00:00:00`) : null,
+        },
+        dayOpen,
+        dayShut
+      );
+
+      for (const at of occurrences) {
+        timed.push({
+          // Keyed by occurrence, not by row: two of them could share a day.
+          key: `event-${ev.id}-${at.start.getTime()}`,
+          kind: "event",
+          start: at.start,
+          end: at.end,
+          label: ev.title,
+          detail: ev.location,
+          ownerUserId: ev.owner_user_id,
+          eventId: ev.id,
+          busyId: null,
+        });
+      }
     }
 
     for (const b of busy) {
