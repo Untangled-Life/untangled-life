@@ -144,7 +144,10 @@ export default function TabsLayout() {
         }}
       />
       {/* Reached from the Home header / cards, not the tab bar -- href: null
-          keeps them inside the gated tab group without adding tab buttons. */}
+          keeps them inside the gated tab group without adding tab buttons.
+          Expo Router builds the bar from the DIRECTORY, so a new file here
+          becomes a tab the moment it exists unless it is listed below.
+          __tests__/tabs.test.ts fails if one is ever missed. */}
       <Tabs.Screen name="calendar" options={{ href: null }} />
       <Tabs.Screen name="calendars" options={{ href: null }} />
       <Tabs.Screen name="free-time" options={{ href: null }} />
@@ -155,6 +158,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="work-hours" options={{ href: null }} />
       <Tabs.Screen name="menu" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="personalisation" options={{ href: null }} />
       <Tabs.Screen name="coming-soon" options={{ href: null }} />
       <Tabs.Screen name="roster-import" options={{ href: null }} />
     </Tabs>
