@@ -338,6 +338,23 @@ read-through.
       falls back to the device's own offset and cross-zone maths silently stops
       working -- worth logging once on a real device to confirm it is true.
 
+## Development build -- the current blocker
+
+Step by step in `launch/development-build.md`. The short version:
+
+- [ ] `npx eas-cli login` then `npx eas-cli init`. This writes
+      `extra.eas.projectId`, which is what push registration has been waiting
+      for -- until it exists, `registerForPushNotifications` does nothing.
+- [ ] Create the two `EXPO_PUBLIC_SUPABASE_*` variables in EAS. The build
+      machine cannot see `mobile/.env` because it is gitignored, so without
+      this the app builds and then cannot reach Supabase.
+- [ ] **Apple Developer Program, 149 AUD/yr.** Unavoidable for running on a
+      real iPhone. The free simulator build cannot receive push, which is the
+      whole point.
+- [ ] `npx eas-cli device:create` and open the link on BOTH phones before
+      building for iOS.
+- [ ] Then the Edge Function, the three webhooks, and FCM/APNs credentials.
+
 ## Known rough edges
 
 - Everything is verified on two iPhones only, with one couple, on one Supabase
