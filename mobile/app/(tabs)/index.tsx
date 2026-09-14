@@ -28,6 +28,7 @@ import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
 import { syncBusyBlocks } from "@/lib/calendarSync";
 import { listCalendars } from "@/lib/calendarPrefs";
+import { HomeSection, resolveHomeLayout, visibleSections } from "@/lib/homeLayout";
 import {
   Interval,
   nextSharedFreeWindows,
@@ -398,6 +399,234 @@ export default function Home() {
   const pinnedIds = new Set(pinned.map((kd) => kd.id));
   const carousel = live.filter((kd) => !pinnedIds.has(kd.id));
 
+  // Their own arrangement of this screen. Null means never set, which is the
+  // default order with everything showing -- so an existing user sees no
+  // change until they go and move something.
+  const visible = visibleSections(resolveHomeLayout(profile?.home_sections));
+
+  // Each Home section, keyed so the arrangement can decide what appears
+  // and in what order. Wrapped in a keyed <View> because the list is
+  // rendered from an array -- without the key React reorders by position
+  // and carries state across into whatever section took that slot.
+  const sectionBlocks: Record<HomeSection, React.ReactNode> = {
+    pinned: (
+      <View key="pinned">
+        {pinned.map((kd) => (
+          <Link key={kd.id} href="/key-dates" asChild>
+            <Pressable style={press(styles.hero)}>
+              <Text style={styles.heroCountdown}>{countdownLabel(kd)}</Text>
+              <Text style={styles.heroTitle}>{displayTitleFor(kd, nameFor)}</Text>
+              {kd.notes ? (
+                <Text style={styles.heroNote} numberOfLines={2}>
+                  {kd.notes}
+                </Text>
+              ) : null}
+            </Pressable>
+          </Link>
+        ))}
+      </View>
+    ),
+    keyDates: (
+      <View key="keyDates">
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Key dates &amp; countdowns</Text>
+          <Link href="/key-dates" style={styles.sectionAction}>
+            Manage
+          </Link>
+        </View>
+
+        {carousel.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>
+              {pinned.length > 0
+                ? "Nothing else coming up — the one that matters is pinned above."
+                : `No key dates yet — add ${partnerName}'s birthday or your anniversary to start a countdown.`}
+            </Text>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
+            {carousel.map((kd) => {
+              const days = daysUntil(kd.date, kd.recurring);
+              return (
+                <View key={kd.id} style={styles.keyDateCard}>
+                  <Text style={styles.keyDateDays}>
+                    {days === 0 ? "Today" : days === 1 ? "1 day" : `${days} days`}
+                  </Text>
+                  <Text style={styles.keyDateTitle} numberOfLines={2}>
+                    {displayTitleFor(kd, nameFor)}
+                  </Text>
+                  {/* The gift idea belongs where you'll see it -- on the
+                      countdown, not two taps away on a screen you only open when
+                      you're already thinking about it. */}
+                  {kd.notes ? (
+                    <Text style={styles.keyDateNote} numberOfLines={2}>
+                      {kd.notes}
+                    </Text>
+                  ) : null}
+                </View>
+              );
+            })}
+          </ScrollView>
+        )}
+      </View>
+    ),
+    bookedIn: (
+      <View key="bookedIn">
+        {plans.length > 0 ? (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Booked in</Text>
+            </View>
+            <View style={{ marginBottom: 24 }}>
+              {plans.map((plan) => (
+                <View key={plan.id} style={styles.planRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.planTitle}>{plan.title}</Text>
+                    <Text style={styles.planWhen}>
+                      {formatPlanWhen(plan.start_at, plan.end_at)}
+                      {plan.created_by === session?.user.id ? "" : ` · ${partnerName} booked this`}
+                    </Text>
+                  </View>
+                  <Pressable onPress={() => confirmCancel(plan)} hitSlop={8}>
+                    <Text style={styles.planCancel}>Cancel</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          </>
+        ) : null}
+      </View>
+    ),
+    freeTogether: (
+      <View key="freeTogether">
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Free together</Text>
+          <View style={styles.sectionActions}>
+            <Link href="/work-hours" style={styles.sectionAction}>
+              Your hours
+            </Link>
+            <Link href="/free-time" style={styles.sectionAction}>
+              Settings
+            </Link>
+          </View>
+        </View>
+
+        {permission !== PermissionStatus.GRANTED ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>Connect your calendar below to see this.</Text>
+          </View>
+        ) : connectedCount === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>
+              No calendars shared yet, so there&apos;s nothing to work from. Choose what to share
+              below.
+            </Text>
+          </View>
+        ) : syncing && freeWindows.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>Checking both your calendars...</Text>
+          </View>
+        ) : freeWindows.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>
+              No shared free time found in the next week — both calendars look packed.
+            </Text>
+          </View>
+        ) : (
+          <View style={{ marginBottom: 8 }}>
+            {freeWindows.map((w, i) => (
+              <View key={i} style={styles.freeRow}>
+                <View style={styles.freeRowTop}>
+                  <Text style={styles.freeText}>{formatWindow(w)}</Text>
+                  {bookingIndex === i ? null : (
+                    <Pressable onPress={() => startBooking(i)} hitSlop={8}>
+                      <Text style={styles.bookLink}>Book it</Text>
+                    </Pressable>
+                  )}
+                </View>
+
+                {bookingIndex === i ? (
+                  <View style={styles.bookingBox}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Date night"
+                      placeholderTextColor={t.textMuted}
+                      value={bookingTitle}
+                      onChangeText={setBookingTitle}
+                      autoFocus
+                      returnKeyType="done"
+                      onSubmitEditing={() => confirmBooking(w)}
+                    />
+                    <Text style={styles.bookingHint}>
+                      Goes in both your calendars, starting {formatWindow(w).split(", ").slice(1).join(", ")}.
+                    </Text>
+                    <View style={styles.bookingActions}>
+                      <Pressable
+                        style={press([styles.smallButton, booking ? styles.smallButtonDisabled : null])}
+                        onPress={() => confirmBooking(w)}
+                        disabled={booking}
+                      >
+                        <Text style={styles.smallButtonText}>
+                          {booking ? "Booking..." : "Book it on both phones"}
+                        </Text>
+                      </Pressable>
+                      <Pressable onPress={() => setBookingIndex(null)} hitSlop={8}>
+                        <Text style={styles.bookingCancel}>Cancel</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    ),
+    workHours: (
+      <View key="workHours">
+        <Link href="/work-hours" asChild>
+          <Pressable style={press(styles.hoursCard)}>
+            <View style={styles.cardHeadRow}>
+              <Text style={styles.hoursTitle}>Your working hours</Text>
+              <Text style={styles.cardAction}>
+                {myPattern && myPattern.shifts.length > 0 ? "Change ›" : "Set up ›"}
+              </Text>
+            </View>
+            <Text style={styles.cardBody}>{describePattern(myPattern)}</Text>
+          </Pressable>
+        </Link>
+      </View>
+    ),
+    calendars: (
+      <View key="calendars">
+        {permission === PermissionStatus.GRANTED ? (
+          <Link href="/calendars" asChild>
+            <Pressable style={press(styles.card)}>
+              <Text style={styles.cardTitle}>Calendars</Text>
+              <Text style={styles.cardBody}>
+                {connectedCount === 0
+                  ? `None of the ${calendarCount ?? 0} calendars on this phone are shared, so nothing from them reaches your partner.`
+                  : `${connectedCount} of ${calendarCount ?? connectedCount} shared. Tap to change what each one gives away — busy times only, or the full detail.`}
+              </Text>
+            </Pressable>
+          </Link>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Calendar access</Text>
+            <Text style={styles.cardBody}>
+              Not connected yet. We read the calendars already synced to your phone, so this covers
+              Google and Apple/iCloud without a separate sign-in for each — and you choose, calendar
+              by calendar, whether your partner sees just your busy times or the full detail.
+            </Text>
+            <Pressable style={press(styles.button)} onPress={requestAccess}>
+              <Text style={styles.buttonText}>Connect my calendar</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+    ),
+  };
+
   return (
     <ScrollView
       contentContainerStyle={styles.container}
@@ -446,20 +675,6 @@ export default function Home() {
       </Text>
       <Text style={styles.subtitle}>Here&apos;s what&apos;s coming up together.</Text>
 
-      {pinned.map((kd) => (
-        <Link key={kd.id} href="/key-dates" asChild>
-          <Pressable style={press(styles.hero)}>
-            <Text style={styles.heroCountdown}>{countdownLabel(kd)}</Text>
-            <Text style={styles.heroTitle}>{displayTitleFor(kd, nameFor)}</Text>
-            {kd.notes ? (
-              <Text style={styles.heroNote} numberOfLines={2}>
-                {kd.notes}
-              </Text>
-            ) : null}
-          </Pressable>
-        </Link>
-      ))}
-
       {/* A brand-new couple lands here with nothing and no idea what to do
           first. This says so, in order, and disappears as each is done —
           rather than leaving three empty sections to interpret. */}
@@ -484,189 +699,7 @@ export default function Home() {
         </View>
       ) : null}
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Key dates &amp; countdowns</Text>
-        <Link href="/key-dates" style={styles.sectionAction}>
-          Manage
-        </Link>
-      </View>
-
-      {carousel.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>
-            {pinned.length > 0
-              ? "Nothing else coming up — the one that matters is pinned above."
-              : `No key dates yet — add ${partnerName}'s birthday or your anniversary to start a countdown.`}
-          </Text>
-        </View>
-      ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
-          {carousel.map((kd) => {
-            const days = daysUntil(kd.date, kd.recurring);
-            return (
-              <View key={kd.id} style={styles.keyDateCard}>
-                <Text style={styles.keyDateDays}>
-                  {days === 0 ? "Today" : days === 1 ? "1 day" : `${days} days`}
-                </Text>
-                <Text style={styles.keyDateTitle} numberOfLines={2}>
-                  {displayTitleFor(kd, nameFor)}
-                </Text>
-                {/* The gift idea belongs where you'll see it -- on the
-                    countdown, not two taps away on a screen you only open when
-                    you're already thinking about it. */}
-                {kd.notes ? (
-                  <Text style={styles.keyDateNote} numberOfLines={2}>
-                    {kd.notes}
-                  </Text>
-                ) : null}
-              </View>
-            );
-          })}
-        </ScrollView>
-      )}
-
-      {plans.length > 0 ? (
-        <>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Booked in</Text>
-          </View>
-          <View style={{ marginBottom: 24 }}>
-            {plans.map((plan) => (
-              <View key={plan.id} style={styles.planRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.planTitle}>{plan.title}</Text>
-                  <Text style={styles.planWhen}>
-                    {formatPlanWhen(plan.start_at, plan.end_at)}
-                    {plan.created_by === session?.user.id ? "" : ` · ${partnerName} booked this`}
-                  </Text>
-                </View>
-                <Pressable onPress={() => confirmCancel(plan)} hitSlop={8}>
-                  <Text style={styles.planCancel}>Cancel</Text>
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        </>
-      ) : null}
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Free together</Text>
-        <View style={styles.sectionActions}>
-          <Link href="/work-hours" style={styles.sectionAction}>
-            Your hours
-          </Link>
-          <Link href="/free-time" style={styles.sectionAction}>
-            Settings
-          </Link>
-        </View>
-      </View>
-
-      {permission !== PermissionStatus.GRANTED ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Connect your calendar below to see this.</Text>
-        </View>
-      ) : connectedCount === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>
-            No calendars shared yet, so there&apos;s nothing to work from. Choose what to share
-            below.
-          </Text>
-        </View>
-      ) : syncing && freeWindows.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Checking both your calendars...</Text>
-        </View>
-      ) : freeWindows.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>
-            No shared free time found in the next week — both calendars look packed.
-          </Text>
-        </View>
-      ) : (
-        <View style={{ marginBottom: 8 }}>
-          {freeWindows.map((w, i) => (
-            <View key={i} style={styles.freeRow}>
-              <View style={styles.freeRowTop}>
-                <Text style={styles.freeText}>{formatWindow(w)}</Text>
-                {bookingIndex === i ? null : (
-                  <Pressable onPress={() => startBooking(i)} hitSlop={8}>
-                    <Text style={styles.bookLink}>Book it</Text>
-                  </Pressable>
-                )}
-              </View>
-
-              {bookingIndex === i ? (
-                <View style={styles.bookingBox}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Date night"
-                    placeholderTextColor={t.textMuted}
-                    value={bookingTitle}
-                    onChangeText={setBookingTitle}
-                    autoFocus
-                    returnKeyType="done"
-                    onSubmitEditing={() => confirmBooking(w)}
-                  />
-                  <Text style={styles.bookingHint}>
-                    Goes in both your calendars, starting {formatWindow(w).split(", ").slice(1).join(", ")}.
-                  </Text>
-                  <View style={styles.bookingActions}>
-                    <Pressable
-                      style={press([styles.smallButton, booking ? styles.smallButtonDisabled : null])}
-                      onPress={() => confirmBooking(w)}
-                      disabled={booking}
-                    >
-                      <Text style={styles.smallButtonText}>
-                        {booking ? "Booking..." : "Book it on both phones"}
-                      </Text>
-                    </Pressable>
-                    <Pressable onPress={() => setBookingIndex(null)} hitSlop={8}>
-                      <Text style={styles.bookingCancel}>Cancel</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : null}
-            </View>
-          ))}
-        </View>
-      )}
-
-      <Link href="/work-hours" asChild>
-        <Pressable style={press(styles.hoursCard)}>
-          <View style={styles.cardHeadRow}>
-            <Text style={styles.hoursTitle}>Your working hours</Text>
-            <Text style={styles.cardAction}>
-              {myPattern && myPattern.shifts.length > 0 ? "Change ›" : "Set up ›"}
-            </Text>
-          </View>
-          <Text style={styles.cardBody}>{describePattern(myPattern)}</Text>
-        </Pressable>
-      </Link>
-
-      {permission === PermissionStatus.GRANTED ? (
-        <Link href="/calendars" asChild>
-          <Pressable style={press(styles.card)}>
-            <Text style={styles.cardTitle}>Calendars</Text>
-            <Text style={styles.cardBody}>
-              {connectedCount === 0
-                ? `None of the ${calendarCount ?? 0} calendars on this phone are shared, so nothing from them reaches your partner.`
-                : `${connectedCount} of ${calendarCount ?? connectedCount} shared. Tap to change what each one gives away — busy times only, or the full detail.`}
-            </Text>
-          </Pressable>
-        </Link>
-      ) : (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Calendar access</Text>
-          <Text style={styles.cardBody}>
-            Not connected yet. We read the calendars already synced to your phone, so this covers
-            Google and Apple/iCloud without a separate sign-in for each — and you choose, calendar
-            by calendar, whether your partner sees just your busy times or the full detail.
-          </Text>
-          <Pressable style={press(styles.button)} onPress={requestAccess}>
-            <Text style={styles.buttonText}>Connect my calendar</Text>
-          </Pressable>
-        </View>
-      )}
+      {visible.map((key) => sectionBlocks[key])}
 
       <Pressable onPress={() => signOut()} style={press({ marginTop: 32 })}>
         <Text style={styles.link}>Signed in as {profile?.display_name ?? "you"}. Sign out</Text>

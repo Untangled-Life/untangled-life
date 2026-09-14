@@ -119,6 +119,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="calendar" options={{ href: null }} />
       <Tabs.Screen name="calendars" options={{ href: null }} />
       <Tabs.Screen name="free-time" options={{ href: null }} />
+      <Tabs.Screen name="home-layout" options={{ href: null }} />
       <Tabs.Screen name="work-hours" options={{ href: null }} />
       <Tabs.Screen name="menu" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />

@@ -221,6 +221,17 @@ export default function Settings() {
         {mode === "system" ? " Change your phone's appearance setting to switch." : ""}
       </Text>
 
+      <Text style={styles.groupTitle}>Home screen</Text>
+      <Pressable style={press(styles.card)} onPress={() => router.push("/home-layout")}>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Arrange Home</Text>
+            <Text style={styles.rowHint}>Reorder the sections, hide what you don&apos;t use</Text>
+          </View>
+          <ChevronRightIcon size={18} color={t.textMuted} />
+        </View>
+      </Pressable>
+
       <Text style={styles.groupTitle}>Account</Text>
       <Pressable style={press(styles.card)} onPress={() => router.push("/calendars")}>
         <View style={styles.row}>

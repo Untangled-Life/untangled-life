@@ -136,6 +136,10 @@ reach Google's verification team unnoticed.
 - [ ] **Pinning.** Pin something, check the hero countdown appears on Home for
       both of you and the date leaves the horizontal row.
 - [ ] **Run `supabase/free-time-prefs.sql`** — the free-window settings.
+- [ ] **Run `supabase/home-layout.sql`** — per-person Home arrangement.
+- [ ] **Arrange Home.** Reorder and hide sections in Settings → Arrange Home,
+      then check Home matches and that Alyssa's arrangement is untouched.
+      Hiding everything should leave the photo and setup prompts, not a crash.
 - [ ] **Free together settings.** Change the day window and the minimum, then
       check Home recomputes. The night-shift case is the one that matters:
       4am–12pm should offer a morning that 7am–11pm buries.
