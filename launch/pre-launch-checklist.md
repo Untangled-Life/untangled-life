@@ -370,6 +370,64 @@ Step by step in `launch/development-build.md`. The short version:
 - [ ] **Clear the repeat on an existing one.** The end date has to clear with
       it, or the database constraint rejects the save.
 
+## The redesign (14 Sep, evening) -- start here tonight
+
+Everything below is cosmetic in the sense that nothing crashes, and
+load-bearing in the sense that it is what a screenshot on the website shows.
+The whole app moved onto one type scale and one card token, so a mistake in
+either shows up on twenty screens at once rather than on one.
+
+**Fonts**
+- [ ] The app opens without a visible pause. Fraunces is bundled, not fetched,
+      so the hold on the background colour should be imperceptible. A beat of
+      blank ground is expected; a second is not.
+- [ ] Headings and countdowns are a serif. If anything large is still in the
+      system font, the font did not load and the fallback is silent.
+- [ ] A countdown ticking over does not shift the line. Tabular figures.
+
+**Dark mode -- where the review found the worst of it**
+- [ ] Every filled button reads. Save on Key Dates, Book it on Home, + Event on
+      the day view, Sign in, the to-do tick, and the red Remove behind a swipe.
+      The fix was made at the token, so one wrong call site should stand out.
+- [ ] The invite code on the pairing screen is visible. It was black on
+      near-black -- the one thing a new couple has to read out loud.
+- [ ] Sign in and sign up show their titles at all.
+- [ ] Placeholder text in every field is legible without being as strong as a
+      real value.
+
+**Home**
+- [ ] The hero fills the top edge to edge, including under the status bar.
+- [ ] Check the height on this phone. It is width x 0.72, clamped 240-320. On a
+      Pro Max that is 320 and may be too much.
+- [ ] With a bright photo, the names and the date still read. The scrim is
+      tuned for a mid-tone picture; a beach at noon is the case that breaks it.
+- [ ] With NO photo, it still looks deliberate. That is what every new couple
+      sees.
+- [ ] The menu and calendar buttons are visible over both states.
+
+**Month calendar**
+- [ ] Today is a ring, the selected day is a filled disc, and both are findable
+      at a glance.
+- [ ] The dots under a busy day fit without touching the disc. Tight on small
+      screens: 14pt of slack at 390, about 4pt at 320.
+- [ ] Today appears as a button only when you are looking at another month.
+- [ ] The grid card does not clip on the smallest phone you have.
+
+**Day view**
+- [ ] Add something from 9:00 to 9:30 and check the title is not cropped. The
+      shortest block is 26px because the new borders eat the content box.
+- [ ] Two events of the same colour side by side read as two things.
+- [ ] The now-line sits on the actual time, not five minutes below it.
+- [ ] The all-day band says "All day" and its chips wrap.
+
+**Everything else**
+- [ ] Key Dates: the countdown is the biggest thing on the card, and the form
+      labels are sentence case, not shouting.
+- [ ] Every screen's back link is in the same place at the same size.
+- [ ] Colours, Free together, Arrange Home and Calendars all share one header.
+      Those four went through the shared component; the rest did not.
+- [ ] Nothing overlaps or clips at whatever text size the phone is set to.
+
 ## Known rough edges
 
 - Everything is verified on two iPhones only, with one couple, on one Supabase
