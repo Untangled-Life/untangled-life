@@ -96,10 +96,15 @@ begin
     raise exception 'An event can only belong to someone in the couple.';
   end if;
 
-  select id into stranger
-  from unnest(new.push_to) as id
+  -- The unnest column MUST be aliased and qualified. Written as
+  -- `unnest(new.push_to) as id` with a bare `id` in the subquery, the
+  -- innermost scope wins and `id` binds to profiles.id -- so the predicate
+  -- reads p.id = p.id, is always true, and the check silently never fires.
+  -- Postgres raises nothing, because only one table at that level has an id.
+  select u.uid into stranger
+  from unnest(new.push_to) as u(uid)
   where not exists (
-    select 1 from profiles p where p.id = id and p.couple_id = new.couple_id
+    select 1 from profiles p where p.id = u.uid and p.couple_id = new.couple_id
   )
   limit 1;
 

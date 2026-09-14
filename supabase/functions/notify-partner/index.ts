@@ -54,6 +54,14 @@ type Row = Record<string, string | boolean | null>;
  * An update fires on every write, including ones nobody needs to hear about --
  * a push toggle, an owner, a note. Saying "Roy changed Dinner" when Roy ticked
  * a checkbox trains people to ignore the notifications.
+ *
+ * One constraint worth knowing before extending this. Unpairing rewrites
+ * created_by, owner_user_id, push_to and updated_by on every event the leaver
+ * touched, which fires this webhook four times per event. All four are silent
+ * today because none of those columns is checked below. Add an owner_user_id
+ * case ("Roy made this yours") and unpairing immediately starts emitting it
+ * for every one of the leaver's events, attributed to nobody, at the worst
+ * possible moment.
  */
 function describeChange(record: Row, old: Row | null, actorName: string): string | null {
   const title = String(record.title);

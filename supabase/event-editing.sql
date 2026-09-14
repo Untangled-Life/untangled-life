@@ -39,6 +39,8 @@ alter table planned_events add column if not exists updated_at timestamptz;
 
 -- Stamped in the database rather than trusted from the client, so the webhook
 -- payload always carries a real time even if the app forgets to send one.
+-- On insert as well as update: an update-only trigger leaves every new row
+-- with a null updated_at, which is the opposite of what that sentence claims.
 create or replace function planned_events_touch()
 returns trigger
 language plpgsql
@@ -52,7 +54,7 @@ $$;
 
 drop trigger if exists planned_events_touch_trigger on planned_events;
 create trigger planned_events_touch_trigger
-  before update on planned_events
+  before insert or update on planned_events
   for each row execute function planned_events_touch();
 
 notify pgrst, 'reload schema';

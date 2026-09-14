@@ -26,13 +26,17 @@ alter table busy_blocks add column if not exists calendar_id text;
 -- an Android. That's the right granularity -- the choice is about what this
 -- phone uploads -- and it's why the label is stored too, so the picker can
 -- show you something recognisable.
+-- Note there is no `connected` column here any more. It existed when this
+-- file was first written, and calendar-sharing.sql replaces it with
+-- share_level. Creating it on a fresh database purely so the next migration
+-- could drop it also fired that migration's `delete from busy_blocks` on a
+-- database that had nothing to protect.
 create table if not exists calendar_prefs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   calendar_id text not null,
   title text,
   source_name text,
-  connected boolean not null default false,
   updated_at timestamptz not null default now(),
   unique (user_id, calendar_id)
 );

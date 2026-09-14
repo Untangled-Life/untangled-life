@@ -61,6 +61,41 @@ begin
       and (storage.foldername(name))[2] = the_couple::text
       and owner = leaving_user;
 
+  -- Newer Supabase projects carry owner_id (text) alongside the deprecated
+  -- owner (uuid). Guarded because older projects have no such column, and a
+  -- plain reference to it would fail to parse there.
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'storage' and table_name = 'objects' and column_name = 'owner_id'
+  ) then
+    execute format(
+      'update storage.objects set owner_id = %L
+         where bucket_id = ''photos''
+           and (storage.foldername(name))[1] = ''covers''
+           and (storage.foldername(name))[2] = %L
+           and owner_id = %L',
+      remaining::text, the_couple::text, leaving_user::text
+    );
+  end if;
+
+  -- planned_events carries three more references to a person, and all three
+  -- have to let go.
+  --
+  -- This matters more than it looks. planned_events_members_only() refuses any
+  -- write naming somebody outside the couple, so an event still owned by the
+  -- person who left cannot be edited by the one who stayed -- and because the
+  -- app deletes by CANCELLING, which is an update, it cannot be removed
+  -- either. The event sticks on the shared calendar permanently with no way
+  -- to touch it. Account deletion is fine on its own (the FK is `on delete
+  -- set null`); unpairing has no such mechanism, which is exactly why it needs
+  -- one here.
+  update planned_events set owner_user_id = null
+    where couple_id = the_couple and owner_user_id = leaving_user;
+  update planned_events set push_to = array_remove(push_to, leaving_user)
+    where couple_id = the_couple and leaving_user = any(push_to);
+  update planned_events set updated_by = null
+    where couple_id = the_couple and updated_by = leaving_user;
+
   -- A to-do assigned to the person leaving becomes unassigned rather than
   -- silently becoming the other person's job.
   update todos set assigned_to = null
@@ -92,21 +127,14 @@ begin
   delete from work_patterns where user_id = the_user;
   delete from planned_event_calendar_links where user_id = the_user;
 
-  -- The avatar file is removed below, so the pointer has to go with it.
-  -- Leaving it set means the app signs a URL for an object that no longer
-  -- exists: createSignedUrl signs a path without checking it, so <Image> gets
-  -- a non-null URL that 404s and the initials fallback never fires. The user
-  -- sees a permanently broken picture.
-  update profiles set avatar_path = null where id = the_user;
-
-  delete from storage.objects
-  where bucket_id = 'photos'
-    and (storage.foldername(name))[1] = 'avatars'
-    and (storage.foldername(name))[2] = the_user::text;
-
   -- The push token is the device registration, not couple data. Unpairing
   -- shouldn't silently stop your notifications working -- nothing re-registers
   -- it on the pairing screen, so they'd just never come back.
+  --
+  -- The profile picture is the same argument and used to be deleted here
+  -- regardless: you keep your account when you unpair, and coming back to a
+  -- blank avatar is a thing you did not ask for. It is now removed only when
+  -- the account itself goes, in delete_own_account.
   if not keep_device then
     delete from push_tokens where user_id = the_user;
   end if;
@@ -210,16 +238,22 @@ begin
   -- your device. Deleting the account should.
   delete from push_tokens where user_id = me;
 
-  -- By this point leave_couple has dealt with every photo this user could own:
-  -- purge_personal_data deleted their avatar, and the cover was either handed
-  -- to the remaining partner or deleted with the couple. This is the belt and
-  -- braces, because a storage object still owned by the user blocks the delete
-  -- below on projects where storage.objects.owner still has a foreign key to
-  -- auth.users -- and merely orphans the file on projects where it doesn't.
-  --
+  -- The avatar goes with the account, and the pointer goes with it: leaving
+  -- avatar_path set means the app signs a URL for an object that no longer
+  -- exists (createSignedUrl signs a path without checking it), so <Image> gets
+  -- a non-null URL that 404s and the initials fallback never fires.
+  update profiles set avatar_path = null where id = me;
+
   -- Scoped to avatars rather than `owner = me`: deleting everything this user
   -- owns would take the couple's cover photo with it, which is not theirs to
-  -- destroy on the way out.
+  -- destroy on the way out. leave_couple has already handed that over or
+  -- deleted it with the couple.
+  --
+  -- This removes the metadata row, which is what a storage object still owned
+  -- by the user blocks the delete below on -- projects where
+  -- storage.objects.owner still has a foreign key to auth.users. It does NOT
+  -- remove the file from the object store; only the Storage API does that, so
+  -- the app deletes the file before calling this and this is the backstop.
   delete from storage.objects
   where bucket_id = 'photos'
     and (storage.foldername(name))[1] = 'avatars'

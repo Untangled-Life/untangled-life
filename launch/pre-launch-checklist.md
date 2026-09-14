@@ -281,6 +281,35 @@ worth checking by hand:
 - [ ] **Noise check.** Toggling a push switch or editing a note should NOT
       notify the partner -- only a real change to the time, name or place.
 
+## Migration safety (14 Sep) -- verified, not assumed
+
+The combined migration file was reviewed by running it against a real Postgres
+three times over and diffing a full schema dump. It found seven real bugs in
+what had been sent, including one already seen in the wild.
+
+- [x] **`column "connected" does not exist`.** calendar-sharing read that column
+      in a backfill and dropped it a few lines later, so the file was only ever
+      safe to run once. Now guarded and re-runnable.
+- [x] **The backfill used a real user choice as its sentinel.** On a re-run it
+      would have flipped every deliberately-off calendar to full detail, quietly
+      sharing titles and locations with a partner.
+- [x] **The push_to member check never fired.** `unnest(...) as id` made the bare
+      `id` bind to `profiles.id`, so the predicate read `p.id = p.id`.
+- [x] **Unpairing left events permanently stuck.** `owner_user_id` kept pointing
+      at the person who left, and the new trigger then refused every write to
+      that event -- including the cancel that deletes it.
+- [x] **A fresh database had its busy_blocks wiped for no reason**, because
+      calendar-detail created a column purely so the next file could drop it.
+- [x] **Unpairing deleted your profile picture.** You keep the account; you keep
+      the photo.
+- [x] Also: `updated_at` was null on every insert, `owner_id` wasn't transferred
+      alongside the deprecated `owner`, and ordering the sections by hand broke
+      a column grant twice.
+
+Standing rule: **the combined file gets run against a throwaway Postgres before
+it goes anywhere near the live database.** Every one of the above passed a
+read-through.
+
 ## Known rough edges
 
 - Everything is verified on two iPhones only, with one couple, on one Supabase

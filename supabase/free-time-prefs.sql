@@ -37,7 +37,26 @@ alter table couples
 -- This is the last file that adds a member-writable column to couples, which
 -- is why the grant lives here. Anything added after this must be appended to
 -- the list, or the app will save nothing and report a permission error.
+-- couples.sql already turns RLS on and this repeats it, which costs nothing
+-- and closes the one assumption this file otherwise makes about a database it
+-- cannot see. CREATE POLICY does not enable RLS, so the policy photos.sql adds
+-- to couples would be inert on a database where it had somehow been left off,
+-- and the revoke below only narrows `authenticated`. Without RLS, `anon` --
+-- the role behind the public anon key -- keeps table-level UPDATE.
+alter table couples enable row level security;
+
+-- The SELECT policy has to come with it. Enabling RLS on a table with no
+-- SELECT policy makes it unreadable, so on the one database this line exists
+-- to protect -- RLS off, no policies -- turning it on would silently break the
+-- cover photo and the settings below rather than securing anything. This is
+-- the same policy couples.sql creates, restated so the file stands on its own.
+drop policy if exists "Members can view their couple" on couples;
+create policy "Members can view their couple" on couples
+  for select to authenticated
+  using (id = my_couple_id());
+
 revoke update on couples from authenticated;
+revoke update on couples from anon;
 grant update (cover_path, day_start_hour, day_end_hour, min_free_minutes)
   on couples to authenticated;
 

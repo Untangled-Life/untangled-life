@@ -35,7 +35,7 @@ export default function Settings() {
   function confirmUnpair() {
     Alert.alert(
       `Unpair from ${partnerName}?`,
-      `You'll keep your account and can pair again with a new code. ${partnerName} keeps your key dates, to-dos, wishlists and booked dates. They don't disappear from their phone. Your calendar, working hours and profile photo are removed.`,
+      `You'll keep your account and can pair again with a new code. ${partnerName} keeps your key dates, to-dos, wishlists and booked dates. They don't disappear from their phone. Your calendar data and working hours are removed; your profile photo stays, because you keep your account.`,
       [
         { text: "Stay paired", style: "cancel" },
         {
@@ -44,7 +44,7 @@ export default function Settings() {
           onPress: async () => {
             if (!session?.user.id) return;
             setLeaving(true);
-            const { error } = await leaveCouple(session.user.id);
+            const { error } = await leaveCouple(session.user.id, profile?.couple_id ?? null);
             if (error) {
               setLeaving(false);
               warned();
@@ -83,7 +83,7 @@ export default function Settings() {
                 onPress: async () => {
                   if (!session?.user.id) return;
                   setLeaving(true);
-                  const { error } = await deleteOwnAccount(session.user.id);
+                  const { error } = await deleteOwnAccount(session.user.id, profile?.couple_id ?? null);
                   if (error) {
                     setLeaving(false);
                     warned();
