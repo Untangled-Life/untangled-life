@@ -85,7 +85,7 @@ export default function Home() {
   const loadKeyDates = useCallback(async () => {
     const { data } = await supabase
       .from("key_dates")
-      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes, end_date, pinned")
+      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned")
       .order("date", { ascending: true });
     if (data) setKeyDates(data as KeyDateRow[]);
   }, []);

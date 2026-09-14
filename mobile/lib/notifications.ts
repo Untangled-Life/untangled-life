@@ -33,6 +33,8 @@ export type ReminderInput = {
   date: string;
   recurring: boolean;
   reminderDays: number[];
+  /** The master switch. Off keeps the schedule but schedules nothing. */
+  remindersOn: boolean;
 };
 
 export async function rescheduleKeyDateReminders(dates: ReminderInput[]): Promise<void> {
@@ -44,6 +46,11 @@ export async function rescheduleKeyDateReminders(dates: ReminderInput[]): Promis
   );
 
   for (const kd of dates) {
+    // Switched off keeps its schedule -- that is the point of the switch --
+    // but nothing is scheduled. Everything above has already cancelled the
+    // existing ones, so turning it off takes effect immediately.
+    if (!kd.remindersOn) continue;
+
     const occurrence = nextOccurrence(kd.date, kd.recurring);
 
     for (const offset of kd.reminderDays) {

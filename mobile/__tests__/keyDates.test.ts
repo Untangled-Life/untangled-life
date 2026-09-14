@@ -4,6 +4,8 @@ import {
   daysUntil,
   describeReminders,
   reminderLabel,
+  nextReminderDays,
+  daysLabel,
   tripNights,
   countdownLabel,
   KeyDateRow,
@@ -17,6 +19,7 @@ const row = (over: Partial<KeyDateRow> = {}): KeyDateRow => ({
   kind: "anniversary",
   subject_user_id: null,
   reminder_days: [14, 7, 3],
+  reminders_on: true,
   notes: null,
   end_date: null,
   pinned: false,
@@ -116,7 +119,60 @@ describe("describeReminders", () => {
   // Turning every reminder off is a real choice, not an empty list to paper
   // over -- the row still exists and still shows on the calendar.
   it("says so when there are none", () => {
-    expect(describeReminders([])).toBe("No reminders");
+    expect(describeReminders([])).toBe("No reminder days chosen");
+  });
+});
+
+describe("nextReminderDays", () => {
+  // The example from the brief: an anniversary 341 days out, reminders at
+  // 14/7/3, so the next thing that happens is the 14-day nudge in 327 days.
+  it("counts to the furthest-out reminder still ahead", () => {
+    expect(nextReminderDays(341, [14, 7, 3])).toBe(327);
+  });
+
+  it("moves to the next one once the first has passed", () => {
+    expect(nextReminderDays(10, [14, 7, 3])).toBe(3);
+    expect(nextReminderDays(5, [14, 7, 3])).toBe(2);
+  });
+
+  it("is zero when a reminder is due today", () => {
+    expect(nextReminderDays(14, [14, 7, 3])).toBe(0);
+    expect(nextReminderDays(3, [14, 7, 3])).toBe(0);
+  });
+
+  // A one-off date whose reminders have all gone past. A recurring one never
+  // gets here, because daysUntil rolls it to next year.
+  it("is null when nothing is left to fire", () => {
+    expect(nextReminderDays(2, [14, 7, 3])).toBeNull();
+    expect(nextReminderDays(0, [14, 7, 3])).toBeNull();
+  });
+
+  it("is null when no reminder days are chosen at all", () => {
+    expect(nextReminderDays(341, [])).toBeNull();
+  });
+
+  // "On the day" is a reminder like any other and fires on the date itself.
+  it("handles an on-the-day reminder", () => {
+    expect(nextReminderDays(5, [0])).toBe(5);
+    expect(nextReminderDays(0, [0])).toBe(0);
+  });
+
+  it("does not care what order the offsets are in", () => {
+    expect(nextReminderDays(341, [3, 14, 7])).toBe(327);
+  });
+});
+
+describe("daysLabel", () => {
+  it("reads as a sentence ending", () => {
+    expect(daysLabel(341)).toBe("in 341 days");
+    expect(daysLabel(2)).toBe("in 2 days");
+    expect(daysLabel(1)).toBe("tomorrow");
+    expect(daysLabel(0)).toBe("today");
+  });
+
+  // Only reachable for a one-off date that has been and gone.
+  it("does not count backwards", () => {
+    expect(daysLabel(-5)).toBe("today");
   });
 });
 

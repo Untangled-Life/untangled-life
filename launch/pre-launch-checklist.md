@@ -132,6 +132,11 @@ reach Google's verification team unnoticed.
 - [ ] **Run `supabase/key-date-extras.sql`** -- per-date reminders and notes.
 - [ ] **Key Dates editing.** Tap a misc date to rename or re-date it; Clear on
       the anniversary and either birthday.
+- [ ] **Run `supabase/reminder-toggle.sql`** -- the reminders on/off switch.
+- [ ] **The reminder switch.** Each key date shows its countdown, a switch, and
+      when the next nudge lands. Switching off should keep the chips you chose
+      and cancel the scheduled notifications immediately, not at the next app
+      open. Switching back on should restore the same schedule, not the default.
 - [ ] **Per-date reminders.** Change a date's reminder chips, then check the
       old notification is gone and the new one is scheduled -- rescheduling
       cancels by `keydate-` prefix, so a stale offset should not survive.

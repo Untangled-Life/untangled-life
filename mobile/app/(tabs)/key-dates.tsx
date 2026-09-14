@@ -16,6 +16,9 @@ import {
   describeReminders,
   reminderLabel,
   countdownLabel,
+  daysLabel,
+  daysUntil,
+  nextReminderDays,
   tripNights,
   REMINDER_CHOICES,
   DEFAULT_REMINDER_DAYS,
@@ -23,6 +26,60 @@ import {
 import { requestNotificationPermission, rescheduleKeyDateReminders } from "@/lib/notifications";
 import { succeeded, warned, tapped } from "@/lib/haptics";
 
+
+/**
+ * The countdown, the reminder switch, and when the next nudge lands.
+ *
+ * Shown on the card itself rather than behind the "Reminders & notes" panel.
+ * "Anniversary in 341 days" is the thing you opened this screen to see, and
+ * "first reminder in 327 days" is the answer to the question that follows it --
+ * neither is worth a tap to reach.
+ */
+function ReminderSummary({
+  row,
+  title,
+  onToggle,
+}: {
+  row: KeyDateRow;
+  title: string;
+  onToggle: (row: KeyDateRow) => void;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+
+  const on = row.reminders_on !== false;
+  const days = row.reminder_days ?? DEFAULT_REMINDER_DAYS;
+  const until = daysUntil(row.date, row.recurring);
+  const next = nextReminderDays(until, days);
+
+  return (
+    <View style={styles.summary}>
+      <Text style={styles.summaryCountdown}>
+        {title} {daysLabel(until)}
+      </Text>
+
+      <View style={styles.summaryRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.summaryLabel}>Reminders</Text>
+          <Text style={styles.summaryNext}>
+            {!on
+              ? "Off. Your schedule is kept."
+              : days.length === 0
+                ? "No reminder days chosen yet"
+                : next === null
+                  ? "All of this year's have been and gone"
+                  : `1st reminder ${daysLabel(next)}`}
+          </Text>
+        </View>
+        <Switch
+          value={on}
+          onValueChange={() => onToggle(row)}
+          trackColor={{ true: t.brand, false: t.surfaceSunken }}
+        />
+      </View>
+    </View>
+  );
+}
 
 /**
  * Reminders and notes for one key date.
@@ -51,7 +108,9 @@ function DetailsPanel({
 
   return (
     <View style={styles.details}>
-      <Text style={styles.detailsLabel}>Remind me</Text>
+      <Text style={styles.detailsLabel}>
+        {row.reminders_on === false ? "Remind me (currently off)" : "Remind me"}
+      </Text>
       <View style={styles.chips}>
         {REMINDER_CHOICES.map((offset) => {
           const on = selected.includes(offset);
@@ -70,7 +129,11 @@ function DetailsPanel({
           );
         })}
       </View>
-      <Text style={styles.detailsHint}>{describeReminders(selected)}. 9am, on your phone only.</Text>
+      <Text style={styles.detailsHint}>
+        {row.reminders_on === false
+          ? `${describeReminders(selected)}, kept for when you switch reminders back on.`
+          : `${describeReminders(selected)}. 9am, on your phone only.`}
+      </Text>
 
       {/* Only misc dates can run over days -- an anniversary is one day by
           definition, and the database constraint agrees. */}
@@ -168,7 +231,7 @@ export default function KeyDates() {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("key_dates")
-      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes, end_date, pinned")
+      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned")
       .order("date", { ascending: true });
 
     if (data) {
@@ -190,6 +253,7 @@ export default function KeyDates() {
           date: d.date,
           recurring: d.recurring,
           reminderDays: d.reminder_days ?? DEFAULT_REMINDER_DAYS,
+          remindersOn: d.reminders_on !== false,
         }))
       );
     }
@@ -322,6 +386,27 @@ export default function KeyDates() {
         },
       },
     ]);
+  }
+
+  async function toggleRemindersOn(row: KeyDateRow) {
+    const next = !(row.reminders_on !== false);
+    tapped();
+    setDates((prev) =>
+      prev.map((d) => (d.id === row.id ? { ...d, reminders_on: next } : d))
+    );
+
+    const { error: saveError } = await supabase
+      .from("key_dates")
+      .update({ reminders_on: next })
+      .eq("id", row.id);
+
+    if (saveError) {
+      warned();
+      setError(saveError.message);
+    }
+    // load() reschedules every reminder from scratch, which is what makes
+    // switching off take effect now rather than at the next app open.
+    load();
   }
 
   async function toggleReminder(row: KeyDateRow, offset: number) {
@@ -460,12 +545,13 @@ export default function KeyDates() {
   const partnerBirthdayRow =
     dates.find((d) => d.kind === "birthday" && d.subject_user_id === partnerId) ?? null;
 
-  function detailsFor(row: KeyDateRow | null) {
+  function detailsFor(row: KeyDateRow | null, title: string) {
     if (!row) return null;
     const open = openDetailId === row.id;
 
     return (
       <>
+        <ReminderSummary row={row} title={title} onToggle={toggleRemindersOn} />
         <Pressable
           onPress={() => setOpenDetailId(open ? null : row.id)}
           style={press(styles.detailsToggle)}
@@ -522,7 +608,7 @@ export default function KeyDates() {
             saveSingleton("anniversary", iso, "Anniversary");
           }}
         />
-        {detailsFor(anniversaryRow)}
+        {detailsFor(anniversaryRow, "Anniversary")}
       </View>
 
       <View style={styles.card}>
@@ -543,7 +629,7 @@ export default function KeyDates() {
             saveSingleton("birthday", iso, "Birthday", partnerId);
           }}
         />
-        {detailsFor(partnerBirthdayRow)}
+        {detailsFor(partnerBirthdayRow, `${partnerName}'s birthday`)}
       </View>
 
       <View style={styles.card}>
@@ -567,7 +653,7 @@ export default function KeyDates() {
             saveSingleton("birthday", iso, "Birthday", myId);
           }}
         />
-        {detailsFor(myBirthdayRow)}
+        {detailsFor(myBirthdayRow, "Your birthday")}
       </View>
 
       <View style={styles.card}>
@@ -598,6 +684,7 @@ export default function KeyDates() {
                   onChange={(iso) => saveEdit(d, { title: editTitle, date: iso })}
                 />
               </View>
+              <ReminderSummary row={d} title={d.title} onToggle={toggleRemindersOn} />
               <DetailsPanel
                 row={d}
                 onToggle={toggleReminder}
@@ -644,6 +731,7 @@ export default function KeyDates() {
                 <Text style={styles.miscCountdown}>
                   {d.pinned ? "Pinned · " : ""}
                   {countdownLabel(d)}
+                  {d.reminders_on === false ? " · reminders off" : ""}
                 </Text>
               </View>
             </Pressable>
@@ -750,12 +838,22 @@ const createStyles = (t: Theme) =>
     gap: 12,
     marginTop: 16,
   },
-  detailsToggle: {
+  summary: {
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: t.surfaceSunken,
   },
+  summaryCountdown: { fontSize: 15, fontWeight: "600", color: t.textPrimary },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 10,
+  },
+  summaryLabel: { fontSize: 13, fontWeight: "600", color: t.textSecondary },
+  summaryNext: { fontSize: 12, color: t.textMuted, marginTop: 2 },
+  detailsToggle: { marginTop: 14 },
   detailsToggleText: { fontSize: 13, fontWeight: "600", color: t.accent },
   detailsToggleSummary: { fontSize: 12, color: t.textMuted, marginTop: 2 },
   details: { marginTop: 12 },

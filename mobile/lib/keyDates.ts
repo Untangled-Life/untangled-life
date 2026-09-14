@@ -7,8 +7,10 @@ export type KeyDateRow = {
   recurring: boolean;
   kind: KeyDateKind;
   subject_user_id: string | null;
-  /** Days before the date to be reminded. Empty means don't remind me. */
+  /** Days before the date to be reminded. */
   reminder_days: number[];
+  /** The master switch. Off keeps the schedule but sends nothing. */
+  reminders_on: boolean;
   notes: string | null;
   /** Last day of a multi-day date. Null means it's a single day. */
   end_date: string | null;
@@ -66,7 +68,7 @@ export const DEFAULT_REMINDER_DAYS = [14, 7, 3];
 
 /** "2 weeks, 1 week and 3 days before" -- or "No reminders". */
 export function describeReminders(days: number[]): string {
-  if (days.length === 0) return "No reminders";
+  if (days.length === 0) return "No reminder days chosen";
 
   const sorted = [...days].sort((a, b) => b - a);
   const labels = sorted.map(reminderLabel);
@@ -79,6 +81,36 @@ export function describeReminders(days: number[]): string {
   // "on the day" already says when it is, so the trailing "before" would
   // contradict it -- "1 week and on the day before" is nonsense.
   return sorted[sorted.length - 1] === 0 ? joined : `${joined} before`;
+}
+
+/**
+ * How many days until the NEXT reminder for this date actually fires.
+ *
+ * The one that fires next is the furthest-out offset that hasn't already gone
+ * past -- with 14/7/3 set and the date 341 days away, the 14-day reminder is
+ * the next thing to happen, 327 days from now. Once that has been and gone the
+ * 7-day one is next, and so on.
+ *
+ * Null means nothing more is coming: every offset is already behind us. That
+ * only happens on a one-off date, since a recurring one rolls forward to next
+ * year and starts the whole sequence again.
+ */
+export function nextReminderDays(
+  daysUntilDate: number,
+  reminderDays: number[]
+): number | null {
+  const upcoming = reminderDays.filter((offset) => offset <= daysUntilDate);
+  if (upcoming.length === 0) return null;
+
+  // The largest offset still ahead of us is the soonest to fire.
+  return daysUntilDate - Math.max(...upcoming);
+}
+
+/** "341 days", "Tomorrow", "Today". Used for both countdowns. */
+export function daysLabel(days: number): string {
+  if (days <= 0) return "today";
+  if (days === 1) return "tomorrow";
+  return `in ${days} days`;
 }
 
 export function reminderLabel(days: number): string {

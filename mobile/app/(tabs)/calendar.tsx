@@ -285,7 +285,7 @@ export default function CalendarScreen() {
         .eq("cancelled", false)
         .gte("end_at", rangeStart.toISOString())
         .lte("start_at", rangeEnd.toISOString()),
-      supabase.from("key_dates").select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes, end_date, pinned"),
+      supabase.from("key_dates").select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned"),
       supabase
         .from("busy_blocks")
         .select("id, user_id, start_at, end_at, title, location, notes, all_day")
