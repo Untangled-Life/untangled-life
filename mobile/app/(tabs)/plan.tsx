@@ -12,6 +12,8 @@ import { Interval, formatWindow } from "@/lib/freeTime";
 import { CATEGORIES, DateIdea, IdeaCategory, IDEAS, filterIdeas, spreadOptions } from "@/lib/dateIdeas";
 import { createProposal } from "@/lib/dateProposals";
 import { loadFreeWindows } from "@/lib/freeWindows";
+import { LovedDate, howLongAgo } from "@/lib/dateHistory";
+import { lovedTogether } from "@/lib/dateReviews";
 import { localZone } from "@/lib/timezone";
 import { suggestedSlot } from "@/lib/dateNudge";
 import { Theme } from "@/theme/tokens";
@@ -41,6 +43,7 @@ export default function Plan() {
   const [chosen, setChosen] = useState<IdeaCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [loved, setLoved] = useState<LovedDate[]>([]);
 
   const partnerName = partner?.display_name ?? "your partner";
 
@@ -60,6 +63,7 @@ export default function Plan() {
       theirs: partnerZone,
     });
     setWindows(result.windows);
+    setLoved(await lovedTogether());
     setLoading(false);
   }, [session?.user.id, profile?.couple_id, myZone, partnerZone]);
 
@@ -172,6 +176,34 @@ export default function Plan() {
         })}
       </ScrollView>
 
+      {/* The only suggestion this app has earned rather than written. Both of
+          you said you loved it, which is a much stronger signal than one of
+          you having done so. */}
+      {loved.length > 0 && chosen.length === 0 ? (
+        <View style={styles.again}>
+          <Text style={styles.againTitle}>You both loved these</Text>
+          {loved.slice(0, 3).map((l) => (
+            <Pressable
+              key={l.planned_event_id}
+              style={press(styles.againRow)}
+              onPress={() => {
+                tapped();
+                router.push({
+                  pathname: "/event",
+                  params: { ...suggestedSlot(windows), title: l.title },
+                });
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.againName}>{l.title}</Text>
+                <Text style={styles.againWhen}>{howLongAgo(l.last_at)}</Text>
+              </View>
+              <Text style={styles.againAction}>Again</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       {loading ? (
         <ActivityIndicator style={{ marginTop: 32 }} />
       ) : (
@@ -245,6 +277,23 @@ const createStyles = (t: Theme) =>
     chipOn: { backgroundColor: t.accentSoft },
     chipText: { ...t.type.label, color: t.textSecondary },
     chipTextOn: { color: t.accent },
+
+    again: {
+      backgroundColor: t.accentSoft,
+      borderRadius: t.radius.lg,
+      padding: t.space(5),
+      marginBottom: t.space(5),
+    },
+    againTitle: { ...t.type.title, color: t.accent, marginBottom: t.space(2) },
+    againRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: t.space(3),
+      gap: t.space(3),
+    },
+    againName: { ...t.type.heading, color: t.textPrimary },
+    againWhen: { ...t.type.caption, color: t.textSecondary, marginTop: 1 },
+    againAction: { ...t.type.label, color: t.accent },
 
     list: { gap: t.space(3) },
     idea: { ...t.card, padding: t.space(5) },

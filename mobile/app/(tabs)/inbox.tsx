@@ -24,6 +24,8 @@ import { formatWindow } from "@/lib/freeTime";
 import { succeeded, tapped, warned } from "@/lib/haptics";
 import { Alert } from "react-native";
 import { syncPlannedEventsToDevice } from "@/lib/plannedEvents";
+import { AwaitingReview, VERDICTS, Verdict } from "@/lib/dateHistory";
+import { nextAwaitingReview, saveReview } from "@/lib/dateReviews";
 import { Theme } from "@/theme/tokens";
 
 /**
@@ -36,7 +38,7 @@ import { Theme } from "@/theme/tokens";
 export default function Inbox() {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const { me, partner } = useCoupleMembers();
   const { outstanding, load: loadOnboarding, loaded } = useOnboarding();
 
@@ -45,6 +47,7 @@ export default function Inbox() {
   const [lastPlannedAt, setLastPlannedAt] = useState<Date | null>(null);
   const [proposals, setProposals] = useState<DateProposal[]>([]);
   const [answering, setAnswering] = useState<string | null>(null);
+  const [review, setReview] = useState<AwaitingReview | null>(null);
 
   const load = useCallback(async () => {
     await loadOnboarding();
@@ -64,6 +67,7 @@ export default function Inbox() {
     ]);
 
     setProposals(await loadOpenProposals());
+    setReview(await nextAwaitingReview());
 
     if (keyRes.data) setKeyDates(keyRes.data as KeyDateRow[]);
     setPlans(upcoming);
@@ -88,9 +92,33 @@ export default function Inbox() {
     nudging: shouldNudge(plans, lastPlannedAt),
     nameFor,
     proposalsForYou: forYou,
+    awaitingReview: review,
   });
 
   const proposalById = new Map(forYou.map((p) => [p.id, p]));
+
+  async function rate(eventId: string, verdict: Verdict) {
+    if (!session?.user.id || !profile?.couple_id || answering) return;
+    tapped();
+    setAnswering(eventId);
+
+    const { error } = await saveReview({
+      plannedEventId: eventId,
+      userId: session.user.id,
+      coupleId: profile.couple_id,
+      verdict,
+    });
+    setAnswering(null);
+
+    if (error) {
+      warned();
+      Alert.alert("Couldn't save that", error.message);
+      return;
+    }
+
+    succeeded();
+    await load();
+  }
 
   async function answer(id: string, decision: "accepted" | "declined", optionIndex = 0) {
     if (answering) return;
@@ -150,7 +178,28 @@ export default function Inbox() {
       ) : (
         <View style={styles.list}>
           {items.map((item, i) => (
-            item.kind === "proposal" ? (
+            item.kind === "review" ? (
+              <View key={item.id} style={[styles.item, i > 0 ? styles.itemDivider : null]}>
+                <View style={[styles.pip, styles.pip_review]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemTitle}>{item.title}</Text>
+                  <Text style={styles.itemDetail}>{item.detail}</Text>
+
+                  <View style={styles.verdicts}>
+                    {VERDICTS.map((v) => (
+                      <Pressable
+                        key={v.key}
+                        style={press(styles.verdict)}
+                        disabled={answering === item.reviewEventId}
+                        onPress={() => rate(item.reviewEventId as string, v.key)}
+                      >
+                        <Text style={styles.verdictText}>{v.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            ) : item.kind === "proposal" ? (
               // Answered where it sits. Routing somebody to another screen to
               // press one of two buttons is a screen for nothing.
               <View key={item.id} style={[styles.item, i > 0 ? styles.itemDivider : null]}>
@@ -244,6 +293,15 @@ const createStyles = (t: Theme) =>
     pip_nudge: { backgroundColor: t.brand },
     pip_setup: { backgroundColor: t.dotWork },
     pip_proposal: { backgroundColor: t.brand },
+    pip_review: { backgroundColor: t.accent },
+    verdicts: { flexDirection: "row", flexWrap: "wrap", gap: t.space(2), marginTop: t.space(3) },
+    verdict: {
+      borderRadius: t.radius.pill,
+      backgroundColor: t.surfaceSunken,
+      paddingVertical: t.space(2),
+      paddingHorizontal: t.space(4),
+    },
+    verdictText: { ...t.type.label, color: t.textSecondary },
     options: { gap: t.space(2), marginTop: t.space(3) },
     option: {
       borderRadius: t.radius.md,

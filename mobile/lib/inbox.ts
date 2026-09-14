@@ -13,7 +13,7 @@ import { UpcomingPlan } from "@/lib/plannedEvents";
  * Ordered by what it costs to ignore, not by type: a birthday tomorrow beats
  * an unfinished setup step, every time.
  */
-export type InboxItemKind = "setup" | "keyDate" | "nudge" | "proposal";
+export type InboxItemKind = "setup" | "keyDate" | "nudge" | "proposal" | "review";
 
 export type InboxItem = {
   id: string;
@@ -26,6 +26,8 @@ export type InboxItem = {
   urgency: number;
   /** Set on a proposal, so the bell can offer its options inline. */
   proposalId?: string;
+  /** Set on a how-was-it, so the bell can take the answer inline. */
+  reviewEventId?: string;
 };
 
 export function buildInbox(input: {
@@ -36,6 +38,8 @@ export function buildInbox(input: {
   nameFor: (userId: string | null) => string;
   /** Open proposals waiting on THIS person, not the ones they sent. */
   proposalsForYou?: { id: string; title: string; options: unknown[]; proposed_by: string }[];
+  /** The one date that has happened and not been asked about. */
+  awaitingReview?: { planned_event_id: string; title: string; end_at: string } | null;
 }): InboxItem[] {
   const items: InboxItem[] = [];
 
@@ -76,6 +80,20 @@ export function buildInbox(input: {
       route: "/key-dates",
       // Sorted by how close it is, so tomorrow's birthday is at the top.
       urgency: days,
+    });
+  }
+
+  // Below a proposal, above everything that is not a question somebody asked
+  // you. It is a nice thing to answer rather than a thing you owe.
+  if (input.awaitingReview) {
+    items.push({
+      id: `review:${input.awaitingReview.planned_event_id}`,
+      kind: "review",
+      title: `How was ${input.awaitingReview.title}?`,
+      detail: "Asked once, never again",
+      route: null,
+      urgency: 800,
+      reviewEventId: input.awaitingReview.planned_event_id,
     });
   }
 
