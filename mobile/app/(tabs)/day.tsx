@@ -48,8 +48,10 @@ type Entry = {
   label: string;
   detail: string | null;
   ownerUserId: string | null;
-  /** Only events open an editor; busy time and work hours aren't ours to edit. */
+  /** An Untangled Life event; opens the full editor. */
   eventId: string | null;
+  /** A busy_blocks row: an event from someone's phone calendar. */
+  busyId: string | null;
 };
 
 type AllDayEntry = { key: string; label: string; kind: "keydate" | "busy" };
@@ -93,7 +95,14 @@ export default function DayView() {
   const [events, setEvents] = useState<PlannedEvent[]>([]);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [busy, setBusy] = useState<
-    { user_id: string; start: Date; end: Date; title: string | null; all_day: boolean }[]
+    {
+      id: string;
+      user_id: string;
+      start: Date;
+      end: Date;
+      title: string | null;
+      all_day: boolean;
+    }[]
   >([]);
   const [work, setWork] = useState<{ user_id: string; start: Date; end: Date }[]>([]);
 
@@ -135,7 +144,7 @@ export default function DayView() {
         .select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes, end_date, pinned"),
       supabase
         .from("busy_blocks")
-        .select("user_id, start_at, end_at, title, all_day")
+        .select("id, user_id, start_at, end_at, title, all_day")
         .gte("end_at", from.toISOString())
         .lte("start_at", to.toISOString()),
       supabase.from("work_patterns").select("id, user_id, mode, cycle_weeks, anchor_date, shifts"),
@@ -150,6 +159,7 @@ export default function DayView() {
     setKeyDates((keyRes.data as KeyDateRow[]) ?? []);
     setBusy(
       (busyRes.data ?? []).map((b) => ({
+        id: b.id as string,
         user_id: b.user_id as string,
         start: new Date(b.start_at as string),
         end: new Date(b.end_at as string),
@@ -202,6 +212,7 @@ export default function DayView() {
         detail: ev.location,
         ownerUserId: ev.owner_user_id,
         eventId: ev.id,
+        busyId: null,
       });
     }
 
@@ -226,6 +237,7 @@ export default function DayView() {
         detail: null,
         ownerUserId: b.user_id,
         eventId: null,
+        busyId: b.id,
       });
     }
 
@@ -239,6 +251,7 @@ export default function DayView() {
         detail: null,
         ownerUserId: w.user_id,
         eventId: null,
+        busyId: null,
       });
     }
 
@@ -411,17 +424,21 @@ export default function DayView() {
             return (
               <Pressable
                 key={entry.key}
-                disabled={!entry.eventId}
+                disabled={!entry.eventId && !entry.busyId}
                 // A disabled Pressable still wins the hit test and then
                 // declines it -- and React Native walks ancestors, never back
                 // to an earlier sibling, so the tap is swallowed rather than
                 // reaching the add-an-event layer underneath. On a day with an
                 // eight-hour work block that made the whole working day
                 // untappable, which reads as the feature being broken.
-                pointerEvents={entry.eventId ? "auto" : "none"}
+                pointerEvents={entry.eventId || entry.busyId ? "auto" : "none"}
                 onPress={() =>
-                  entry.eventId &&
-                  router.push({ pathname: "/event", params: { id: entry.eventId } })
+                  router.push({
+                    pathname: "/event",
+                    params: entry.eventId
+                      ? { id: entry.eventId }
+                      : { busy: entry.busyId as string },
+                  })
                 }
                 style={[
                   styles.block,
@@ -481,8 +498,9 @@ export default function DayView() {
         </View>
 
         <Text style={styles.footnote}>
-          Tap anywhere empty to add an event at that time. Working hours and events from your
-          shared calendars can&apos;t be edited here.
+          Tap anywhere empty to add an event at that time. Tap an event to change it — including
+          the ones from your own phone calendars, which change there too. Working hours are set
+          under Your hours.
         </Text>
       </ScrollView>
     </View>

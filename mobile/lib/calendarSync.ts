@@ -101,6 +101,15 @@ export async function syncBusyBlocks(coupleId: string, userId: string): Promise<
         notes: full ? clean(e.notes, 500) : null,
         all_day: e.allDay === true,
         calendar_id: e.calendarId ?? null,
+        // The phone's own id for this event, so the app can write a change
+        // back to the calendar it came from. Meaningless on the partner's
+        // device, which is the point: only the owner can edit it.
+        //
+        // For a repeating event this is the id of the SERIES, and every
+        // occurrence carries the same one -- which is why the start time has
+        // to be passed alongside it when editing, to say which occurrence.
+        device_event_id: e.id ?? null,
+        recurring: Boolean(e.recurrenceRule),
       };
     })
     // Drop anything that somehow ends before it starts or is already past.

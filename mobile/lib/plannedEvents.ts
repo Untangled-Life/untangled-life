@@ -53,6 +53,8 @@ export async function createPlannedEvent(input: {
 export async function updatePlannedEvent(
   id: string,
   patch: {
+    /** Who is making the change, so the push goes to the other one. */
+    byUserId?: string;
     title?: string;
     startAt?: Date;
     endAt?: Date;
@@ -63,6 +65,10 @@ export async function updatePlannedEvent(
   }
 ) {
   const row: Record<string, unknown> = {};
+  // Always stamped, even when nothing else changed: created_by is the person
+  // who booked it, and notifying them about their partner's edit -- while the
+  // partner hears nothing -- is exactly backwards.
+  if (patch.byUserId !== undefined) row.updated_by = patch.byUserId;
   if (patch.title !== undefined) row.title = patch.title;
   if (patch.startAt !== undefined) row.start_at = patch.startAt.toISOString();
   if (patch.endAt !== undefined) row.end_at = patch.endAt.toISOString();
@@ -74,16 +80,19 @@ export async function updatePlannedEvent(
   return supabase.from("planned_events").update(row).eq("id", id);
 }
 
-export async function deletePlannedEvent(id: string) {
+export async function deletePlannedEvent(id: string, byUserId?: string) {
   // Cancel rather than delete: each phone removes its own copy on the next
   // sync by reading the flag, and a row that has vanished can't tell anybody
   // to take the event off their calendar.
-  return cancelPlannedEvent(id);
+  return cancelPlannedEvent(id, byUserId);
 }
 
 /** Flag the plan cancelled. Both phones drop their own copy on next sync. */
-export async function cancelPlannedEvent(id: string) {
-  return supabase.from("planned_events").update({ cancelled: true }).eq("id", id);
+export async function cancelPlannedEvent(id: string, byUserId?: string) {
+  return supabase
+    .from("planned_events")
+    .update({ cancelled: true, ...(byUserId ? { updated_by: byUserId } : {}) })
+    .eq("id", id);
 }
 
 export type PlanSyncResult = {

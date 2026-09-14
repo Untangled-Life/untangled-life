@@ -31,6 +31,7 @@ import { WorkPattern, WorkShift, expandWorkOccurrences, WorkSource, toDateKey } 
 import { daysCovered, lastCoveredDay } from "@/lib/daySpan";
 
 type BusyRow = {
+  id: string;
   user_id: string;
   start: Date;
   end: Date;
@@ -46,6 +47,8 @@ type DayEntry = {
   detail: string;
   /** Free text shown under the detail line, e.g. an event's notes. */
   note?: string | null;
+  /** Where tapping the row goes, if anywhere. */
+  open?: { kind: "event"; id: string } | { kind: "busy"; id: string } | null;
   whose: string | null;
   /**
    * What removing this row actually means. Not every row is a row you can
@@ -160,7 +163,17 @@ function SwipeRow({
   ).current;
 
   const row = (
-    <View style={styles.entryRow}>
+    <Pressable
+      style={styles.entryRow}
+      disabled={!entry.open}
+      onPress={() =>
+        entry.open &&
+        router.push({
+          pathname: "/event",
+          params: entry.open.kind === "event" ? { id: entry.open.id } : { busy: entry.open.id },
+        })
+      }
+    >
       {/* The bar carries the owner's colour; the row keeps its kind. Tinting
           the background as well made a synced busy block, a work shift and an
           editable event owned by the same person pixel-identical -- and only
@@ -185,7 +198,7 @@ function SwipeRow({
           </Text>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 
   // Rows with nothing to delete don't swipe at all, rather than swiping to
@@ -275,7 +288,7 @@ export default function CalendarScreen() {
       supabase.from("key_dates").select("id, title, date, recurring, kind, subject_user_id, reminder_days, notes, end_date, pinned"),
       supabase
         .from("busy_blocks")
-        .select("user_id, start_at, end_at, title, location, notes, all_day")
+        .select("id, user_id, start_at, end_at, title, location, notes, all_day")
         .gte("end_at", rangeStart.toISOString())
         .lte("start_at", rangeEnd.toISOString()),
       supabase.from("work_patterns").select("id, user_id, mode, cycle_weeks, anchor_date, shifts"),
@@ -290,6 +303,7 @@ export default function CalendarScreen() {
     setKeyDates((keyRes.data as KeyDateRow[]) ?? []);
     setBusy(
       (busyRes.data ?? []).map((b) => ({
+        id: b.id as string,
         user_id: b.user_id as string,
         start: new Date(b.start_at as string),
         end: new Date(b.end_at as string),
@@ -451,6 +465,7 @@ export default function CalendarScreen() {
           detail: `${when}${where}`,
           note: b.notes,
           whose: b.user_id,
+          open: { kind: "busy", id: b.id },
           action: null,
         });
       }

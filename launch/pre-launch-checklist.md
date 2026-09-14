@@ -254,6 +254,33 @@ worth checking by hand:
 - [ ] **Tapping your partner's colour silently made you both the same.** Now
       asks first.
 
+## Event editing (14 Sep, late) — needs device testing
+
+- [ ] **Run `supabase/event-editing.sql`** (in the combined file).
+- [ ] **Edit a synced event.** Tap a Google/Apple event on the day view, change
+      its time, save. It should move in the calendar it came from, and the app
+      should show the new time after the re-sync.
+- [ ] **Edit a repeating synced event.** Should ask "just this one" or "this
+      and future". Check the right occurrence moves — passing the wrong
+      instance start date silently moves the FIRST one in the series, which
+      could be months ago.
+- [ ] **Delete a synced event.** Comes out of the source calendar, not just the
+      app.
+- [ ] **A read-only calendar.** Subscribed calendars (holidays, a shared
+      roster) should say so rather than failing. If you don't have one, add a
+      holiday subscription to test it.
+- [ ] **Your partner's synced event.** Should be read-only with an explanation
+      — a phone can't write to someone else's Google account.
+- [ ] **Change notification.** Move a booked date and check the other phone
+      gets "Roy moved Dinner to 8pm" and that its calendar updates.
+      **Blocked on the development build and the Edge Function deploy** — see
+      the push section below. Until then, nothing is pushed and the change
+      still lands when the app is next opened.
+- [ ] **The third webhook.** `supabase/functions/README.md` now specifies
+      planned_events UPDATE as well.
+- [ ] **Noise check.** Toggling a push switch or editing a note should NOT
+      notify the partner — only a real change to the time, name or place.
+
 ## Known rough edges
 
 - Everything is verified on two iPhones only, with one couple, on one Supabase

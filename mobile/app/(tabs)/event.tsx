@@ -31,6 +31,16 @@ import {
   deletePlannedEvent,
   syncPlannedEventsToDevice,
 } from "@/lib/plannedEvents";
+import {
+  DeviceEventRow,
+  Editability,
+  SeriesScope,
+  canEdit,
+  deleteDeviceEvent,
+  loadDeviceEvent,
+  updateDeviceEvent,
+} from "@/lib/deviceEvents";
+import { syncBusyBlocks } from "@/lib/calendarSync";
 
 /** Combine an ISO date and an HH:MM time into a real instant. */
 function combine(isoDate: string, time: string): Date {
@@ -49,8 +59,23 @@ export default function EventEditor() {
   const { me, partner } = useCoupleMembers();
   const colors = usePartnerColors();
 
-  const params = useLocalSearchParams<{ id?: string; date?: string; start?: string }>();
+  const params = useLocalSearchParams<{
+    id?: string;
+    /** A row in busy_blocks: an event that lives in the phone's own calendar. */
+    busy?: string;
+    date?: string;
+    start?: string;
+  }>();
   const editingId = params.id ?? null;
+  const busyId = params.busy ?? null;
+
+  // Two quite different things share this screen. An Untangled Life event is
+  // ours: owner, colour, push toggles, stored in planned_events. A synced
+  // event belongs to Google or Apple and we are only allowed to move it --
+  // there is no owner to set and nothing to push, because it is already in the
+  // calendar it came from.
+  const [deviceEvent, setDeviceEvent] = useState<DeviceEventRow | null>(null);
+  const [editability, setEditability] = useState<Editability>({ editable: true });
 
   const myId = me.id;
   const partnerId = partner?.id ?? null;
@@ -103,9 +128,9 @@ export default function EventEditor() {
    * reopens the 10am draft, title and all -- and saves an event at a time
    * nobody chose.
    */
-  const routeKey = `${params.id ?? ""}|${params.date ?? ""}|${params.start ?? ""}`;
+  const routeKey = `${params.id ?? ""}|${params.busy ?? ""}|${params.date ?? ""}|${params.start ?? ""}`;
   useEffect(() => {
-    if (editingId) {
+    if (editingId || busyId) {
       setLoaded(false);
       return;
     }
@@ -127,7 +152,31 @@ export default function EventEditor() {
     // routeKey collapses the params this depends on into one value, so the
     // draft is reset exactly when a new event is started.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeKey, editingId]);
+  }, [routeKey, editingId, busyId]);
+
+  const loadDevice = useCallback(async () => {
+    if (!busyId || !session?.user.id) return;
+
+    const row = await loadDeviceEvent(busyId);
+    if (!row) {
+      setLoaded(true);
+      return;
+    }
+
+    const start = new Date(row.start_at);
+    const end = new Date(row.end_at);
+
+    setDeviceEvent(row);
+    setEditability(await canEdit(row, session.user.id));
+    setTitle(row.title ?? "");
+    setNotes(row.notes ?? "");
+    setLocation(row.location ?? "");
+    setStartDate(toISODate(start));
+    setStartTime(toTimeString(start));
+    setEndDate(toISODate(end));
+    setEndTime(toTimeString(end));
+    setLoaded(true);
+  }, [busyId, session?.user.id]);
 
   const load = useCallback(async () => {
     if (!editingId) return;
@@ -157,11 +206,66 @@ export default function EventEditor() {
   }, [editingId]);
 
   useRefreshOnFocus(load);
+  useRefreshOnFocus(loadDevice);
 
   function togglePush(userId: string) {
     setPushTo((current) =>
       current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId]
     );
+  }
+
+  /**
+   * Which occurrences a change applies to.
+   *
+   * Only asked for a repeating event, because for anything else there is
+   * nothing to choose and a dialog would just be in the way. "All" means this
+   * one and every one after it, which is what Apple and Google mean by it --
+   * neither of them rewrites the past, and neither should we.
+   */
+  function askScope(action: string, onChoose: (scope: SeriesScope) => void) {
+    Alert.alert(
+      "This repeats",
+      `${action} just this one, or this one and all the ones after it?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Just this one", onPress: () => onChoose("single") },
+        { text: "This and future", onPress: () => onChoose("future") },
+      ]
+    );
+  }
+
+  async function saveDeviceEvent(scope: SeriesScope) {
+    if (!deviceEvent || !session?.user.id || !profile?.couple_id) return;
+
+    setSaving(true);
+
+    const { error } = await updateDeviceEvent(
+      deviceEvent,
+      {
+        title: title.trim(),
+        startDate: combine(startDate, startTime),
+        endDate: combine(endDate, endTime),
+        location: location.trim() || null,
+        notes: notes.trim() || null,
+      },
+      scope
+    );
+
+    if (error) {
+      setSaving(false);
+      warned();
+      Alert.alert("Couldn't change that", error);
+      return;
+    }
+
+    // Re-read the calendar so the app shows what the phone now holds, rather
+    // than what we asked for. If the calendar quietly adjusted something, the
+    // app should agree with it.
+    await syncBusyBlocks(profile.couple_id, session.user.id);
+
+    succeeded();
+    setSaving(false);
+    router.back();
   }
 
   async function save() {
@@ -183,10 +287,27 @@ export default function EventEditor() {
       return;
     }
 
+    if (deviceEvent) {
+      if (!editability.editable) {
+        warned();
+        Alert.alert("Can't change this one", editability.reason);
+        return;
+      }
+
+      if (deviceEvent.recurring) {
+        askScope("Change", (scope) => saveDeviceEvent(scope));
+        return;
+      }
+
+      saveDeviceEvent("single");
+      return;
+    }
+
     setSaving(true);
 
     const { error } = editingId
       ? await updatePlannedEvent(editingId, {
+          byUserId: session.user.id,
           title: name,
           startAt: start,
           endAt: end,
@@ -224,6 +345,44 @@ export default function EventEditor() {
     router.back();
   }
 
+  async function removeDeviceEvent(scope: SeriesScope) {
+    if (!deviceEvent || !session?.user.id || !profile?.couple_id) return;
+
+    setSaving(true);
+    const { error } = await deleteDeviceEvent(deviceEvent, scope);
+
+    if (error) {
+      setSaving(false);
+      warned();
+      Alert.alert("Couldn't delete that", error);
+      return;
+    }
+
+    await syncBusyBlocks(profile.couple_id, session.user.id);
+    succeeded();
+    router.back();
+  }
+
+  function confirmDeleteDevice() {
+    if (!deviceEvent) return;
+
+    Alert.alert(
+      `Delete "${title}"?`,
+      "This removes it from the calendar it came from, not just from Untangled Life.",
+      [
+        { text: "Keep it", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () =>
+            deviceEvent.recurring
+              ? askScope("Delete", (scope) => removeDeviceEvent(scope))
+              : removeDeviceEvent("single"),
+        },
+      ]
+    );
+  }
+
   function confirmDelete() {
     if (!editingId) return;
 
@@ -234,7 +393,7 @@ export default function EventEditor() {
         style: "destructive",
         onPress: async () => {
           setSaving(true);
-          const { error } = await deletePlannedEvent(editingId);
+          const { error } = await deletePlannedEvent(editingId, session?.user.id);
 
           if (error) {
             setSaving(false);
@@ -249,6 +408,10 @@ export default function EventEditor() {
         },
       },
     ]);
+  }
+
+  function nameFor(userId: string): string {
+    return userId === myId ? "your" : `${partnerName}'s`;
   }
 
   const ownerOptions: { id: string | null; label: string }[] = [
@@ -276,11 +439,15 @@ export default function EventEditor() {
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <Text style={styles.back}>Cancel</Text>
         </Pressable>
-        <Pressable onPress={save} hitSlop={8} disabled={saving}>
-          <Text style={[styles.save, saving ? styles.saveOff : null]}>
-            {saving ? "Saving…" : editingId ? "Save" : "Add"}
-          </Text>
-        </Pressable>
+        {deviceEvent && !editability.editable ? (
+          <Text style={styles.readOnlyTag}>Read only</Text>
+        ) : (
+          <Pressable onPress={save} hitSlop={8} disabled={saving}>
+            <Text style={[styles.save, saving ? styles.saveOff : null]}>
+              {saving ? "Saving…" : editingId || deviceEvent ? "Save" : "Add"}
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       <TextInput
@@ -290,12 +457,24 @@ export default function EventEditor() {
         ]}
         value={title}
         onChangeText={setTitle}
+        editable={!deviceEvent || editability.editable}
         placeholder="What is it?"
         placeholderTextColor={ownerShade ? ownerShade.ink : t.textMuted}
         autoFocus={!editingId}
       />
 
-      <Text style={styles.groupTitle}>Whose is it?</Text>
+      {deviceEvent ? (
+        <View style={[styles.banner, editability.editable ? null : styles.bannerWarn]}>
+          <Text style={styles.bannerText}>
+            {editability.editable
+              ? `This lives in ${nameFor(deviceEvent.user_id)} phone calendar. Changing it here changes it there${deviceEvent.recurring ? ", and it repeats — you'll be asked which ones" : ""}.`
+              : editability.reason}
+          </Text>
+        </View>
+      ) : null}
+
+      {deviceEvent ? null : <Text style={styles.groupTitle}>Whose is it?</Text>}
+      {deviceEvent ? null : (
       <View style={styles.segmented}>
         {ownerOptions.map((option) => {
           const active = owner === option.id;
@@ -314,7 +493,10 @@ export default function EventEditor() {
           );
         })}
       </View>
-      <Text style={styles.hint}>Sets the colour it shows in. Both of you see it either way.</Text>
+      )}
+      {deviceEvent ? null : (
+        <Text style={styles.hint}>Sets the colour it shows in. Both of you see it either way.</Text>
+      )}
 
       <Text style={styles.groupTitle}>When</Text>
       <View style={styles.card}>
@@ -358,7 +540,8 @@ export default function EventEditor() {
         </View>
       </View>
 
-      <Text style={styles.groupTitle}>Push to calendar</Text>
+      {deviceEvent ? null : <Text style={styles.groupTitle}>Push to calendar</Text>}
+      {deviceEvent ? null : (
       <View style={styles.card}>
         <View style={styles.pushRow}>
           <View style={{ flex: 1 }}>
@@ -386,9 +569,12 @@ export default function EventEditor() {
           </View>
         ) : null}
       </View>
-      <Text style={styles.hint}>
-        Off means it stays in Untangled Life. You&apos;ll both still see it here.
-      </Text>
+      )}
+      {deviceEvent ? null : (
+        <Text style={styles.hint}>
+          Off means it stays in Untangled Life. You&apos;ll both still see it here.
+        </Text>
+      )}
 
       <Text style={styles.groupTitle}>Where</Text>
       <TextInput
@@ -412,6 +598,10 @@ export default function EventEditor() {
       {editingId ? (
         <Pressable style={press(styles.deleteButton)} onPress={confirmDelete}>
           <Text style={styles.deleteText}>Delete event</Text>
+        </Pressable>
+      ) : deviceEvent && editability.editable ? (
+        <Pressable style={press(styles.deleteButton)} onPress={confirmDeleteDevice}>
+          <Text style={styles.deleteText}>Delete from the calendar it came from</Text>
         </Pressable>
       ) : null}
     </ScrollView>
@@ -437,6 +627,15 @@ const createStyles = (t: Theme) =>
     back: { fontSize: 15, color: t.textSecondary },
     save: { fontSize: 15, color: t.accent, fontWeight: "700" },
     saveOff: { color: t.textMuted },
+    readOnlyTag: { fontSize: 13, color: t.textMuted, fontWeight: "600" },
+    banner: {
+      backgroundColor: t.accentSoft,
+      borderRadius: t.radius.md,
+      padding: t.space(3),
+      marginTop: t.space(4),
+    },
+    bannerWarn: { backgroundColor: t.surfaceSunken },
+    bannerText: { fontSize: 12, lineHeight: 18, color: t.textSecondary },
     titleInput: {
       backgroundColor: t.surface,
       borderRadius: t.radius.lg,

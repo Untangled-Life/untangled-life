@@ -7,6 +7,7 @@ import { useTheme } from "@/contexts/theme";
 import { HomeIcon, BellIcon, CheckSquareIcon, GiftIcon } from "@/components/icons";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { registerForPushNotifications } from "@/lib/pushRegistration";
+import { syncPlannedEventsToDevice } from "@/lib/plannedEvents";
 
 export default function TabsLayout() {
   const { session, profile, loading } = useAuth();
@@ -22,6 +23,29 @@ export default function TabsLayout() {
     if (!userId || !paired) return;
     registerForPushNotifications(userId);
   }, [userId, paired]);
+
+  // A push about a changed event carries the change with it: receiving one is
+  // the cue to re-read, so the partner's calendar updates without anyone
+  // opening anything.
+  //
+  // This fires while the app is running or in the background. A phone that is
+  // fully closed still catches up on next open, which is what the sync on
+  // focus is for -- silent background delivery needs more than a token and
+  // isn't worth the complexity until push is proven end to end.
+  useEffect(() => {
+    if (!userId) return;
+
+    const subscription = Notifications.addNotificationReceivedListener((notification) => {
+      const data = notification.request.content.data as { type?: string } | undefined;
+      if (data?.type === "planned_event") {
+        syncPlannedEventsToDevice(userId).catch(() => {
+          // Best effort. The next app open reconciles anyway.
+        });
+      }
+    });
+
+    return () => subscription.remove();
+  }, [userId]);
 
   // Tapping a push should land on the thing it's about.
   useEffect(() => {

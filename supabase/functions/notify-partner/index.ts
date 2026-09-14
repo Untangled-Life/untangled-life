@@ -1,6 +1,7 @@
-// Sends a push to the OTHER partner when one of them books a date or adds a
-// key date. Triggered by two database webhooks (see ../README.md), one on
-// planned_events INSERT and one on key_dates INSERT.
+// Sends a push to the OTHER partner when one of them books a date, adds a key
+// date, or CHANGES a date they'd already booked. Triggered by three database
+// webhooks (see ../README.md): planned_events INSERT, planned_events UPDATE,
+// and key_dates INSERT.
 //
 // Runs with the service role key so it can read the partner's push token --
 // push_tokens' RLS deliberately doesn't let partners read each other's rows.
@@ -45,17 +46,76 @@ function formatDate(dateOnly: string): string {
   });
 }
 
+type Row = Record<string, string | boolean | null>;
+
+/**
+ * What actually changed, in the order worth mentioning.
+ *
+ * An update fires on every write, including ones nobody needs to hear about --
+ * a push toggle, an owner, a note. Saying "Roy changed Dinner" when Roy ticked
+ * a checkbox trains people to ignore the notifications.
+ */
+function describeChange(record: Row, old: Row | null, actorName: string): string | null {
+  const title = String(record.title);
+
+  if (record.cancelled === true && old?.cancelled !== true) {
+    return `${actorName} cancelled "${title}". It's off your calendar.`;
+  }
+
+  // A cancelled event that changes again is still cancelled; nothing to say.
+  if (record.cancelled === true) return null;
+
+  const movedStart = old && String(record.start_at) !== String(old.start_at);
+  const movedEnd = old && String(record.end_at) !== String(old.end_at);
+  const renamed = old && String(record.title) !== String(old.title);
+
+  if (movedStart) {
+    return `${actorName} moved "${title}" to ${formatDateTime(String(record.start_at))}. Your calendar's been updated.`;
+  }
+
+  if (renamed) {
+    return `${actorName} renamed "${String(old.title)}" to "${title}".`;
+  }
+
+  if (movedEnd) {
+    return `${actorName} changed how long "${title}" runs for.`;
+  }
+
+  const movedLocation = old && String(record.location ?? "") !== String(old.location ?? "");
+  if (movedLocation && record.location) {
+    return `${actorName} set "${title}" to be at ${String(record.location)}.`;
+  }
+
+  return null;
+}
+
 function buildMessage(
   table: string,
-  record: Record<string, string | boolean | null>,
+  type: "INSERT" | "UPDATE",
+  record: Row,
+  oldRecord: Row | null,
   actorName: string
 ): { title: string; body: string; data: Record<string, unknown> } | null {
   if (table === "planned_events") {
+    if (type === "UPDATE") {
+      const body = describeChange(record, oldRecord, actorName);
+      if (!body) return null;
+
+      return {
+        title: record.cancelled === true ? "Date cancelled" : "Date changed",
+        // The data payload matters as much as the words: the app syncs on
+        // receiving this, so the change lands in the calendar without anyone
+        // having to open anything.
+        body,
+        data: { type: "planned_event", id: record.id, action: "changed" },
+      };
+    }
+
     if (record.cancelled === true) return null;
     return {
       title: "You've got a date",
       body: `${actorName} booked "${record.title}" for ${formatDateTime(String(record.start_at))}. It's in your calendar.`,
-      data: { type: "planned_event", id: record.id },
+      data: { type: "planned_event", id: record.id, action: "created" },
     };
   }
 
@@ -74,12 +134,19 @@ Deno.serve(async (req: Request) => {
   try {
     const payload: WebhookPayload = await req.json();
 
-    if (payload.type !== "INSERT") {
-      return new Response(JSON.stringify({ skipped: "not an insert" }), { status: 200 });
+    if (payload.type !== "INSERT" && payload.type !== "UPDATE") {
+      return new Response(JSON.stringify({ skipped: "not an insert or update" }), { status: 200 });
     }
 
     const coupleId = payload.record.couple_id;
-    const actorId = payload.record.created_by;
+
+    // On an update the actor is whoever made the change, not whoever created
+    // the event. Getting this wrong sends someone their own edit and tells
+    // their partner nothing.
+    const actorId =
+      payload.type === "UPDATE"
+        ? (payload.record.updated_by ?? payload.record.created_by)
+        : payload.record.created_by;
 
     if (!coupleId || !actorId) {
       return new Response(JSON.stringify({ skipped: "no couple or actor" }), { status: 200 });
@@ -110,7 +177,9 @@ Deno.serve(async (req: Request) => {
 
     const message = buildMessage(
       payload.table,
+      payload.type,
       payload.record,
+      payload.old_record,
       actor?.display_name ?? "Your partner"
     );
 
