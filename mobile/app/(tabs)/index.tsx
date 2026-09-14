@@ -206,10 +206,14 @@ export default function Home() {
 
     setFreeWindows(windows);
     // Only asked when the answer was empty: run the same calculation with
-    // nothing in either diary. Still empty means the hours themselves never
-    // meet, which is a different problem with a different fix.
+    // nothing in either diary AND no minimum length. Still empty means the
+    // waking hours themselves never meet, which is a different problem with a
+    // different fix. Keeping the minimum in the probe would blame the zones for
+    // an overlap that exists but is shorter than the couple asked to hear
+    // about, and send them to the wrong setting.
     setNoZoneOverlap(
-      windows.length === 0 && nextSharedFreeWindows([], [], prefs, zones).length === 0
+      windows.length === 0 &&
+        nextSharedFreeWindows([], [], { ...prefs, minFreeMinutes: 0 }, zones).length === 0
     );
   }, [session?.user.id, profile?.couple_id, myZone, partnerZone]);
 

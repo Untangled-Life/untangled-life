@@ -147,6 +147,33 @@ describe("zonedTimeToInstant across a transition", () => {
     expect(instant.toISOString()).toBe("2026-03-08T07:30:00.000Z");
   });
 
+  // The eastern hemisphere, because a version of this that corrected from a
+  // single guess was right for New York and an hour WRONG, in the opposite
+  // direction, for every zone with a positive offset. This app is Australian.
+  it("pushes a skipped wall time forwards in Sydney too", () => {
+    // 4 October 2026: 2am becomes 3am. 03:30 AEDT is 16:30Z the day before.
+    const instant = zonedTimeToInstant(2026, 10, 4, 2, 30, "Australia/Sydney");
+    expect(instant.toISOString()).toBe("2026-10-03T16:30:00.000Z");
+  });
+
+  it("pushes a skipped wall time forwards in London and Auckland", () => {
+    // 29 March 2026: 1am becomes 2am. 02:00 BST is 01:00Z.
+    expect(zonedTimeToInstant(2026, 3, 29, 1, 0, "Europe/London").toISOString()).toBe(
+      "2026-03-29T01:00:00.000Z"
+    );
+    // 27 September 2026: 2am becomes 3am. 03:00 NZDT is 14:00Z the day before.
+    expect(zonedTimeToInstant(2026, 9, 27, 2, 0, "Pacific/Auckland").toISOString()).toBe(
+      "2026-09-26T14:00:00.000Z"
+    );
+  });
+
+  // Lord Howe moves by half an hour rather than a whole one, which catches any
+  // assumption that a transition is sixty minutes.
+  it("handles a half-hour transition", () => {
+    const instant = zonedTimeToInstant(2026, 10, 4, 2, 0, "Australia/Lord_Howe");
+    expect(instant.toISOString()).toBe("2026-10-03T15:30:00.000Z");
+  });
+
   it("leaves an ordinary time alone on the same day", () => {
     const instant = zonedTimeToInstant(2026, 3, 8, 9, 0, "America/New_York");
     expect(instant.toISOString()).toBe("2026-03-08T13:00:00.000Z");
@@ -157,6 +184,39 @@ describe("zonedTimeToInstant across a transition", () => {
   it("takes the first of a repeated wall time", () => {
     const instant = zonedTimeToInstant(2026, 11, 1, 1, 30, "America/New_York");
     expect(instant.toISOString()).toBe("2026-11-01T05:30:00.000Z");
+  });
+
+  it("takes the first of a repeated wall time in London and Sydney too", () => {
+    // 25 October 2026: 2am BST becomes 1am GMT. 01:30 BST is 00:30Z; 01:30 GMT
+    // is 01:30Z. The earlier is the one people mean.
+    expect(zonedTimeToInstant(2026, 10, 25, 1, 30, "Europe/London").toISOString()).toBe(
+      "2026-10-25T00:30:00.000Z"
+    );
+    // 5 April 2026: 3am AEDT becomes 2am AEST. 02:30 AEDT is 15:30Z the day before.
+    expect(zonedTimeToInstant(2026, 4, 5, 2, 30, "Australia/Sydney").toISOString()).toBe(
+      "2026-04-04T15:30:00.000Z"
+    );
+  });
+
+  // The overwhelming majority of times, which must not be disturbed by any of
+  // the above.
+  it("round-trips an ordinary time in both hemispheres", () => {
+    const cases: [number, number, number, number, number, string][] = [
+      [2026, 6, 15, 9, 0, "Australia/Sydney"],
+      [2026, 12, 15, 9, 0, "Australia/Sydney"],
+      [2026, 6, 15, 9, 0, "America/New_York"],
+      [2026, 1, 15, 9, 0, "Europe/London"],
+      [2026, 6, 15, 9, 0, "Asia/Kolkata"],
+      [2026, 6, 15, 9, 0, "Australia/Perth"],
+    ];
+
+    for (const [y, m, d, h, min, zone] of cases) {
+      const instant = zonedTimeToInstant(y, m, d, h, min, zone);
+      expect(dateKeyInZone(instant, zone)).toBe(
+        `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`
+      );
+      expect(offsetMinutesAt(instant, zone)).toBe((Date.UTC(y, m - 1, d, h, min) - instant.getTime()) / 60000);
+    }
   });
 });
 

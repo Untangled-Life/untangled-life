@@ -21,8 +21,11 @@ alter table couples
   add constraint couples_free_window_check
   check (
     day_start_hour between 0 and 23
-    and day_end_hour between 1 and 24
-    and day_end_hour > day_start_hour
+    -- An end hour at or before the start is an OVERNIGHT day, not an invalid
+    -- one: someone finishing nights at 7am has a day that runs 10pm to 6am.
+    -- Requiring the end to come after the start excluded exactly the people
+    -- this feature is most useful to. See overnight-day.sql.
+    and day_end_hour between 0 and 24
     and min_free_minutes between 15 and 480
   );
 

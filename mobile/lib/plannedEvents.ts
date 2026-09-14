@@ -143,6 +143,38 @@ function recurrenceRuleFor(ev: PlannedEvent): Calendar.RecurrenceRule | null {
   } as Calendar.RecurrenceRule;
 }
 
+/**
+ * Whether the phone's copy already repeats the way the shared record says.
+ *
+ * This has to be asked because the rule cannot be CHANGED in place. Both iOS
+ * and Android read recurrenceRule only when it is present -- the native side
+ * is a plain `if let rule = event.recurrenceRule` -- so null and undefined
+ * mean the same thing to it: leave the rule alone. An event that stops
+ * repeating would go on repeating on the phone forever, and there is no value
+ * that says otherwise. Replacing the event is the only way to clear it.
+ *
+ * The end date is compared by DAY rather than to the millisecond, because the
+ * phone's calendar normalises it and comparing exactly would delete and
+ * recreate the same event on every sync.
+ */
+function sameRule(
+  onPhone: Calendar.RecurrenceRule | null | undefined,
+  wanted: Calendar.RecurrenceRule | null
+): boolean {
+  if (!onPhone || !wanted) return !onPhone && !wanted;
+  if (onPhone.frequency !== wanted.frequency) return false;
+  if ((onPhone.interval ?? 1) !== (wanted.interval ?? 1)) return false;
+
+  const dayOf = (rule: Calendar.RecurrenceRule) => {
+    const end = rule.endDate;
+    if (!end) return null;
+    const at = end instanceof Date ? end : new Date(end);
+    return Number.isNaN(at.getTime()) ? null : at.toDateString();
+  };
+
+  return dayOf(onPhone) === dayOf(wanted);
+}
+
 export type PlanSyncResult = {
   added: number;
   removed: number;
@@ -217,13 +249,21 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
   // on end_at alone hides a weekly dinner from every phone that didn't happen
   // to be open the week it was created -- the row's end_at is the end of
   // occurrence one, which is in the past by the second week.
-  const nowIso = new Date().toISOString();
+  //
+  // A series that has already RUN OUT is a different matter: "weekly until
+  // March" should not be put back on a phone in December. So repeats are taken
+  // only while they are still running.
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const today = now.toISOString().slice(0, 10);
 
   const [upcomingRes, linkedRes] = await Promise.all([
     supabase
       .from("planned_events")
       .select(EVENT_COLUMNS)
-      .or(`end_at.gte.${nowIso},repeat_every.neq.none`),
+      .or(
+        `end_at.gte.${nowIso},and(repeat_every.neq.none,or(repeat_until.is.null,repeat_until.gte.${today}))`
+      ),
     linkedIds.length > 0
       ? supabase.from("planned_events").select(EVENT_COLUMNS).in("id", linkedIds)
       : Promise.resolve({ data: [] as PlannedEvent[] }),
@@ -293,10 +333,38 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
       continue;
     }
 
+    const wantedRule = recurrenceRuleFor(ev);
+    let linkToReplace: string | null = null;
+
     if (existing) {
-      // Already on this phone. Keep its details in step with the shared
-      // record, so editing an event's time in the app moves it in the phone's
-      // calendar rather than leaving the two disagreeing.
+      // Does the copy on the phone repeat the way it should? If not, it has to
+      // be replaced rather than updated: the calendar will not let a rule be
+      // changed or removed through an update, so an event that stops repeating
+      // keeps repeating, which looks exactly like the app ignoring you.
+      let ruleMatches = true;
+      try {
+        const onPhone = await Calendar.getEventAsync(existing);
+        ruleMatches = sameRule(onPhone?.recurrenceRule ?? null, wantedRule);
+      } catch {
+        // Could not read it. Leave it alone rather than churning somebody's
+        // calendar over a momentarily unavailable event.
+        ruleMatches = true;
+      }
+
+      if (!ruleMatches) {
+        try {
+          await Calendar.deleteEventAsync(existing);
+        } catch {
+          // Already gone; creating the replacement is still right.
+        }
+        linkToReplace = ev.id;
+      }
+    }
+
+    if (existing && !linkToReplace) {
+      // Already on this phone with the right rule. Keep its details in step
+      // with the shared record, so editing an event's time in the app moves it
+      // in the phone's calendar rather than leaving the two disagreeing.
       try {
         await Calendar.updateEventAsync(existing, {
           title: ev.title,
@@ -304,7 +372,6 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
           endDate: new Date(ev.end_at),
           location: ev.location ?? undefined,
           notes: ev.notes ?? undefined,
-          recurrenceRule: recurrenceRuleFor(ev),
         });
       } catch {
         // An update can fail because the event was deleted by hand -- or
@@ -331,6 +398,16 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
       continue;
     }
 
+    if (linkToReplace) {
+      // Drop the old link before writing the replacement, so a failure here
+      // leaves nothing pointing at an event that is no longer on the phone.
+      await supabase
+        .from("planned_event_calendar_links")
+        .delete()
+        .eq("planned_event_id", linkToReplace)
+        .eq("user_id", userId);
+    }
+
     if (!writableCalendarId) {
       writableCalendarId = await findWritableCalendarId();
       if (!writableCalendarId) {
@@ -351,7 +428,10 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
         // calendar understands repeats, so handing it the rule keeps a weekly
         // date night as a single thing you can move rather than fifty-two
         // separate entries to clean up.
-        recurrenceRule: recurrenceRuleFor(ev),
+        //
+        // Undefined rather than null when there is no repeat: an explicit null
+        // is no clearer to the native side and the type does not want it.
+        recurrenceRule: wantedRule ?? undefined,
       });
 
       const { error: linkError } = await supabase
@@ -395,11 +475,15 @@ export async function loadUpcomingPlans(): Promise<UpcomingPlan[]> {
   const horizon = new Date(now);
   horizon.setDate(horizon.getDate() + LOOKAHEAD_DAYS);
 
+  const today = now.toISOString().slice(0, 10);
+
   const { data } = await supabase
     .from("planned_events")
     .select(EVENT_COLUMNS)
     .eq("cancelled", false)
-    .or(`end_at.gte.${now.toISOString()},repeat_every.neq.none`);
+    .or(
+      `end_at.gte.${now.toISOString()},and(repeat_every.neq.none,or(repeat_until.is.null,repeat_until.gte.${today}))`
+    );
 
   const rows = (data as PlannedEvent[]) ?? [];
   const out: UpcomingPlan[] = [];

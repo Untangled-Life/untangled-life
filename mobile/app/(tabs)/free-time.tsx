@@ -84,16 +84,6 @@ export default function FreeTimeSettings() {
   async function save(next: FreeTimePrefs) {
     if (!profile?.couple_id) return;
 
-    // The database check constraint says the same thing, but a rejected write
-    // surfaces as a raw Postgres error. Catching it here means the control
-    // just doesn't move, which is what a person expects from a setting that
-    // can't be set.
-    if (next.dayEndHour <= next.dayStartHour) {
-      warned();
-      Alert.alert("That doesn't leave a day", "The end of the day has to come after the start.");
-      return;
-    }
-
     tapped();
     const previous = prefs;
     setPrefs(next);

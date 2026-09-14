@@ -8,6 +8,7 @@ import {
   intersectIntervals,
   awakeIntervals,
 } from "@/lib/freeTime";
+import { dateKeyInZone } from "@/lib/timezone";
 
 const at = (day: number, h: number, m = 0) => new Date(2026, 8, day, h, m, 0, 0);
 const iv = (day: number, h1: number, h2: number) => ({ start: at(day, h1), end: at(day, h2) });
@@ -378,5 +379,40 @@ describe("awakeIntervals with an overnight day", () => {
     expect(windows[windows.length - 1].end.getTime()).toBeGreaterThan(
       end.getTime() - 24 * 60 * 60 * 1000
     );
+  });
+});
+
+// The suite runs in America/New_York, whose clocks go back on 1 November 2026
+// and forward on 8 March 2026.
+describe("awakeIntervals across the device's own transitions", () => {
+  const partnerDays = (start: Date, end: Date, zone: string) =>
+    new Set(
+      awakeIntervals(start, end, DEFAULT_FREE_TIME_PREFS, zone).map((w) =>
+        dateKeyInZone(w.start, zone)
+      )
+    );
+
+  // Walking a local Date and reading its date in the partner's zone skipped
+  // one of their dates entirely on the day the device's clocks went back --
+  // a partner who appeared to be asleep all day, for no reason a user could
+  // see.
+  it("keeps every partner day when the clocks go back", () => {
+    const days = partnerDays(new Date(2026, 9, 29, 19, 10), new Date(2026, 10, 5), "UTC");
+    for (const key of ["2026-10-30", "2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03"]) {
+      expect(days.has(key)).toBe(true);
+    }
+  });
+
+  it("does not repeat a partner day when the clocks go forward", () => {
+    const windows = awakeIntervals(
+      new Date(2026, 2, 5, 19, 10),
+      new Date(2026, 2, 12),
+      DEFAULT_FREE_TIME_PREFS,
+      "UTC"
+    );
+    const keys = windows.map((w) => dateKeyInZone(w.start, "UTC"));
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(keys).toContain("2026-03-08");
+    expect(keys).toContain("2026-03-09");
   });
 });

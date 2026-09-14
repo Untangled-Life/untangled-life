@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -177,15 +177,35 @@ export default function EventEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeKey, editingId, busyId]);
 
-  const loadDevice = useCallback(async () => {
-    if (!busyId || !session?.user.id) return;
+  // Which route the screen is currently showing. Read at the moment a load
+  // finishes, so a reply for the event you have just navigated away from is
+  // dropped rather than painted over the one you are now looking at -- which
+  // would leave deviceEvent pointing at the old event and save() writing this
+  // edit over it in Google's calendar.
+  const routeRef = useRef(routeKey);
+  routeRef.current = routeKey;
 
+  const loadDevice = useCallback(async () => {
+    if (!busyId) return;
+
+    if (!session?.user.id) {
+      // No session yet. Stop showing a spinner that will never resolve; the
+      // focus hook runs this again once there is one.
+      setLoaded(true);
+      return;
+    }
+
+    const forRoute = routeRef.current;
     const row = await loadDeviceEvent(busyId);
+    if (forRoute !== routeRef.current) return;
+
     if (!row) {
       setMissing(true);
       setLoaded(true);
       return;
     }
+
+    setMissing(false);
 
     const start = new Date(row.start_at);
     const end = new Date(row.end_at);
@@ -205,11 +225,15 @@ export default function EventEditor() {
   const load = useCallback(async () => {
     if (!editingId) return;
 
+    const forRoute = routeRef.current;
+
     const { data } = await supabase
       .from("planned_events")
       .select(EVENT_COLUMNS)
       .eq("id", editingId)
       .maybeSingle();
+
+    if (forRoute !== routeRef.current) return;
 
     if (data) {
       const ev = data as PlannedEvent;

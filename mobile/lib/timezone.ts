@@ -149,12 +149,37 @@ export function offsetMinutesAt(instant: Date, timeZone: string): number {
   }
 }
 
+/** Comfortably wider than any zone offset, so the two probes bracket a transition. */
+const BRACKET_MS = 26 * 60 * 60 * 1000;
+
 /**
  * The instant at which a given wall clock reads in a given zone.
  *
- * Two passes, because the offset depends on the instant and the instant
- * depends on the offset. The first guess lands within an hour, which is enough
- * to look up the right offset even on a day the clocks move.
+ * The awkwardness is that the offset depends on the instant and the instant
+ * depends on the offset, and on the two days a year the clocks move there is
+ * no single answer: one wall time happens twice, and another never happens at
+ * all.
+ *
+ * So rather than guessing and correcting, both possible offsets are looked up
+ * -- one from well before the moment in question, one from well after -- and
+ * each is turned into a candidate instant. A candidate is real only if reading
+ * the clock back at that instant gives the time that was asked for.
+ *
+ *   Two real candidates: the wall time happens twice, on the morning the
+ *   clocks go back. The EARLIER one is what people mean by it.
+ *
+ *   One real candidate: an ordinary day, or one side of a transition.
+ *
+ *   None: the wall time was skipped. 2:30am does not exist on the morning the
+ *   clocks go forward. It resolves to the LATER candidate, which is the same
+ *   clock time pushed past the gap, because reporting a shift as starting an
+ *   hour before its owner set an alarm is the wrong way to be wrong.
+ *
+ * An earlier version corrected from a single guess instead. That happened to
+ * be right for New York and wrong for Sydney, London and Auckland, because the
+ * naive guess lands on the far side of the transition when the offset is
+ * positive rather than the near side. Looking up both sides has no hemisphere
+ * in it.
  */
 export function zonedTimeToInstant(
   year: number,
@@ -164,33 +189,21 @@ export function zonedTimeToInstant(
   minute: number,
   timeZone: string
 ): Date {
-  const guess = Date.UTC(year, month - 1, day, hour, minute);
-  const firstOffset = offsetMinutesAt(new Date(guess), timeZone);
+  const wall = Date.UTC(year, month - 1, day, hour, minute);
 
-  const corrected = guess - firstOffset * 60000;
-  const secondOffset = offsetMinutesAt(new Date(corrected), timeZone);
+  const before = offsetMinutesAt(new Date(wall - BRACKET_MS), timeZone);
+  const after = offsetMinutesAt(new Date(wall + BRACKET_MS), timeZone);
 
-  // If the offset changed between the two, the first guess fell on the other
-  // side of a transition. The second is computed from an instant that is
-  // already close to correct, so it is normally the one to trust.
-  const settled = new Date(guess - secondOffset * 60000);
+  // A smaller offset means a LATER instant for the same clock reading.
+  const candidates = before === after ? [before] : [before, after];
 
-  if (secondOffset === firstOffset) return settled;
+  const real = candidates
+    .map((offset) => wall - offset * 60000)
+    .filter((instant) => offsetMinutesAt(new Date(instant), timeZone) === (wall - instant) / 60000);
 
-  // ... normally, because on the morning the clocks go FORWARD the requested
-  // time may not exist at all: 2:30am is skipped entirely, and the second
-  // offset resolves it backwards to 1:30am. An hour earlier than asked for is
-  // the wrong way to be wrong -- a shift starting "2:30" would be reported as
-  // starting before its owner set an alarm.
-  //
-  // The test is whether the answer reads back as the time requested. When it
-  // does not, the first offset gives the same wall clock pushed FORWARD past
-  // the gap, which is what every calendar does with a time that was skipped.
-  if (offsetMinutesAt(settled, timeZone) !== secondOffset) {
-    return new Date(guess - firstOffset * 60000);
-  }
+  if (real.length > 0) return new Date(Math.min(...real));
 
-  return settled;
+  return new Date(wall - Math.min(before, after) * 60000);
 }
 
 /** The wall-clock date in a zone, as YYYY-MM-DD. */

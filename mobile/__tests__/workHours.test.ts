@@ -264,3 +264,63 @@ describe("a roster entered in another time zone", () => {
     expect(found[0].start.getDate()).toBe(14);
   });
 });
+
+// The suite runs in America/New_York: the clocks go forward on 8 March 2026
+// and back on 1 November 2026.
+describe("a roster across a daylight-saving transition", () => {
+  const sundays = pattern({
+    time_zone: "America/New_York",
+    shifts: weekdays([0], "09:00", "17:00"),
+  });
+
+  // Stepping the loop by a fixed twenty-four hours landed on 1 November twice,
+  // because that day is twenty-five hours long -- so a Sunday shift was listed
+  // twice on the day the clocks went back.
+  it("lists a Sunday shift once on the day the clocks go back", () => {
+    const found = expandWorkHours(
+      sundays,
+      [],
+      new Date(2026, 9, 29),
+      new Date(2026, 10, 5)
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0].start.getDate()).toBe(1);
+    expect(found[0].start.getHours()).toBe(9);
+  });
+
+  // ...and drifted an hour forward each day after the spring transition, until
+  // the last day of the range was stepped clean over and its shifts vanished.
+  it("still reaches the last day of a range that starts on the spring transition", () => {
+    const thursdays = pattern({
+      time_zone: "America/New_York",
+      shifts: weekdays([4], "09:00", "17:00"),
+    });
+
+    const found = expandWorkHours(
+      thursdays,
+      [],
+      new Date(2026, 2, 8),
+      new Date(2026, 2, 12, 23, 59)
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0].start.getDate()).toBe(12);
+  });
+
+  // An overnight shift asked for as start plus twenty-four hours finishes an
+  // hour out on the two nights a year the clocks move, and those are night
+  // shifts, so it is exactly the wrong night to be out.
+  it("ends an overnight shift at the right clock time across a transition", () => {
+    const nights = pattern({
+      time_zone: "America/New_York",
+      shifts: weekdays([6], "22:00", "06:00"),
+    });
+
+    const found = expandWorkHours(nights, [], new Date(2026, 9, 30), new Date(2026, 10, 3));
+    expect(found).toHaveLength(1);
+    // Saturday 31 October 10pm through to Sunday 1 November 6am, which is nine
+    // real hours because the clocks go back in the middle of it.
+    expect(found[0].start.getHours()).toBe(22);
+    expect(found[0].end.getHours()).toBe(6);
+    expect(found[0].end.getTime() - found[0].start.getTime()).toBe(9 * 60 * 60 * 1000);
+  });
+});

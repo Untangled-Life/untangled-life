@@ -106,19 +106,30 @@ export function awakeIntervals(
 ): Interval[] {
   const out: Interval[] = [];
 
-  // Start a day early, so a window that began the evening before the range
-  // still contributes its tail.
-  const cursor = new Date(rangeStart);
-  cursor.setDate(cursor.getDate() - 1);
-
   // Driven by the range asked for rather than a fixed count, so this answers
   // the question it was given. A hard-coded length silently truncates the
   // moment anything asks about a longer stretch, and truncation here reads as
   // "you are never free again" rather than as a bug.
   const days = Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / MS_PER_DAY) + 2;
 
+  // The days are counted in the OTHER person's calendar, from one day before
+  // the range so a window that opened the evening before still contributes its
+  // tail.
+  //
+  // Walking a local Date and reading its date in their zone looked equivalent
+  // and was not: on the day the device's own clocks go back, stepping "one
+  // day" moves twenty-five hours, which skips one of their dates entirely --
+  // and a missing date reads as a partner who is asleep all day rather than as
+  // a bug. Their calendar is stepped directly instead.
+  const first = new Date(rangeStart);
+  first.setDate(first.getDate() - 1);
+  const [y0, m0, d0] = dateKeyInZone(first, timeZone).split("-").map(Number);
+
   for (let i = 0; i < days; i++) {
-    const [year, month, day] = dateKeyInZone(cursor, timeZone).split("-").map(Number);
+    const at = new Date(Date.UTC(y0, m0 - 1, d0 + i));
+    const year = at.getUTCFullYear();
+    const month = at.getUTCMonth() + 1;
+    const day = at.getUTCDate();
 
     const start = zonedTimeToInstant(year, month, day, prefs.dayStartHour, 0, timeZone);
 
@@ -139,8 +150,6 @@ export function awakeIntervals(
         end: end > rangeEnd ? rangeEnd : end,
       });
     }
-
-    cursor.setDate(cursor.getDate() + 1);
   }
 
   return mergeIntervals(out);

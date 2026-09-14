@@ -73,6 +73,12 @@ function startOfDay(d: Date): Date {
   return copy;
 }
 
+/** The calendar day after a YYYY-MM-DD key. */
+function nextDateKey(key: string): string {
+  const [y, m, d] = key.split("-").map(Number);
+  return toDateKey(new Date(y, m - 1, d + 1));
+}
+
 export function toDateKey(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -147,11 +153,22 @@ export function expandWorkOccurrences(
   const offDays = new Set(oneOffs.filter((s) => s.kind === "off").map((s) => s.date));
 
   if (pattern && pattern.mode !== "irregular" && pattern.shifts.length > 0) {
-    const cursor = startOfDay(rangeStart);
     const last = startOfDay(rangeEnd);
 
-    for (let day = cursor; day <= last; day = new Date(day.getTime() + MS_PER_DAY)) {
-      const dayKey = toDateKey(day);
+    // Stepped by CALENDAR day, not by 24 hours. The two are not the same twice
+    // a year: adding a fixed day across the autumn transition lands on the
+    // same date again, which listed every Sunday shift twice, and across the
+    // spring one it drifts an hour forward each time until the last day of the
+    // range is stepped clean over and its shifts vanish.
+    let day = startOfDay(rangeStart);
+
+    while (day <= last) {
+      const thisDay = day;
+      const next = new Date(day);
+      next.setDate(next.getDate() + 1);
+      day = startOfDay(next);
+
+      const dayKey = toDateKey(thisDay);
       if (offDays.has(dayKey)) continue;
 
       // Mode is the authority, not cycle_weeks. A weekly pattern repeats every
@@ -159,16 +176,21 @@ export function expandWorkOccurrences(
       // stray cycle length silently turns "every Monday" into "every second
       // Monday", which looks like the roster working rather than a bug.
       const rotating = pattern.mode === "rotating" && pattern.cycle_weeks > 1;
-      const week = rotating ? cycleWeekFor(day, pattern.anchor_date, pattern.cycle_weeks) : 0;
+      const week = rotating ? cycleWeekFor(thisDay, pattern.anchor_date, pattern.cycle_weeks) : 0;
 
       for (const shift of pattern.shifts) {
-        if (shift.weekday !== day.getDay()) continue;
+        if (shift.weekday !== thisDay.getDay()) continue;
         if (rotating && shift.week !== week) continue;
 
-        const start = atShiftTime(dayKey, shift.start, pattern.time_zone ?? null);
-        let end = atShiftTime(dayKey, shift.end, pattern.time_zone ?? null);
-        // A shift ending at or before it starts runs past midnight.
-        if (end <= start) end = new Date(end.getTime() + MS_PER_DAY);
+        const zone = pattern.time_zone ?? null;
+        const start = atShiftTime(dayKey, shift.start, zone);
+        let end = atShiftTime(dayKey, shift.end, zone);
+
+        // A shift ending at or before it starts runs past midnight. Asked for
+        // as the next day's clock rather than as start plus twenty-four hours,
+        // which is an hour out on the two nights a year the clocks move -- and
+        // those are night shifts, so it is exactly the wrong night to be out.
+        if (end <= start) end = atShiftTime(nextDateKey(dayKey), shift.end, zone);
 
         intervals.push({ interval: { start, end }, source: { type: "pattern" } });
       }
@@ -178,9 +200,10 @@ export function expandWorkOccurrences(
   for (const s of oneOffs) {
     if (s.kind !== "extra" || !s.start_time || !s.end_time) continue;
 
-    const start = atShiftTime(s.date, s.start_time.slice(0, 5), s.time_zone ?? null);
-    let end = atShiftTime(s.date, s.end_time.slice(0, 5), s.time_zone ?? null);
-    if (end <= start) end = new Date(end.getTime() + MS_PER_DAY);
+    const zone = s.time_zone ?? null;
+    const start = atShiftTime(s.date, s.start_time.slice(0, 5), zone);
+    let end = atShiftTime(s.date, s.end_time.slice(0, 5), zone);
+    if (end <= start) end = atShiftTime(nextDateKey(s.date), s.end_time.slice(0, 5), zone);
 
     intervals.push({ interval: { start, end }, source: { type: "shift", id: s.id } });
   }

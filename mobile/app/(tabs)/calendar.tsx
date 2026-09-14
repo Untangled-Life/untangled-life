@@ -288,7 +288,9 @@ export default function CalendarScreen() {
         .select(EVENT_COLUMNS)
         .eq("cancelled", false)
         .or(
-          `and(end_at.gte.${rangeStart.toISOString()},start_at.lte.${rangeEnd.toISOString()}),repeat_every.neq.none`
+          `and(end_at.gte.${rangeStart.toISOString()},start_at.lte.${rangeEnd.toISOString()}),` +
+            `and(repeat_every.neq.none,start_at.lte.${rangeEnd.toISOString()},` +
+            `or(repeat_until.is.null,repeat_until.gte.${toDateKey(rangeStart)}))`
         ),
       supabase.from("key_dates").select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned"),
       supabase
