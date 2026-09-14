@@ -538,7 +538,7 @@ export default function EventEditor() {
         ) : (
           <Pressable onPress={save} hitSlop={8} disabled={saving}>
             <Text style={[styles.save, saving ? styles.saveOff : null]}>
-              {saving ? "Saving…" : editingId || deviceEvent ? "Save" : "Add"}
+              {saving ? "Saving..." : editingId || deviceEvent ? "Save" : "Add"}
             </Text>
           </Pressable>
         )}

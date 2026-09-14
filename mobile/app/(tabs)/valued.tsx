@@ -50,18 +50,24 @@ export default function Valued() {
 
   const partnerName = partner?.display_name ?? "your partner";
 
+  const userId = session?.user.id ?? null;
+  const coupleId = profile?.couple_id ?? null;
+
   const load = useCallback(async () => {
-    if (!session?.user.id) return;
+    if (!userId) return;
 
     const { data } = await supabase
       .from("valued_answers")
-      .select("user_id, couple_id, ranking, feels_valued, little_things, hard_week, shared, updated_at");
+      .select("user_id, couple_id, ranking, feels_valued, little_things, hard_week, shared, updated_at")
+      // A couple row is reused after an unpair, so without this a leftover
+      // answer from an ex could be rendered under the new partner's name.
+      .eq("couple_id", coupleId ?? "");
 
     const rows = (data as ValuedAnswers[]) ?? [];
-    const own = rows.find((r) => r.user_id === session.user.id) ?? null;
+    const own = rows.find((r) => r.user_id === userId) ?? null;
     // Anything that is not yours came back only because they shared it. The
     // policy does the filtering; this just picks it out.
-    const other = rows.find((r) => r.user_id !== session.user.id) ?? null;
+    const other = rows.find((r) => r.user_id !== userId) ?? null;
 
     setMine(own);
     setTheirs(other);
@@ -77,7 +83,7 @@ export default function Valued() {
     }
 
     setLoaded(true);
-  }, [session?.user.id]);
+  }, [userId, coupleId]);
 
   useRefreshOnFocus(load);
 
@@ -86,8 +92,16 @@ export default function Valued() {
     setRanking((r) => (r.includes(key) ? r.filter((x) => x !== key) : [...r, key]));
   }
 
-  async function save(nextShared = shared) {
-    if (!session?.user.id || !profile?.couple_id || saving) return;
+  /**
+   * Returns whether it stuck.
+   *
+   * The sharing switch has to know: leaving it showing "on" after a failed
+   * write tells somebody their most private answers have reached their
+   * partner when they have not, which is the wrong direction to fail in for
+   * this table above all others.
+   */
+  async function save(nextShared = shared): Promise<boolean> {
+    if (!session?.user.id || !profile?.couple_id || saving) return false;
 
     setSaving(true);
     const { error } = await supabase.from("valued_answers").upsert(
@@ -108,11 +122,12 @@ export default function Valued() {
     if (error) {
       warned();
       Alert.alert("Couldn't save that", error.message);
-      return;
+      return false;
     }
 
     succeeded();
     await load();
+    return true;
   }
 
   if (!loaded) {
@@ -188,16 +203,18 @@ export default function Valued() {
         </View>
         <Switch
           value={shared}
-          onValueChange={(v) => {
+          onValueChange={async (v) => {
             setShared(v);
-            save(v);
+            // Put it back if the write did not land, so the control never
+            // claims something the database does not agree with.
+            if (!(await save(v))) setShared(!v);
           }}
           trackColor={{ true: t.accent, false: t.surfaceSunken }}
         />
       </View>
 
       <Pressable style={press(styles.save)} onPress={() => save()} disabled={saving}>
-        <Text style={styles.saveText}>{saving ? "Saving…" : "Save"}</Text>
+        <Text style={styles.saveText}>{saving ? "Saving..." : "Save"}</Text>
       </Pressable>
 
       {theirs ? (

@@ -32,6 +32,8 @@ import { buildInbox } from "@/lib/inbox";
 import { ValuedAnswers, fallbackLine, partnerPrompt } from "@/lib/valued";
 import { daySeed } from "@/lib/dateIdeas";
 import { loadOpenProposals, splitProposals, DateProposal } from "@/lib/dateProposals";
+import { AwaitingReview } from "@/lib/dateHistory";
+import { nextAwaitingReview } from "@/lib/dateReviews";
 import { InboxBadge } from "@/app/(tabs)/inbox";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
@@ -84,6 +86,7 @@ export default function Home() {
   const [lastPlannedAt, setLastPlannedAt] = useState<Date | null>(null);
   const [proposals, setProposals] = useState<DateProposal[]>([]);
   const [partnerValued, setPartnerValued] = useState<ValuedAnswers | null>(null);
+  const [awaitingReview, setAwaitingReview] = useState<AwaitingReview | null>(null);
 
   // Drives the top scrim. Home is the one screen where the fade cannot simply
   // be there: the cover photo runs to the top edge on purpose, so the wash has
@@ -131,16 +134,31 @@ export default function Home() {
   const loadPlans = useCallback(async () => {
     await loadOnboarding();
     setProposals(await loadOpenProposals());
+    // The bell counts this too, so Home has to ask the same question the
+    // inbox asks. A badge that disagrees with the screen behind it is the one
+    // thing a badge must never do.
+    setAwaitingReview(await nextAwaitingReview());
 
     // Only ever comes back when they have shared it. The policy does the
     // gating, so there is nothing to check here beyond which row is theirs.
-    const { data: valued } = await supabase
-      .from("valued_answers")
-      .select("user_id, couple_id, ranking, feels_valued, little_things, hard_week, shared, updated_at")
-      .neq("user_id", session?.user.id ?? "")
-      .maybeSingle();
+    // Scoped to the couple and limited rather than maybeSingle(). A couple
+    // row is reused when somebody unpairs and repairs, so a leftover answer
+    // from an ex used to make this match two rows -- and maybeSingle() errors
+    // on two, which this code would have swallowed into a permanently blank
+    // card. leaving.sql now deletes those rows; this is the belt.
+    const { data: valued } = profile?.couple_id
+      ? await supabase
+          .from("valued_answers")
+          .select(
+            "user_id, couple_id, ranking, feels_valued, little_things, hard_week, shared, updated_at"
+          )
+          .eq("couple_id", profile.couple_id)
+          .neq("user_id", session?.user.id ?? "")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+      : { data: null };
 
-    setPartnerValued((valued as ValuedAnswers | null) ?? null);
+    setPartnerValued(((valued as ValuedAnswers[] | null) ?? [])[0] ?? null);
     setPlans(await loadUpcomingPlans());
 
     // When anything was last put in the diary, which is a different question
@@ -441,6 +459,7 @@ export default function Home() {
     nudging,
     nameFor,
     proposalsForYou: splitProposals(proposals, session?.user.id ?? "").forYou,
+    awaitingReview,
   });
 
   // Each Home section, keyed so the arrangement can decide what appears

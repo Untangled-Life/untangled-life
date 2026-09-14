@@ -181,7 +181,7 @@ function DetailsPanel({
         value={notes}
         onChangeText={setNotes}
         onBlur={() => onSaveNotes(row, notes)}
-        placeholder="She mentioned those earrings…"
+        placeholder="She mentioned those earrings..."
         placeholderTextColor={t.textMuted}
         multiline
       />

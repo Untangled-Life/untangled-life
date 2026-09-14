@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -45,10 +45,15 @@ import { Theme } from "@/theme/tokens";
 export default function Welcome() {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
-  const { session, profile } = useAuth();
+  const { session, profile, refreshProfile } = useAuth();
   const { partner } = useCoupleMembers();
-  const { myAvatarUrl, coverUrl, reload: reloadPhotos } = useCouplePhotos();
-  const { steps, next, complete, progress, loaded, load, dismiss, finish } = useOnboarding();
+  const { myAvatarUrl, coverUrl, coverPath, reload: reloadPhotos } = useCouplePhotos();
+  // The photo facts come from THIS screen's copy, so an upload and the step
+  // ticking are the same event rather than two that never meet.
+  const { steps, complete, progress, loaded, load, dismiss, finish } = useOnboarding({
+    myAvatarUrl,
+    coverUrl,
+  });
 
   const [busy, setBusy] = useState(false);
   const [hoursOpen, setHoursOpen] = useState(false);
@@ -78,12 +83,26 @@ export default function Welcome() {
   const settled = active === null;
 
   async function leave() {
-    await finish();
-    router.replace("/");
+    // Only navigate if it actually stuck. onboarded_at is what stops the
+    // layout redirecting here, so leaving on a failed write puts somebody on
+    // a screen whose only exit does nothing.
+    try {
+      if (await finish()) {
+        router.replace("/");
+        return;
+      }
+    } catch {
+      // Falls through to the same message.
+    }
+
+    warned();
+    Alert.alert(
+      "Couldn't save that",
+      "Check your connection and try again. Nothing you have set up is lost."
+    );
   }
 
-  const addPhoto = useCallback(
-    async (kind: "avatar" | "cover") => {
+  async function addPhoto(kind: "avatar" | "cover") {
       if (!session?.user.id || !profile?.couple_id || busy) return;
 
       const { photo, error } = await pickPhoto(kind);
@@ -104,7 +123,9 @@ export default function Welcome() {
         return;
       }
 
-      const previous = kind === "cover" ? null : profile.avatar_path;
+      // The cover has a previous too. Null here meant replacing a cover from
+      // this screen left the old file in the bucket forever.
+      const previous = kind === "cover" ? coverPath : profile.avatar_path;
 
       const { error: saveError } =
         kind === "cover"
@@ -118,6 +139,10 @@ export default function Welcome() {
               .eq("id", session.user.id);
 
       if (saveError) {
+        // The file uploaded but nothing points at it, so take it back out
+        // rather than leave an orphan in the bucket. Home does this; this did
+        // not.
+        await removePhoto(upload.path);
         setBusy(false);
         warned();
         Alert.alert("Couldn't save that photo", saveError.message);
@@ -125,13 +150,17 @@ export default function Welcome() {
       }
 
       if (previous) await removePhoto(previous);
+
+      // refreshProfile FIRST. useCouplePhotos signs whatever path the auth
+      // context is holding, so reloading before the context knows about the
+      // new one re-signs the old path, and for a first photo that path is
+      // null: the picture never appears and the step never ticks.
+      await refreshProfile();
       await reloadPhotos();
       await load();
       setBusy(false);
       succeeded();
-    },
-    [session?.user.id, profile?.couple_id, profile?.avatar_path, busy, reloadPhotos, load]
-  );
+  }
 
   if (!loaded) {
     return (
@@ -311,7 +340,7 @@ function PhotoStep({
 
       <Pressable style={press(styles.primary)} onPress={onPick} disabled={busy}>
         <Text style={styles.primaryText}>
-          {busy ? "Uploading…" : url ? "Choose a different one" : "Choose a photo"}
+          {busy ? "Uploading..." : url ? "Choose a different one" : "Choose a photo"}
         </Text>
       </Pressable>
     </View>
@@ -407,7 +436,7 @@ function RegularHours({
 
       <View style={styles.buttonRow}>
         <Pressable style={press(styles.primary)} onPress={save} disabled={saving}>
-          <Text style={styles.primaryText}>{saving ? "Saving…" : "Save my hours"}</Text>
+          <Text style={styles.primaryText}>{saving ? "Saving..." : "Save my hours"}</Text>
         </Pressable>
         <Pressable style={press(styles.secondary)} onPress={onCancel}>
           <Text style={styles.secondaryText}>Back</Text>
@@ -504,8 +533,15 @@ const createStyles = (t: Theme) =>
       borderColor: t.border,
     },
     secondaryText: { ...t.type.label, color: t.textSecondary },
-    skipRow: { flexDirection: "row", gap: t.space(5), marginTop: t.space(1) },
-    skip: { ...t.type.label, color: t.textMuted },
+    // The only way past a step, so they get a real target rather than a line
+    // of text with a hit slop.
+    skipRow: { flexDirection: "row", gap: t.space(4), marginTop: t.space(1) },
+    skip: {
+      ...t.type.label,
+      color: t.textMuted,
+      paddingVertical: t.space(3),
+      paddingHorizontal: t.space(2),
+    },
 
     photoRow: { flexDirection: "row", alignItems: "center", gap: t.space(4) },
     coverPreview: {
@@ -522,9 +558,9 @@ const createStyles = (t: Theme) =>
     fieldLabel: { ...t.type.eyebrow, color: t.textMuted, marginTop: t.space(2) },
     dayRow: { flexDirection: "row", gap: t.space(2) },
     day: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       backgroundColor: t.surfaceSunken,
       alignItems: "center",
       justifyContent: "center",
@@ -536,8 +572,8 @@ const createStyles = (t: Theme) =>
     timeTo: { ...t.type.caption, color: t.textMuted },
     timeScroll: { flex: 1 },
     time: {
-      paddingHorizontal: t.space(3),
-      paddingVertical: t.space(2),
+      paddingHorizontal: t.space(4),
+      paddingVertical: t.space(3),
       borderRadius: t.radius.pill,
       backgroundColor: t.surfaceSunken,
       marginRight: t.space(2),

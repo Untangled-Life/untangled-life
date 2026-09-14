@@ -221,7 +221,7 @@ export default function RosterImport() {
               disabled={saving}
             >
               <Text style={styles.primaryText}>
-                {saving ? "Saving…" : "Save as my weekly hours"}
+                {saving ? "Saving..." : "Save as my weekly hours"}
               </Text>
             </Pressable>
 

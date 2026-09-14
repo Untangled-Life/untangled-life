@@ -384,7 +384,7 @@ export default function WorkHours() {
         </View>
       </View>
 
-      <Text style={styles.savingNote}>{saving ? "Saving…" : "Changes save as you make them."}</Text>
+      <Text style={styles.savingNote}>{saving ? "Saving..." : "Changes save as you make them."}</Text>
     </ScrollView>
   );
 }

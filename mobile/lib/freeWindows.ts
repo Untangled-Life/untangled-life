@@ -18,6 +18,12 @@ import { WorkPattern, WorkShift, expandWorkHours, toDateKey } from "@/lib/workHo
 export type FreeWindowsResult = {
   windows: Interval[];
   prefs: FreeTimePrefs;
+  /**
+   * True when the busy-time read failed, so "no windows" means "could not
+   * check" rather than "nothing is free". Callers must not present an empty
+   * list as an answer when this is set.
+   */
+  unknown?: boolean;
   /** This person's own roster, which Home shows separately. */
   myPattern: WorkPattern | null;
   /**
@@ -72,14 +78,23 @@ export async function loadFreeWindows(
   // worth seeing "Alyssa - annual leave" on the shared calendar, but treating
   // it as twenty-four hours of busy would wipe out every window that day, and
   // being on leave is the opposite of being unavailable.
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("busy_blocks")
     .select("user_id, start_at, end_at")
     .eq("all_day", false)
     .lte("start_at", windowEnd.toISOString())
     .gte("end_at", now.toISOString());
 
-  const blocks = data ?? [];
+  // A failed read is not an empty diary, and the difference is the whole
+  // feature. Treating null as "no busy time" makes the app report a week of
+  // free evenings over real commitments, and then Book it writes an event on
+  // top of one. The version this replaced returned early for exactly this
+  // reason and the behaviour was lost moving the code.
+  if (error || !data) {
+    return { ...EMPTY, prefs, unknown: true };
+  }
+
+  const blocks = data;
 
   const toInterval = (b: { start_at: string; end_at: string }): Interval => ({
     start: new Date(b.start_at),

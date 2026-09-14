@@ -241,7 +241,7 @@ export default function Settings() {
         {leaving ? (
           <View style={styles.row}>
             <ActivityIndicator />
-            <Text style={styles.rowHint}>Working on it…</Text>
+            <Text style={styles.rowHint}>Working on it...</Text>
           </View>
         ) : (
           <>

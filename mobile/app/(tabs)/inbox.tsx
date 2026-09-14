@@ -10,7 +10,7 @@ import { useOnboarding } from "@/hooks/useOnboarding";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { supabase } from "@/lib/supabase";
-import { InboxItem, buildInbox } from "@/lib/inbox";
+import { buildInbox } from "@/lib/inbox";
 import { KeyDateRow } from "@/lib/keyDates";
 import { UpcomingPlan, loadUpcomingPlans } from "@/lib/plannedEvents";
 import { shouldNudge } from "@/lib/dateNudge";
@@ -146,7 +146,10 @@ export default function Inbox() {
     await load();
   }
 
-  if (!loaded && !session) {
+  // "Nothing waiting" is a claim, and claiming it before the data arrives is
+  // a lie the user reads first. `session` is always set behind the layout
+  // gate, so the original && made this branch dead.
+  if (!loaded || !session) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator />
@@ -298,7 +301,7 @@ const createStyles = (t: Theme) =>
     verdict: {
       borderRadius: t.radius.pill,
       backgroundColor: t.surfaceSunken,
-      paddingVertical: t.space(2),
+      paddingVertical: t.space(3),
       paddingHorizontal: t.space(4),
     },
     verdictText: { ...t.type.label, color: t.textSecondary },

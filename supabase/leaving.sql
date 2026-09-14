@@ -1,5 +1,9 @@
 -- Leaving a couple, and deleting an account.
 --
+-- ORDER MATTERS: run this AFTER feeling-valued.sql, date-history.sql and
+-- date-proposals.sql. It cleans up their rows on unpairing, so it cannot run
+-- before they exist.
+--
 -- Apple requires in-app account deletion, so this is a launch blocker rather
 -- than a nicety. Unpairing shares almost all of its logic, so both live here.
 --
@@ -106,6 +110,37 @@ begin
   -- here means unpairing behaves the same as deleting.
   delete from key_dates
     where couple_id = the_couple and subject_user_id = leaving_user;
+
+  -- The three tables added after this function was first written.
+  --
+  -- Account DELETION was always fine: every one of them cascades from
+  -- auth.users. Unpairing is not, because the couple row survives, and a row
+  -- left behind with the old couple_id stays readable by whoever is still in
+  -- that couple. Worse, couples are reused: B invites D into the same couple,
+  -- and the app's "what your partner said" query then matches TWO rows, so B
+  -- can be shown their EX's most private answer under the heading "What D
+  -- said".
+  --
+  -- Deleted rather than reassigned, because none of it means anything
+  -- detached from the person who wrote it. "What makes me feel valued" is not
+  -- transferable, and a verdict on a date is an opinion rather than a record
+  -- of it.
+  delete from valued_answers
+    where user_id = leaving_user and couple_id = the_couple;
+
+  delete from date_reviews
+    where user_id = leaving_user and couple_id = the_couple;
+
+  -- Withdrawn rather than deleted: the partner may be looking at it right
+  -- now, and a row that vanishes mid-read is worse than one that says it was
+  -- withdrawn. Either way it stops being answerable, which is the point --
+  -- otherwise answer_date_proposal() would cheerfully create a real event in
+  -- both diaries on behalf of somebody who has gone.
+  update date_proposals
+    set status = 'withdrawn', answered_at = now()
+    where couple_id = the_couple
+      and proposed_by = leaving_user
+      and status = 'open';
 
   return remaining;
 end;

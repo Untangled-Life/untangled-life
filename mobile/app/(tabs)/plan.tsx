@@ -6,7 +6,7 @@ import { ScreenHeader } from "@/components/screen";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
-import { useThemedStyles, useTheme } from "@/contexts/theme";
+import { useThemedStyles } from "@/contexts/theme";
 import { succeeded, tapped, warned } from "@/lib/haptics";
 import { Interval, formatWindow } from "@/lib/freeTime";
 import { CATEGORIES, DateIdea, IdeaCategory, IDEAS, filterIdeas, spreadOptions } from "@/lib/dateIdeas";
@@ -35,7 +35,6 @@ import { Theme } from "@/theme/tokens";
  */
 export default function Plan() {
   const styles = useThemedStyles(createStyles);
-  const t = useTheme();
   const { session, profile } = useAuth();
   const { partner } = useCoupleMembers();
 
@@ -87,7 +86,11 @@ export default function Plan() {
         // No windows at all is not a reason to show nothing: they can still
         // propose times, and an empty screen would suggest the app has run
         // out of ideas rather than out of gaps.
-        maxMinutes: longest > 0 ? Math.max(longest, 120) : undefined,
+        // The real longest gap, with no floor under it. Raising a 45-minute
+        // window to 120 offered two-hour ideas under a heading promising
+        // everything fits, and tapping one then hit "no gap long enough" --
+        // the app arguing with itself.
+        maxMinutes: longest > 0 ? longest : undefined,
       }),
     [chosen, longest]
   );
@@ -110,9 +113,16 @@ export default function Plan() {
   async function propose(idea: DateIdea) {
     if (!session?.user.id || !profile?.couple_id || busy) return;
 
+    // Trimmed to what the idea actually wants. The free window is where it
+    // COULD go, not how long it takes: proposing the whole of a Saturday
+    // 10am to 6pm gap for a one-hour coffee books an eight-hour coffee in
+    // both diaries the moment they accept.
     const options = spreadOptions(
       windows.filter((w) => (w.end.getTime() - w.start.getTime()) / 60000 >= idea.minutes)
-    );
+    ).map((w) => ({
+      start: w.start,
+      end: new Date(w.start.getTime() + idea.minutes * 60 * 1000),
+    }));
 
     if (options.length === 0) {
       warned();
@@ -158,6 +168,18 @@ export default function Plan() {
             : "Nothing here needs a free window to suggest. Book one and pick your own time."
         }
       />
+
+      {windows.length > 0 ? (
+        <View style={styles.gaps}>
+          <Text style={styles.gapsLabel}>Gaps you both have</Text>
+          <Text style={styles.gapsList}>
+            {windows
+              .slice(0, 3)
+              .map((w) => formatWindow(w))
+              .join("\n")}
+          </Text>
+        </View>
+      ) : null}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
         {CATEGORIES.map((c) => {
@@ -229,7 +251,7 @@ export default function Plan() {
                   disabled={busy === idea.id}
                 >
                   <Text style={styles.secondaryText}>
-                    {busy === idea.id ? "Sending…" : `Ask ${partnerName.split(" ")[0]}`}
+                    {busy === idea.id ? "Sending..." : `Ask ${partnerName.split(" ")[0]}`}
                   </Text>
                 </Pressable>
               </View>
@@ -266,10 +288,18 @@ const createStyles = (t: Theme) =>
       paddingTop: t.space(16),
       paddingBottom: t.space(12),
     },
+    gaps: {
+      backgroundColor: t.surfaceSunken,
+      borderRadius: t.radius.lg,
+      padding: t.space(4),
+      marginBottom: t.space(4),
+    },
+    gapsLabel: { ...t.type.eyebrow, color: t.textMuted, marginBottom: t.space(2) },
+    gapsList: { ...t.type.body, color: t.textPrimary },
     chipScroll: { marginHorizontal: -t.space(1), marginBottom: t.space(5) },
     chip: {
       paddingHorizontal: t.space(4),
-      paddingVertical: t.space(2),
+      paddingVertical: t.space(3),
       borderRadius: t.radius.pill,
       backgroundColor: t.surfaceSunken,
       marginHorizontal: t.space(1),
