@@ -135,13 +135,14 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
     return result;
   }
 
-  const { data: events } = await supabase
-    .from("planned_events")
-    .select(EVENT_COLUMNS)
-    .gte("end_at", new Date().toISOString());
-
-  if (!events) return result;
-
+  // The link rows come first, and they drive removal.
+  //
+  // Reading only future events and looping over those means a copy on this
+  // phone can never be removed once its event falls outside that window --
+  // and an event EDITED backwards out of the window is exactly the case where
+  // the phone's copy is now wrong. Cancel a past event, or move next Friday's
+  // dinner to yesterday, and the stale entry sits in the calendar forever with
+  // nothing left that can reach it.
   const { data: links } = await supabase
     .from("planned_event_calendar_links")
     .select("planned_event_id, device_event_id")
@@ -151,9 +152,50 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
     (links ?? []).map((l) => [l.planned_event_id as string, l.device_event_id as string])
   );
 
+  // Anything linked is fetched regardless of when it is, alongside everything
+  // upcoming. The union is what makes removal reachable.
+  const linkedIds = [...linkFor.keys()];
+
+  const [upcomingRes, linkedRes] = await Promise.all([
+    supabase.from("planned_events").select(EVENT_COLUMNS).gte("end_at", new Date().toISOString()),
+    linkedIds.length > 0
+      ? supabase.from("planned_events").select(EVENT_COLUMNS).in("id", linkedIds)
+      : Promise.resolve({ data: [] as PlannedEvent[] }),
+  ]);
+
+  if (!upcomingRes.data) return result;
+
+  const byId = new Map<string, PlannedEvent>();
+  for (const ev of [
+    ...((upcomingRes.data as PlannedEvent[]) ?? []),
+    ...((linkedRes.data as PlannedEvent[]) ?? []),
+  ]) {
+    byId.set(ev.id, ev);
+  }
+
+  const events = [...byId.values()];
+
+  // A link whose event has been deleted outright rather than cancelled. The
+  // row can't tell us to remove anything any more, so the link is all we have.
+  for (const [eventId, deviceEventId] of linkFor) {
+    if (byId.has(eventId)) continue;
+
+    try {
+      await Calendar.deleteEventAsync(deviceEventId);
+    } catch {
+      // Already gone from the phone; dropping the link is still right.
+    }
+    await supabase
+      .from("planned_event_calendar_links")
+      .delete()
+      .eq("planned_event_id", eventId)
+      .eq("user_id", userId);
+    result.removed += 1;
+  }
+
   let writableCalendarId: string | null = null;
 
-  for (const ev of events as PlannedEvent[]) {
+  for (const ev of events) {
     const existing = linkFor.get(ev.id);
 
     // Whether THIS phone should be carrying it. push_to is a list of user ids
@@ -198,13 +240,26 @@ export async function syncPlannedEventsToDevice(userId: string): Promise<PlanSyn
           notes: ev.notes ?? undefined,
         });
       } catch {
-        // Deleted by hand on the phone, or its calendar removed. Drop the link
-        // so the next sync puts it back rather than believing it's still there.
-        await supabase
-          .from("planned_event_calendar_links")
-          .delete()
-          .eq("planned_event_id", ev.id)
-          .eq("user_id", userId);
+        // An update can fail because the event was deleted by hand -- or
+        // because its calendar is momentarily unavailable, read-only, or the
+        // native call simply errored. Dropping the link on any of those
+        // creates a SECOND copy on the next sync, and the first one is then
+        // untracked and can never be removed by the app. So confirm it is
+        // actually gone before letting go of it.
+        let stillThere = false;
+        try {
+          stillThere = Boolean(await Calendar.getEventAsync(existing));
+        } catch {
+          stillThere = false;
+        }
+
+        if (!stillThere) {
+          await supabase
+            .from("planned_event_calendar_links")
+            .delete()
+            .eq("planned_event_id", ev.id)
+            .eq("user_id", userId);
+        }
       }
       continue;
     }

@@ -161,11 +161,15 @@ function SwipeRow({
 
   const row = (
     <View style={styles.entryRow}>
+      {/* The bar carries the owner's colour; the row keeps its kind. Tinting
+          the background as well made a synced busy block, a work shift and an
+          editable event owned by the same person pixel-identical -- and only
+          one of the three does anything when you tap it. */}
       <View
         style={[
           styles.entryBar,
           styles[`bar_${entry.kind}` as const],
-          tint ? { backgroundColor: tint.chip } : null,
+          tint ? { backgroundColor: tint.ink } : null,
         ]}
       />
       {/* Only rows that belong to one person get a face. A shared date or a
@@ -222,6 +226,9 @@ export default function CalendarScreen() {
   const { me, partner } = useCoupleMembers();
   const { avatarUrlFor } = useCouplePhotos();
   const partnerColors = usePartnerColors();
+
+  const myTint = shadeFor(partnerColors.mine, t.scheme);
+  const partnerTint = partnerColors.theirs ? shadeFor(partnerColors.theirs, t.scheme) : null;
 
   const tintFor = useCallback(
     (ownerUserId: string | null) => {
@@ -555,16 +562,22 @@ export default function CalendarScreen() {
           const isSelected = key === selected;
           const isToday = key === todayKey;
 
-          // One dot per distinct colour-and-kind, so a day with your event
-          // and theirs shows two dots rather than one.
-          const dotKinds = [...new Set(entries.map((e) => e.kind))];
-          const ownerTints = [
+          // Two kinds of dot, and they must not describe the same thing
+          // twice. Anything belonging to one person gets that person's dot;
+          // anything belonging to both of you gets its kind's dot. Keyed by
+          // user id rather than by colour, because two partners CAN end up the
+          // same colour and duplicate React keys drop a dot at random.
+          const owners = [
             ...new Map(
               entries
                 .filter((e) => e.whose)
                 .map((e) => [e.whose as string, tintFor(e.whose)] as const)
-            ).values(),
-          ].filter((tint): tint is NonNullable<typeof tint> => tint !== null);
+            ).entries(),
+          ].filter((pair): pair is [string, NonNullable<ReturnType<typeof tintFor>>] =>
+            pair[1] !== null
+          );
+
+          const sharedKinds = [...new Set(entries.filter((e) => !e.whose).map((e) => e.kind))];
 
           return (
             <Pressable
@@ -590,15 +603,14 @@ export default function CalendarScreen() {
                 {cell.getDate()}
               </Text>
               <View style={styles.dotRow}>
-                {ownerTints.slice(0, 2).map((tint) => (
-                  <View key={tint.chip} style={[styles.dot, { backgroundColor: tint.chip }]} />
+                {owners.slice(0, 2).map(([userId, tint]) => (
+                  // ink, not chip: a 5px dot in a pastel is invisible against
+                  // the page -- the pale yellows sit at about 1.3:1.
+                  <View key={userId} style={[styles.dot, { backgroundColor: tint.ink }]} />
                 ))}
-                {dotKinds
-                  .filter((k) => k === "plan" || k === "keydate")
-                  .slice(0, 2)
-                  .map((k) => (
-                    <View key={k} style={[styles.dot, styles[`dot_${k}` as const]]} />
-                  ))}
+                {sharedKinds.slice(0, 2).map((k) => (
+                  <View key={k} style={[styles.dot, styles[`dot_${k}` as const]]} />
+                ))}
               </View>
             </Pressable>
           );
@@ -607,20 +619,22 @@ export default function CalendarScreen() {
 
       <View style={styles.legend}>
         <View style={styles.legendItem}>
+          <View style={[styles.dot, { backgroundColor: myTint.ink }]} />
+          <Text style={styles.legendText}>{me.display_name ?? "You"}</Text>
+        </View>
+        {partnerTint ? (
+          <View style={styles.legendItem}>
+            <View style={[styles.dot, { backgroundColor: partnerTint.ink }]} />
+            <Text style={styles.legendText}>{partnerName}</Text>
+          </View>
+        ) : null}
+        <View style={styles.legendItem}>
           <View style={[styles.dot, styles.dot_plan]} />
-          <Text style={styles.legendText}>Date</Text>
+          <Text style={styles.legendText}>Both of you</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.dot, styles.dot_keydate]} />
           <Text style={styles.legendText}>Key date</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, styles.dot_work]} />
-          <Text style={styles.legendText}>Work</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, styles.dot_busy]} />
-          <Text style={styles.legendText}>Busy</Text>
         </View>
       </View>
 

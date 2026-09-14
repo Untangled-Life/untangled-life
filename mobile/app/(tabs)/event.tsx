@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -64,19 +64,70 @@ export default function EventEditor() {
   const [notes, setNotes] = useState("");
   const [location, setLocation] = useState("");
 
-  const [startDate, setStartDate] = useState(() => params.date ?? toISODate(new Date()));
-  const [startTime, setStartTime] = useState(() => params.start ?? "09:00");
-  const [endDate, setEndDate] = useState(() => params.date ?? toISODate(new Date()));
-  const [endTime, setEndTime] = useState(() => {
-    const at = fromTimeString(params.start ?? "09:00");
-    at.setHours(at.getHours() + 1);
-    return toTimeString(at);
-  });
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("09:00");
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("10:00");
 
   // Null is "Us". Storing the id rather than a label means a rename doesn't
   // orphan the event, and the colour follows the person.
   const [owner, setOwner] = useState<string | null>(null);
   const [pushTo, setPushTo] = useState<string[]>([]);
+
+  /**
+   * An hour after the start -- rolling the DATE forward when that crosses
+   * midnight.
+   *
+   * slotAt clamps to 23:30, so tapping the bottom of the day grid opens this
+   * screen at 23:30. Adding an hour to the time alone gave 00:30 on the same
+   * date, which save() then refuses as ending before it starts -- every tap in
+   * the last hour of the day was unsaveable, and the alert pointed at the
+   * times rather than the date that was actually wrong.
+   */
+  function defaultEnd(date: string, time: string): { date: string; time: string } {
+    const at = fromTimeString(time);
+    const rolled = at.getHours() + 1 >= 24;
+    at.setHours(at.getHours() + 1);
+
+    if (!rolled) return { date, time: toTimeString(at) };
+
+    const nextDay = fromISODate(date) ?? new Date();
+    nextDay.setDate(nextDay.getDate() + 1);
+    return { date: toISODate(nextDay), time: toTimeString(at) };
+  }
+
+  /**
+   * This screen is a hidden TAB route, so it stays mounted between visits:
+   * pushing to it with new params never re-runs a useState initialiser.
+   * Without this, tapping 2pm on the grid after cancelling out of a 10am draft
+   * reopens the 10am draft, title and all -- and saves an event at a time
+   * nobody chose.
+   */
+  const routeKey = `${params.id ?? ""}|${params.date ?? ""}|${params.start ?? ""}`;
+  useEffect(() => {
+    if (editingId) {
+      setLoaded(false);
+      return;
+    }
+
+    const date = params.date ?? toISODate(new Date());
+    const time = params.start ?? "09:00";
+    const end = defaultEnd(date, time);
+
+    setTitle("");
+    setNotes("");
+    setLocation("");
+    setStartDate(date);
+    setStartTime(time);
+    setEndDate(end.date);
+    setEndTime(end.time);
+    setOwner(null);
+    setPushTo([]);
+    setLoaded(true);
+    // routeKey collapses the params this depends on into one value, so the
+    // draft is reset exactly when a new event is started.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey, editingId]);
 
   const load = useCallback(async () => {
     if (!editingId) return;
@@ -278,7 +329,20 @@ export default function EventEditor() {
           }}
         />
         <View style={{ marginTop: 8 }}>
-          <TimeField value={startTime} onChange={setStartTime} />
+          <TimeField
+            value={startTime}
+            onChange={(time) => {
+              setStartTime(time);
+              // Moving the start past the end is the common way to end up with
+              // a rejected save. Carry the end along unless it's been set
+              // somewhere clearly deliberate.
+              if (endDate === startDate && endTime <= time) {
+                const end = defaultEnd(startDate, time);
+                setEndDate(end.date);
+                setEndTime(end.time);
+              }
+            }}
+          />
         </View>
       </View>
 

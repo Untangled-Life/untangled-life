@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -76,6 +76,19 @@ export default function DayView() {
   const [day, setDay] = useState<Date>(
     () => (params.date ? fromISODate(params.date) : null) ?? startOfDay(new Date())
   );
+
+  // This screen is a hidden TAB route, so it stays mounted: pushing to it with
+  // a different date updates the params but never re-runs the useState
+  // initialiser. Without this, opening 20 September from the month grid shows
+  // whatever day you were last looking at.
+  //
+  // Keyed on the param string rather than `day`, so arrowing to another day
+  // isn't immediately undone by the param that got you here.
+  const routeDate = params.date;
+  useEffect(() => {
+    const fromRoute = routeDate ? fromISODate(routeDate) : null;
+    if (fromRoute) setDay(startOfDay(fromRoute));
+  }, [routeDate]);
 
   const [events, setEvents] = useState<PlannedEvent[]>([]);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
@@ -167,6 +180,14 @@ export default function DayView() {
 
   const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
+  // useRefreshOnFocus only fires on focus and pull-to-refresh. The ‹ › arrows
+  // change `day` while the screen stays focused, so without this the grid
+  // shows the day you arrived on -- and once you're two days out, the query
+  // window doesn't even cover it and the day renders empty.
+  useEffect(() => {
+    load();
+  }, [load]);
+
   const { timed, allDay } = useMemo(() => {
     const timed: Entry[] = [];
     const allDay: AllDayEntry[] = [];
@@ -226,7 +247,15 @@ export default function DayView() {
     dayEnd.setHours(23, 59, 59, 999);
 
     for (const kd of keyDates) {
-      const occurrence = nextOccurrence(kd.date, kd.recurring);
+      // nextOccurrence looks FORWARD, which is right on Home and wrong here:
+      // the day view goes backwards, and last month's anniversary would
+      // resolve to next year's and show on neither day. A recurring date is
+      // placed in the year being looked at; a one-off stays where it is.
+      const stored = new Date(kd.date + "T00:00:00");
+      const occurrence = kd.recurring
+        ? new Date(day.getFullYear(), stored.getMonth(), stored.getDate())
+        : nextOccurrence(kd.date, false);
+
       const span = { start: occurrence, end: occurrence };
       if (tripNights(kd) > 0) {
         const last = new Date(occurrence);
@@ -251,8 +280,17 @@ export default function DayView() {
     [day, timed]
   );
 
-  const isToday = toDateKey(day) === toDateKey(new Date());
-  const nowOffset = isToday ? offsetFor(day, new Date()) : null;
+  // Ticks so the now-line moves and "Today" stops being today at midnight.
+  // Computing these in the render body alone freezes them until some other
+  // state happens to change.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const isToday = toDateKey(day) === toDateKey(now);
+  const nowOffset = isToday ? offsetFor(day, now) : null;
 
   // Open the grid near the working day rather than at midnight, which is eight
   // hours of empty rows before anything a person cares about.
@@ -334,7 +372,12 @@ export default function DayView() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
         }
-        onLayout={() => {
+        // onContentSizeChange, not onLayout: onLayout fires when the scroll
+        // VIEW is laid out, which can precede its content being measured, and
+        // a scrollTo past the current content size is clamped to zero -- so
+        // the grid opened at midnight, the exact thing this avoids, and never
+        // retried.
+        onContentSizeChange={() => {
           if (scrolledOnce) return;
           setScrolledOnce(true);
           scrollRef.current?.scrollTo({
@@ -355,6 +398,12 @@ export default function DayView() {
               time and tapping a block still opens the block. */}
           <Pressable style={styles.tapLayer} onPress={addAt} />
 
+          {/* The blocks live in their own track, inset past the hour labels.
+              A percentage width resolves against the CONTAINING BLOCK, so
+              putting them straight in the grid with a marginLeft made every
+              one of them a full screen-width wide starting 58px in -- their
+              right-hand side cut off by the edge of the screen. */}
+          <View style={styles.blockTrack} pointerEvents="box-none">
           {placed.map((p: Placed<Entry>) => {
             const entry = p.item;
             const shade = shadeFor_(entry);
@@ -363,6 +412,13 @@ export default function DayView() {
               <Pressable
                 key={entry.key}
                 disabled={!entry.eventId}
+                // A disabled Pressable still wins the hit test and then
+                // declines it -- and React Native walks ancestors, never back
+                // to an earlier sibling, so the tap is swallowed rather than
+                // reaching the add-an-event layer underneath. On a day with an
+                // eight-hour work block that made the whole working day
+                // untappable, which reads as the feature being broken.
+                pointerEvents={entry.eventId ? "auto" : "none"}
                 onPress={() =>
                   entry.eventId &&
                   router.push({ pathname: "/event", params: { id: entry.eventId } })
@@ -370,7 +426,15 @@ export default function DayView() {
                 style={[
                   styles.block,
                   styles[`block_${entry.kind}` as const],
-                  shade ? { backgroundColor: shade.fill, borderLeftColor: shade.chip } : null,
+                  // Only an event you can edit takes the owner's fill. Busy
+                  // time and work hours keep their own muted background and
+                  // just carry the colour on the bar -- otherwise all three
+                  // look identical and only one of them responds to a tap.
+                  shade
+                    ? entry.kind === "event"
+                      ? { backgroundColor: shade.fill, borderLeftColor: shade.ink }
+                      : { borderLeftColor: shade.ink }
+                    : null,
                   // Overlapping blocks share the width. The gutter is a fixed
                   // margin, so the percentages are of the track beside it.
                   {
@@ -382,14 +446,20 @@ export default function DayView() {
                 ]}
               >
                 <Text
-                  style={[styles.blockLabel, shade ? { color: shade.ink } : null]}
+                  style={[
+                    styles.blockLabel,
+                    shade && entry.kind === "event" ? { color: shade.ink } : null,
+                  ]}
                   numberOfLines={p.height > 40 ? 2 : 1}
                 >
                   {entry.label}
                 </Text>
                 {p.height > 40 ? (
                   <Text
-                    style={[styles.blockTime, shade ? { color: shade.ink } : null]}
+                    style={[
+                      styles.blockTime,
+                      shade && entry.kind === "event" ? { color: shade.ink } : null,
+                    ]}
                     numberOfLines={1}
                   >
                     {p.startsEarlier ? "from earlier" : timeLabel(entry.start)}
@@ -400,6 +470,7 @@ export default function DayView() {
               </Pressable>
             );
           })}
+          </View>
 
           {nowOffset !== null ? (
             <View style={[styles.nowLine, { top: nowOffset }]} pointerEvents="none">
@@ -473,9 +544,9 @@ const createStyles = (t: Theme) =>
     },
     hourLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: t.border },
     tapLayer: { position: "absolute", left: GUTTER, right: 0, top: 0, height: GRID_HEIGHT },
+    blockTrack: { position: "absolute", left: GUTTER, right: 0, top: 0, height: GRID_HEIGHT },
     block: {
       position: "absolute",
-      marginLeft: GUTTER,
       borderRadius: t.radius.sm,
       borderLeftWidth: 3,
       paddingHorizontal: 8,

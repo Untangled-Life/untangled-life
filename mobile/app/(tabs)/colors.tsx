@@ -30,6 +30,22 @@ export default function Colors() {
   // the kind of thing that starts an argument about the app.
   const theirs = colors.theirs;
 
+  // The swatch showing your partner's name reads as "not available", and then
+  // tapping it silently made you both the same colour -- which defeats the
+  // entire feature and leaves the calendar unreadable. Ask rather than
+  // forbid: there may be a reason, and a hard block on a tappable-looking
+  // control is its own kind of confusing.
+  function confirmTaken(name: string) {
+    Alert.alert(
+      `That's ${partnerName}'s colour`,
+      "You'd both be the same colour everywhere, and you wouldn't be able to tell whose anything is.",
+      [
+        { text: "Pick another", style: "cancel" },
+        { text: "Use it anyway", style: "destructive", onPress: () => pick(name) },
+      ]
+    );
+  }
+
   async function pick(name: string) {
     if (!session?.user.id || saving) return;
     tapped();
@@ -110,7 +126,7 @@ export default function Colors() {
           return (
             <Pressable
               key={color.name}
-              onPress={() => pick(color.name)}
+              onPress={() => (taken ? confirmTaken(color.name) : pick(color.name))}
               style={press(styles.swatchWrap)}
               accessibilityRole="button"
               accessibilityLabel={taken ? `${color.label}, ${partnerName}'s colour` : color.label}
@@ -123,7 +139,11 @@ export default function Colors() {
                   active ? { borderColor: t.textPrimary } : null,
                 ]}
               >
-                {active ? <Text style={styles.tick}>✓</Text> : null}
+                {/* The tick is drawn in the colour's own ink, not white: white
+                    on a pastel swatch fails contrast on all 24 in light mode
+                    and on 13 of them in dark, so the only thing marking your
+                    choice was the border ring. */}
+                {active ? <Text style={[styles.tick, { color: shade.ink }]}>✓</Text> : null}
               </View>
               <Text style={[styles.swatchLabel, active ? styles.swatchLabelOn : null]}>
                 {taken ? partnerName.split(" ")[0] : color.label}
@@ -173,7 +193,7 @@ const createStyles = (t: Theme) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    tick: { color: "#FFFFFF", fontSize: 18, fontWeight: "700" },
+    tick: { fontSize: 18, fontWeight: "700" },
     swatchLabel: { fontSize: 10, color: t.textMuted, marginTop: 5, textAlign: "center" },
     swatchLabelOn: { color: t.textPrimary, fontWeight: "700" },
     footnote: { fontSize: 12, lineHeight: 18, color: t.textMuted, marginTop: t.space(6) },

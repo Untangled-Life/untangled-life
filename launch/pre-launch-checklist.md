@@ -223,6 +223,37 @@ committed; none has been seen working on a phone.
       with their name so you don't pick the same one.
 - [ ] **Editing and deleting an event**, including one the partner created.
 
+## Calendar review fixes (14 Sep) — all untested on a device
+
+A second pair of reviews on the calendar diff found twelve more. The ones
+worth checking by hand:
+
+- [ ] **Event blocks used to overflow the screen by 58px.** A percentage width
+      resolves against the containing block, and the gutter was a margin on top
+      of it. Check block right edges line up, especially two side by side.
+- [ ] **The day view is a hidden tab route, so it never unmounted.** Opening a
+      different day showed the previous one. Same for the editor: tapping 2pm
+      after cancelling a 10am draft reopened the 10am draft. Check both.
+- [ ] **The ‹ › arrows didn't reload.** Two days out and the grid was empty.
+- [ ] **Tapping a work or busy block did nothing at all** — a disabled
+      Pressable wins the hit test and then swallows the tap. On a day with an
+      eight-hour shift the whole working day was untappable.
+- [ ] **The last hour of the day couldn't be saved.** 23:30 + 1 hour stayed on
+      the same date, so every save was refused. Tap the bottom of the grid.
+- [ ] **Daylight saving.** Offsets were measured in elapsed time while the rows
+      were drawn in wall-clock. AU has no transition until October, so this
+      won't show in testing — the suite now runs in a DST timezone instead.
+- [ ] **Cancelling a past event, or editing one backwards, left it on the
+      phone forever.** The sync now reconciles from the link rows, not just
+      from a future-events query. Test: book something, move it to yesterday,
+      check the phone calendar follows.
+- [ ] **Unpairing left every shared event in your phone calendar** with nothing
+      able to remove them. Now cleared before leaving.
+- [ ] **The colour tick was invisible on all 24 swatches in light mode** (white
+      on pastel). Month dots had the same problem.
+- [ ] **Tapping your partner's colour silently made you both the same.** Now
+      asks first.
+
 ## Known rough edges
 
 - Everything is verified on two iPhones only, with one couple, on one Supabase

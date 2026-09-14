@@ -47,6 +47,9 @@
     },
     "testMatch": [
       "<rootDir>/__tests__/**/*.test.ts"
+    ],
+    "setupFiles": [
+      "<rootDir>/jest.setup.js"
     ]
   }
 }

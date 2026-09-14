@@ -4,10 +4,15 @@ import type { Scheme } from "@/theme/tokens";
  * The 24 partner colours.
  *
  * Each carries three values per scheme rather than one hex, because a pastel
- * is only pastel on a white ground. `fill` is the block on the calendar, `ink`
- * is text that stays readable on that fill, and `chip` is the solid dot in the
- * picker and beside a name -- a pastel dot on its own reads as washed out and
- * two adjacent ones become hard to tell apart.
+ * is only pastel on a white ground.
+ *
+ *   fill -- the block on the calendar.
+ *   ink  -- text on that fill, and any small mark drawn on the PAGE: a
+ *           calendar dot, a tick. It is the only one of the three with enough
+ *           contrast to be seen at that size. `chip` looks right in a swatch
+ *           and disappears as a 5px dot -- the pale yellows and greens sit at
+ *           about 1.3:1 against a light background.
+ *   chip -- a 44px swatch in the picker, and the bar down the side of a block.
  *
  * Hues are evenly spread so that any two colours a couple happens to pick are
  * distinguishable, and the dark values are the same hue at lower lightness

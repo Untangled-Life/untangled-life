@@ -42,8 +42,9 @@ export default function Settings() {
           text: "Unpair",
           style: "destructive",
           onPress: async () => {
+            if (!session?.user.id) return;
             setLeaving(true);
-            const { error } = await leaveCouple();
+            const { error } = await leaveCouple(session.user.id);
             if (error) {
               setLeaving(false);
               warned();
@@ -80,8 +81,9 @@ export default function Settings() {
                 text: "Delete",
                 style: "destructive",
                 onPress: async () => {
+                  if (!session?.user.id) return;
                   setLeaving(true);
-                  const { error } = await deleteOwnAccount();
+                  const { error } = await deleteOwnAccount(session.user.id);
                   if (error) {
                     setLeaving(false);
                     warned();

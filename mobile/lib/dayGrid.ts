@@ -35,11 +35,26 @@ function startOfDay(day: Date): Date {
   return d;
 }
 
-/** Minutes from midnight, clamped to the day. */
+/**
+ * Minutes from midnight, clamped to the day -- measured on the CLOCK, not by
+ * elapsed time.
+ *
+ * These have to agree with the hour rows, which are drawn at `hour *
+ * HOUR_HEIGHT`, and with slotAt, which writes a time back with setMinutes.
+ * Both of those are wall-clock. Subtracting timestamps is elapsed time, and on
+ * the two days a year the clocks move the two disagree by an hour: every block
+ * after the transition draws against the wrong row, and on the autumn day
+ * everything from 11pm collapses onto the bottom edge with no height.
+ */
 function minutesInto(day: Date, at: Date): number {
-  const from = startOfDay(day).getTime();
-  const minutes = (at.getTime() - from) / 60000;
-  return Math.max(0, Math.min(DAY_HOURS * 60, minutes));
+  const dayStart = startOfDay(day);
+  if (at < dayStart) return 0;
+
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+  if (at >= dayEnd) return DAY_HOURS * 60;
+
+  return at.getHours() * 60 + at.getMinutes() + at.getSeconds() / 60;
 }
 
 export function offsetFor(day: Date, at: Date): number {

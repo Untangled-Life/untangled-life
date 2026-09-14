@@ -122,3 +122,62 @@ describe("hourLabel", () => {
     expect(hourLabel(21)).toBe("9 pm");
   });
 });
+
+// The grid draws its hour rows at `hour * HOUR_HEIGHT` and slotAt writes a
+// time back with setMinutes -- both wall-clock. Measuring offsets by elapsed
+// time instead puts every block an hour out of place on the two days a year
+// the clocks move, and on the autumn day collapses the late evening onto the
+// bottom edge with no height at all.
+describe("daylight saving", () => {
+  // The suite runs in America/New_York -- see jest.setup.js. Under a
+  // fixed-offset zone these three assertions hold whichever way the offsets
+  // are measured, so they would pass while protecting nothing.
+  const springForward = new Date(2026, 2, 8);
+  const fallBack = new Date(2026, 10, 1);
+
+  it("draws 10am on the 10am row the day the clocks go forward", () => {
+    const tenAm = new Date(2026, 2, 8, 10, 0, 0, 0);
+    expect(offsetFor(springForward, tenAm)).toBe(10 * HOUR_HEIGHT);
+  });
+
+  it("draws 11pm on the 11pm row the day the clocks go back", () => {
+    const elevenPm = new Date(2026, 10, 1, 23, 0, 0, 0);
+    expect(offsetFor(fallBack, elevenPm)).toBe(23 * HOUR_HEIGHT);
+  });
+
+  it("gives a late evening event its real height on a fall-back day", () => {
+    const [p] = placeOnDay(
+      fallBack,
+      [{ start: new Date(2026, 10, 1, 20), end: new Date(2026, 10, 1, 22) }],
+      (x) => x
+    );
+    expect(p.top).toBe(20 * HOUR_HEIGHT);
+    expect(p.height).toBe(2 * HOUR_HEIGHT);
+  });
+});
+
+describe("boundaries the main suite doesn't reach", () => {
+  it("does not mark an event ending exactly at the next midnight as running on", () => {
+    const [p] = placeOnDay(day, [iv(at(22), at(0, 0, 15))], id);
+    expect(p.endsLater).toBe(false);
+    expect(p.height).toBe(2 * HOUR_HEIGHT);
+  });
+
+  it("places a zero-length event without a negative height", () => {
+    const [p] = placeOnDay(day, [iv(at(9), at(9))], id);
+    expect(p.height).toBeGreaterThan(0);
+  });
+
+  it("pushes everything else aside for an all-day block", () => {
+    const placed = placeOnDay(day, [iv(at(0), at(0, 0, 15)), iv(at(9), at(10))], id);
+    expect(placed[1].column).toBe(1);
+    expect(placed[1].columns).toBe(2);
+  });
+
+  it("clamps a tap at the very bottom to the last slot of the same day", () => {
+    const slot = slotAt(day, 24 * HOUR_HEIGHT);
+    expect(slot.getDate()).toBe(14);
+    expect(slot.getHours()).toBe(23);
+    expect(slot.getMinutes()).toBe(30);
+  });
+});
