@@ -118,6 +118,7 @@ export default function TabsLayout() {
           keeps them inside the gated tab group without adding tab buttons. */}
       <Tabs.Screen name="calendar" options={{ href: null }} />
       <Tabs.Screen name="calendars" options={{ href: null }} />
+      <Tabs.Screen name="free-time" options={{ href: null }} />
       <Tabs.Screen name="work-hours" options={{ href: null }} />
       <Tabs.Screen name="menu" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />

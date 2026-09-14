@@ -1,4 +1,10 @@
-import { mergeIntervals, nextSharedFreeWindows, formatWindow } from "@/lib/freeTime";
+import {
+  mergeIntervals,
+  nextSharedFreeWindows,
+  formatWindow,
+  DEFAULT_FREE_TIME_PREFS,
+  FreeTimePrefs,
+} from "@/lib/freeTime";
 
 const at = (day: number, h: number, m = 0) => new Date(2026, 8, day, h, m, 0, 0);
 const iv = (day: number, h1: number, h2: number) => ({ start: at(day, h1), end: at(day, h2) });
@@ -104,7 +110,7 @@ describe("nextSharedFreeWindows", () => {
 
   it("caps how many windows it returns", () => {
     freeze(at(14, 6, 0));
-    expect(nextSharedFreeWindows([], [], 3)).toHaveLength(3);
+    expect(nextSharedFreeWindows([], [], DEFAULT_FREE_TIME_PREFS, 3)).toHaveLength(3);
   });
 
   it("reports a day fully blocked out as having no free time", () => {
@@ -112,6 +118,42 @@ describe("nextSharedFreeWindows", () => {
     const allDay = [{ start: at(14, 0), end: at(14, 23, 59) }];
     const today = nextSharedFreeWindows(allDay, []).filter((w) => w.start.getDate() === 14);
     expect(today).toHaveLength(0);
+  });
+
+  // The whole point of making these settings: a night-shift worker's free
+  // morning starts when the default window says the day has barely begun.
+  it("respects a custom day window", () => {
+    freeze(at(14, 3, 0));
+    const nights: FreeTimePrefs = { dayStartHour: 4, dayEndHour: 12, minFreeMinutes: 30 };
+    const [first] = nextSharedFreeWindows([], [], nights);
+    expect(first.start.getHours()).toBe(4);
+    expect(first.end.getHours()).toBe(12);
+  });
+
+  // An end hour of 24 has to mean midnight at the END of this day, not the
+  // start of it -- setHours(24) rolling over is what makes that work.
+  it("treats an end hour of 24 as midnight at the end of the day", () => {
+    freeze(at(14, 6, 0));
+    const lateNights: FreeTimePrefs = { dayStartHour: 7, dayEndHour: 24, minFreeMinutes: 30 };
+    const [first] = nextSharedFreeWindows([], [], lateNights);
+    expect(first.end.getDate()).toBe(15);
+    expect(first.end.getHours()).toBe(0);
+  });
+
+  it("respects a longer minimum", () => {
+    freeze(at(14, 6, 0));
+    // A clear 90-minute gap, and nothing else free all day.
+    const busy = [iv(14, 7, 12), { start: at(14, 13, 30), end: at(14, 23) }];
+    const twoHours: FreeTimePrefs = { dayStartHour: 7, dayEndHour: 23, minFreeMinutes: 120 };
+
+    expect(
+      nextSharedFreeWindows(busy, [], twoHours).filter((w) => w.start.getDate() === 14)
+    ).toHaveLength(0);
+    expect(
+      nextSharedFreeWindows(busy, [], DEFAULT_FREE_TIME_PREFS).filter(
+        (w) => w.start.getDate() === 14
+      )
+    ).toHaveLength(1);
   });
 });
 

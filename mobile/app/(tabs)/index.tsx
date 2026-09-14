@@ -28,7 +28,13 @@ import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
 import { syncBusyBlocks } from "@/lib/calendarSync";
 import { listCalendars } from "@/lib/calendarPrefs";
-import { Interval, nextSharedFreeWindows, formatWindow } from "@/lib/freeTime";
+import {
+  Interval,
+  nextSharedFreeWindows,
+  formatWindow,
+  FreeTimePrefs,
+  DEFAULT_FREE_TIME_PREFS,
+} from "@/lib/freeTime";
 import { WorkPattern, WorkShift, expandWorkHours, toDateKey, describePattern } from "@/lib/workHours";
 import {
   PlannedEvent,
@@ -96,6 +102,26 @@ export default function Home() {
     // seeing "Alyssa - annual leave" on the shared calendar) but treating it
     // as 24 hours of busy would wipe out every free window on that day, and
     // being on leave is the opposite of being unavailable.
+    // What counts as a free window is a per-couple setting now, not a constant.
+    // Read it alongside the busy blocks rather than in its own effect, so the
+    // windows are never computed once with the defaults and again with the
+    // real values -- which shows as the list visibly changing under you.
+    const prefsRes = await supabase
+      .from("couples")
+      .select("day_start_hour, day_end_hour, min_free_minutes")
+      .eq("id", profile?.couple_id ?? "")
+      .maybeSingle();
+
+    const prefs: FreeTimePrefs = prefsRes.data
+      ? {
+          dayStartHour:
+            (prefsRes.data.day_start_hour as number) ?? DEFAULT_FREE_TIME_PREFS.dayStartHour,
+          dayEndHour: (prefsRes.data.day_end_hour as number) ?? DEFAULT_FREE_TIME_PREFS.dayEndHour,
+          minFreeMinutes:
+            (prefsRes.data.min_free_minutes as number) ?? DEFAULT_FREE_TIME_PREFS.minFreeMinutes,
+        }
+      : DEFAULT_FREE_TIME_PREFS;
+
     const { data } = await supabase
       .from("busy_blocks")
       .select("user_id, start_at, end_at")
@@ -147,8 +173,10 @@ export default function Home() {
     }
 
     setMyPattern(patterns.find((p) => p.user_id === session.user.id) ?? null);
-    setFreeWindows(nextSharedFreeWindows([...mine, ...myWork], [...theirs, ...theirWork]));
-  }, [session?.user.id]);
+    setFreeWindows(
+      nextSharedFreeWindows([...mine, ...myWork], [...theirs, ...theirWork], prefs)
+    );
+  }, [session?.user.id, profile?.couple_id]);
 
   const syncAndLoad = useCallback(async () => {
     if (!profile?.couple_id || !session?.user.id) return;
@@ -523,9 +551,14 @@ export default function Home() {
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Free together</Text>
-        <Link href="/work-hours" style={styles.sectionAction}>
-          Your hours
-        </Link>
+        <View style={styles.sectionActions}>
+          <Link href="/work-hours" style={styles.sectionAction}>
+            Your hours
+          </Link>
+          <Link href="/free-time" style={styles.sectionAction}>
+            Settings
+          </Link>
+        </View>
       </View>
 
       {permission !== PermissionStatus.GRANTED ? (
@@ -724,6 +757,7 @@ const createStyles = (t: Theme) =>
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   sectionTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary },
   sectionAction: { fontSize: 14, color: t.accent, fontWeight: "600" },
+  sectionActions: { flexDirection: "row", gap: t.space(4) },
   emptyCard: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 20, marginBottom: 24 },
   emptyText: { fontSize: 13, color: t.textSecondary, lineHeight: 18 },
   keyDateCard: {

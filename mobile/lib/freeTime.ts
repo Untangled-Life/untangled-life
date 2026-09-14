@@ -1,9 +1,26 @@
 export type Interval = { start: Date; end: Date };
 
-const MIN_FREE_MINUTES = 30;
-const DAY_START_HOUR = 7;
-const DAY_END_HOUR = 23;
 const LOOKAHEAD_DAYS = 7;
+
+/**
+ * What counts as time you're free.
+ *
+ * These used to be constants, which meant the app assumed office hours for
+ * everybody -- including the shift workers it's most useful to. Someone
+ * finishing nights at 7am shouldn't lose their one free morning to a hard-coded
+ * number.
+ */
+export type FreeTimePrefs = {
+  dayStartHour: number;
+  dayEndHour: number;
+  minFreeMinutes: number;
+};
+
+export const DEFAULT_FREE_TIME_PREFS: FreeTimePrefs = {
+  dayStartHour: 7,
+  dayEndHour: 23,
+  minFreeMinutes: 30,
+};
 
 export function mergeIntervals(intervals: Interval[]): Interval[] {
   if (intervals.length === 0) return [];
@@ -22,11 +39,14 @@ export function mergeIntervals(intervals: Interval[]): Interval[] {
   return merged;
 }
 
-function freeWindowsForDay(day: Date, busy: Interval[]): Interval[] {
+function freeWindowsForDay(day: Date, busy: Interval[], prefs: FreeTimePrefs): Interval[] {
   const dayStart = new Date(day);
-  dayStart.setHours(DAY_START_HOUR, 0, 0, 0);
+  dayStart.setHours(prefs.dayStartHour, 0, 0, 0);
+
+  // setHours(24) rolls into the next day, which is exactly right for an end of
+  // midnight -- the window runs to the end of this day, not to its start.
   const dayEnd = new Date(day);
-  dayEnd.setHours(DAY_END_HOUR, 0, 0, 0);
+  dayEnd.setHours(prefs.dayEndHour, 0, 0, 0);
 
   const relevant = mergeIntervals(
     busy
@@ -45,7 +65,7 @@ function freeWindowsForDay(day: Date, busy: Interval[]): Interval[] {
   }
   if (cursor < dayEnd) free.push({ start: cursor, end: dayEnd });
 
-  return free.filter((f) => (f.end.getTime() - f.start.getTime()) / 60000 >= MIN_FREE_MINUTES);
+  return free.filter((f) => (f.end.getTime() - f.start.getTime()) / 60000 >= prefs.minFreeMinutes);
 }
 
 // Round up to the next quarter hour, so today's remaining window starts at a
@@ -63,6 +83,7 @@ function nextQuarterHour(from: Date): Date {
 export function nextSharedFreeWindows(
   myBusy: Interval[],
   partnerBusy: Interval[],
+  prefs: FreeTimePrefs = DEFAULT_FREE_TIME_PREFS,
   maxResults = 5
 ): Interval[] {
   const combinedBusy = [...myBusy, ...partnerBusy];
@@ -76,13 +97,13 @@ export function nextSharedFreeWindows(
     const day = new Date(today);
     day.setDate(day.getDate() + i);
 
-    const windows = freeWindowsForDay(day, combinedBusy)
-      // Today's window runs from 7am, so for most of the day its start is
-      // already in the past. Offering it means booking a slot that has been
-      // and gone -- trim it to the part still ahead of us.
+    const windows = freeWindowsForDay(day, combinedBusy, prefs)
+      // Today's window starts at the day-start hour, so for most of the day
+      // its start is already in the past. Offering it means booking a slot
+      // that has been and gone -- trim it to the part still ahead of us.
       .map((w) => (w.start < earliestStart ? { start: earliestStart, end: w.end } : w))
       // Trimming can leave a sliver (or nothing) once the day is nearly over.
-      .filter((w) => (w.end.getTime() - w.start.getTime()) / 60000 >= MIN_FREE_MINUTES);
+      .filter((w) => (w.end.getTime() - w.start.getTime()) / 60000 >= prefs.minFreeMinutes);
 
     results.push(...windows);
   }

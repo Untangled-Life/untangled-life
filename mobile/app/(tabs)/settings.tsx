@@ -232,6 +232,16 @@ export default function Settings() {
         </View>
       </Pressable>
 
+      <Pressable style={press(styles.card)} onPress={() => router.push("/free-time")}>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Free together</Text>
+            <Text style={styles.rowHint}>Which hours count, and how short a gap is worth it</Text>
+          </View>
+          <ChevronRightIcon size={18} color={t.textMuted} />
+        </View>
+      </Pressable>
+
       <Pressable style={press(styles.card)} onPress={() => router.push("/work-hours")}>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>

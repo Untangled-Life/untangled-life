@@ -135,6 +135,10 @@ reach Google's verification team unnoticed.
       starts, and that it disappears from Home the day after it ends.
 - [ ] **Pinning.** Pin something, check the hero countdown appears on Home for
       both of you and the date leaves the horizontal row.
+- [ ] **Run `supabase/free-time-prefs.sql`** — the free-window settings.
+- [ ] **Free together settings.** Change the day window and the minimum, then
+      check Home recomputes. The night-shift case is the one that matters:
+      4am–12pm should offer a morning that 7am–11pm buries.
 - [ ] **Notes.** Type a gift idea, leave the field, come back. It should also
       appear under the countdown on Home and be visible on the other phone.
 - [ ] **Busy-only really is busy-only.** Set a calendar to Busy only, sync, and
