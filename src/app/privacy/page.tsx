@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Untangled Life",
+  title: "Privacy Policy - Untangled Life",
   description:
     "What Untangled Life collects, what your partner can see, what never leaves your phone, how long it is kept, and how to get it back or delete it.",
 };
@@ -88,15 +88,15 @@ export default function Privacy() {
             </p>
             <ul className="mt-3 ml-5 list-disc space-y-2 text-[15px] leading-7 text-text-secondary">
               <li>
-                <strong>Off</strong> — the calendar is never read. Nothing from it leaves your
+                <strong>Off.</strong> The calendar is never read. Nothing from it leaves your
                 phone. This is what every calendar starts as, including ones you add later.
               </li>
               <li>
-                <strong>Busy only</strong> — we upload the start and end time of each event and
+                <strong>Busy only.</strong> We upload the start and end time of each event and
                 nothing else. Your partner sees that you are busy, never what you are doing.
               </li>
               <li>
-                <strong>Full detail</strong> — times plus the title, location and notes. Assume
+                <strong>Full detail.</strong> Times plus the title, location and notes. Assume
                 anything in a calendar set to full detail is something{" "}
                 <strong>your partner can read</strong>.
               </li>
@@ -104,7 +104,7 @@ export default function Privacy() {
             <p className="mt-3 text-[15px] leading-7 text-text-secondary">
               Turn a calendar down or off and what it shared is deleted straight away, not at some
               later sync. Event titles are stripped before they are stored, not merely hidden in
-              the app — on <em>busy only</em>, the title never reaches our servers in the first
+              the app. On <em>busy only</em>, the title never reaches our servers in the first
               place.
             </p>
           </div>
@@ -149,8 +149,8 @@ export default function Privacy() {
                 </>,
                 <>
                   <strong>Events from the calendars you share.</strong> For each event in a shared
-                  calendar we store its start and end time and whether it is an all-day event, and
-                  — only for calendars you have set to full detail — its title, location and notes.
+                  calendar we store its start and end time and whether it is an all-day event, and,
+                  only for calendars you have set to full detail, its title, location and notes.
                   That is what lets your phone&apos;s calendar appear inside Untangled Life as
                   something you can read rather than an unexplained grey block. Section 4 sets out
                   the three settings and how to change your mind.
@@ -170,7 +170,7 @@ export default function Privacy() {
                   <strong>Photos you choose to add.</strong> A profile picture for yourself and a
                   cover photo for your shared home screen. These are uploaded, resized and stored
                   so both of you can see them on every device you sign in from. We only ever
-                  receive photos you pick yourself — we do not read your photo library, and the
+                  receive photos you pick yourself. We do not read your photo library, and the
                   app asks your phone for access to it only at the moment you tap to choose a
                   picture.
                 </>,
@@ -187,7 +187,7 @@ export default function Privacy() {
               items={[
                 <>
                   <strong>Push notification token.</strong> If you turn on notifications, your
-                  phone gives us an anonymous token we use to send you alerts — for example when
+                  phone gives us an anonymous token we use to send you alerts, for example when
                   your partner books a date, or adds a key date you might want on your own list.
                   It identifies the phone, not you, and is deleted when you sign out or turn
                   notifications off.
@@ -224,16 +224,16 @@ export default function Privacy() {
               items={[
                 <>
                   Your phone asks your permission before the app can see any calendar at all. If
-                  you decline, the rest of the app still works — you can enter working hours, book
+                  you decline, the rest of the app still works: you can enter working hours, book
                   dates and use key dates, to-dos and wishlists without ever connecting a calendar.
                 </>,
                 <>
                   Once permission is granted, you choose a level for each calendar. A calendar left
-                  off — which is what every calendar starts as — is never read and never uploaded.
+                  off, which is what every calendar starts as, is never read and never uploaded.
                 </>,
                 <>
-                  For shared calendars we read events in a rolling window around today — the next
-                  30 days ahead — and refresh them when you open the app. We do not read your
+                  For shared calendars we read events in a rolling window around today, the next
+                  30 days ahead, and refresh them when you open the app. We do not read your
                   distant past or the far future.
                 </>,
                 <>
@@ -292,7 +292,7 @@ export default function Privacy() {
                 <>To work out when you are both genuinely free, and to suggest those times.</>,
                 <>To book dates onto both of your phones and keep them in step.</>,
                 <>
-                  To send you reminders and alerts you have turned on — upcoming key dates, a date
+                  To send you reminders and alerts you have turned on: upcoming key dates, a date
                   your partner just booked, a countdown reaching zero.
                 </>,
                 <>To keep your lists, wishlists, key dates and photos in sync across your devices.</>,
@@ -315,7 +315,7 @@ export default function Privacy() {
                   app shares within a couple: your busy times, the content of events from any
                   calendar you set to full detail, your working hours, your shared dates, key dates,
                   countdowns, to-dos, wishlists, your display name and your profile picture. This
-                  is symmetrical — you see the same things about them. Our database is built so
+                  is symmetrical: you see the same things about them. Our database is built so
                   that the only people who can read your couple&apos;s information are the two of
                   you.
                 </>,

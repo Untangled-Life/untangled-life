@@ -48,7 +48,7 @@ export function WaitlistForm() {
   if (status === "success") {
     return (
       <p className="text-sm font-medium text-brand-green">
-        You&apos;re on the list — we&apos;ll be in touch.
+        You&apos;re on the list. We&apos;ll be in touch.
       </p>
     );
   }

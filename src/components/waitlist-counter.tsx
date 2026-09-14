@@ -18,7 +18,7 @@ export function WaitlistCounter() {
         }
       })
       .catch(() => {
-        // Leave count as null — the counter just won't render.
+        // Leave count as null; the counter just won't render.
       });
 
     return () => {

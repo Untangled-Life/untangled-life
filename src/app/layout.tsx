@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Untangled Life — Two calendars. One life. No knots.",
+  title: "Untangled Life | Two calendars. One life. No knots.",
   description:
     "Untangled Life pulls both your calendars into one view, spots the evenings you're actually both free, and gets the date booked before the week swallows it.",
 };
