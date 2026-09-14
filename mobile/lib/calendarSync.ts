@@ -3,6 +3,10 @@ import { supabase } from "@/lib/supabase";
 
 const SYNC_WINDOW_DAYS = 30;
 
+// How long a past busy block is kept. Nothing in the app reads them once
+// they're over; this is simply so they don't pile up forever.
+const RETENTION_DAYS = 7;
+
 // Reads every event on every calendar already on this phone (Google,
 // Apple/iCloud, Outlook, whatever's synced) for the next 30 days, and
 // uploads ONLY start/end times to Supabase — never titles, locations or
@@ -46,6 +50,19 @@ export async function syncBusyBlocks(coupleId: string, userId: string): Promise<
     .delete()
     .eq("user_id", userId)
     .gt("end_at", now.toISOString());
+
+  // Past blocks were never cleared, so a record of when you were busy built up
+  // indefinitely. Nothing reads them -- free time only looks forward -- so
+  // they're pure accumulation, and keeping a permanent history of someone's
+  // movements is the opposite of what this table is for.
+  const retentionCutoff = new Date(now);
+  retentionCutoff.setDate(retentionCutoff.getDate() - RETENTION_DAYS);
+
+  await supabase
+    .from("busy_blocks")
+    .delete()
+    .eq("user_id", userId)
+    .lt("end_at", retentionCutoff.toISOString());
 
   if (blocks.length > 0) {
     const { error } = await supabase.from("busy_blocks").insert(blocks);
