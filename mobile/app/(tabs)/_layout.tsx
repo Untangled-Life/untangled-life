@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Redirect, Tabs, router } from "expo-router";
+import { Redirect, Tabs, router, usePathname } from "expo-router";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import * as Notifications from "expo-notifications";
 import { useAuth } from "@/contexts/auth";
@@ -9,10 +9,17 @@ import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { registerForPushNotifications } from "@/lib/pushRegistration";
 import { syncPlannedEventsToDevice } from "@/lib/plannedEvents";
 import { useTimeZoneSync } from "@/hooks/useTimeZoneSync";
+import { TopScrim } from "@/components/top-scrim";
 
 export default function TabsLayout() {
   const { session, profile, loading } = useAuth();
   const t = useTheme();
+  const pathname = usePathname();
+
+  // Home is the exception: its cover photo runs deliberately to the top edge
+  // and carries its own dark scrim, so a cream one over the top would be a
+  // bar across somebody's face.
+  const scrim = pathname !== "/";
   const { partner, loading: membersLoading } = useCoupleMembers();
 
   // Keeps the stored zone matching the phone, here rather than on one screen
@@ -98,6 +105,7 @@ export default function TabsLayout() {
   }
 
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -162,5 +170,12 @@ export default function TabsLayout() {
       <Tabs.Screen name="coming-soon" options={{ href: null }} />
       <Tabs.Screen name="roster-import" options={{ href: null }} />
     </Tabs>
+
+    {/* Last, so it sits over the screen rather than under it. Once here
+        rather than on fifteen screens: a scrim that some screens have and
+        others do not is worse than none, because the difference reads as one
+        of them being broken. */}
+    {scrim ? <TopScrim /> : null}
+    </View>
   );
 }
