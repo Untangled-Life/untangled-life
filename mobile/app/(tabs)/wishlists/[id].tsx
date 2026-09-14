@@ -218,8 +218,8 @@ const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 80, paddingBottom: 16 },
   back: { fontSize: 14, color: t.accent, fontWeight: "600" },
-  title: { fontSize: 26, fontWeight: "600", color: t.textPrimary, marginBottom: 20 },
-  emptyCard: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 20 },
+  title: { ...t.type.display, color: t.textPrimary, marginBottom: 20 },
+  emptyCard: { ...t.card, padding: t.space(5) },
   emptyText: { fontSize: 13, color: t.textSecondary },
   itemRow: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 14, marginBottom: 8 },
   editInput: {

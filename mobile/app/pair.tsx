@@ -179,7 +179,7 @@ export default function Pair() {
 const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: t.bg },
-  title: { fontSize: 22, fontWeight: "600", textAlign: "center", marginBottom: 8 },
+  title: { ...t.type.display, textAlign: "center", marginBottom: 8 },
   subtitle: { fontSize: 14, color: t.textSecondary, textAlign: "center", marginBottom: 24, lineHeight: 20 },
   input: {
     backgroundColor: t.surface,
@@ -210,7 +210,8 @@ const createStyles = (t: Theme) =>
   buttonSecondaryText: { color: t.accent, fontWeight: "600", fontSize: 15 },
   codeBox: { alignItems: "center", marginTop: 8, marginBottom: 16 },
   codeLabel: { fontSize: 12, color: t.textSecondary, marginBottom: 4 },
-  code: { fontSize: 36, fontWeight: "700", letterSpacing: 6 },
+  // The invite code is the one thing on this screen anybody reads out loud.
+  code: { ...t.type.hero, letterSpacing: 6 },
   waitingRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
   waitingText: { fontSize: 13, color: t.textSecondary, flexShrink: 1 },
   orText: { textAlign: "center", color: t.textMuted, marginVertical: 16 },

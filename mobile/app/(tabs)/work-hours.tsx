@@ -393,9 +393,9 @@ const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 70, paddingBottom: 48 },
   back: { fontSize: 15, color: t.accent, fontWeight: "600", marginBottom: 12 },
-  title: { fontSize: 26, fontWeight: "600", color: t.textPrimary, marginBottom: 8 },
+  title: { ...t.type.display, color: t.textPrimary, marginBottom: 8 },
   subtitle: { fontSize: 13, color: t.textSecondary, lineHeight: 19, marginBottom: 20 },
-  card: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 18, marginBottom: 16 },
+  card: { ...t.card, padding: t.space(5), marginBottom: 16 },
   importCard: {
     flexDirection: "row",
     alignItems: "center",

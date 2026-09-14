@@ -252,7 +252,7 @@ const createStyles = (t: Theme) =>
       justifyContent: "space-between",
       marginBottom: t.space(3),
     },
-    title: { fontSize: 26, fontWeight: "700", color: t.textPrimary },
+    title: { ...t.type.display, color: t.textPrimary },
     close: {
       width: 40,
       height: 40,
@@ -263,14 +263,12 @@ const createStyles = (t: Theme) =>
     },
     intro: { fontSize: 14, color: t.textSecondary, lineHeight: 20, marginBottom: t.space(5) },
     paste: {
-      backgroundColor: t.surface,
-      borderRadius: t.radius.lg,
+      ...t.card,
       padding: t.space(4),
       minHeight: 200,
       fontSize: 14,
       color: t.textPrimary,
-      lineHeight: 21,
-      ...t.shadow,
+      lineHeight: 21
     },
     primary: {
       backgroundColor: t.accent,
@@ -285,11 +283,9 @@ const createStyles = (t: Theme) =>
     secondaryText: { color: t.textSecondary, fontSize: 14, fontWeight: "500" },
     hint: { fontSize: 12, color: t.textMuted, lineHeight: 18, marginTop: t.space(4) },
     row: {
-      backgroundColor: t.surface,
-      borderRadius: t.radius.lg,
+      ...t.card,
       padding: t.space(4),
-      marginBottom: t.space(3),
-      ...t.shadow,
+      marginBottom: t.space(3)
     },
     rowFlagged: { borderWidth: 1.5, borderColor: t.brand },
     rowHead: {

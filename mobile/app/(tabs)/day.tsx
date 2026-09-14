@@ -552,7 +552,7 @@ const createStyles = (t: Theme) =>
       paddingHorizontal: t.space(5),
       marginBottom: t.space(3),
     },
-    dayTitle: { fontSize: 18, fontWeight: "700", color: t.textPrimary },
+    dayTitle: { ...t.type.title, color: t.textPrimary },
     todayTag: { fontSize: 11, color: t.brand, fontWeight: "700", marginTop: 1 },
     dayArrow: { fontSize: 28, color: t.accent, paddingHorizontal: 12 },
     allDayBand: {

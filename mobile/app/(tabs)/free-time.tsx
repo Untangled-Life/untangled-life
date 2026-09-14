@@ -184,14 +184,12 @@ const createStyles = (t: Theme) =>
       paddingBottom: t.space(12),
     },
     back: { fontSize: 15, color: t.accent, fontWeight: "600", marginBottom: t.space(3) },
-    title: { fontSize: 28, fontWeight: "700", color: t.textPrimary, marginBottom: t.space(2) },
+    title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(2) },
     intro: { fontSize: 14, lineHeight: 21, color: t.textSecondary, marginBottom: t.space(6) },
     card: {
-      backgroundColor: t.surface,
-      borderRadius: t.radius.lg,
+      ...t.card,
       padding: t.space(4),
-      marginBottom: t.space(4),
-      ...t.shadow,
+      marginBottom: t.space(4)
     },
     label: { fontSize: 13, fontWeight: "700", color: t.textSecondary, marginBottom: t.space(3) },
     hint: { fontSize: 12, color: t.textMuted, marginTop: t.space(3), lineHeight: 17 },

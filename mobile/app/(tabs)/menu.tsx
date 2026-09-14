@@ -174,7 +174,7 @@ const createStyles = (t: Theme) =>
       paddingTop: t.space(16),
       paddingBottom: t.space(3),
     },
-    title: { fontSize: 28, fontWeight: "700", color: t.textPrimary },
+    title: { ...t.type.display, color: t.textPrimary },
     close: {
       width: 40,
       height: 40,
@@ -195,10 +195,8 @@ const createStyles = (t: Theme) =>
       marginLeft: t.space(1),
     },
     card: {
-      backgroundColor: t.surface,
-      borderRadius: t.radius.lg,
-      overflow: "hidden",
-      ...t.shadow,
+      ...t.card,
+      overflow: "hidden"
     },
     row: {
       flexDirection: "row",

@@ -747,7 +747,7 @@ const createStyles = (t: Theme) =>
     justifyContent: "space-between",
     marginBottom: 14,
   },
-  monthTitle: { fontSize: 20, fontWeight: "600", color: t.textPrimary },
+  monthTitle: { ...t.type.title, color: t.textPrimary },
   monthArrow: { fontSize: 28, color: t.accent, paddingHorizontal: 12 },
   weekHeader: { flexDirection: "row", marginBottom: 4 },
   weekHeading: {
@@ -791,7 +791,7 @@ const createStyles = (t: Theme) =>
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  dayTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary },
+  dayTitle: { ...t.type.title, color: t.textPrimary },
   dayTitleAction: { fontSize: 13, fontWeight: "600", color: t.accent },
   emptyCard: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 18 },
   emptyText: { fontSize: 13, color: t.textSecondary },

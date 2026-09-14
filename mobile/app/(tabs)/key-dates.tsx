@@ -781,10 +781,10 @@ export default function KeyDates() {
 const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 80, paddingBottom: 40 },
-  title: { fontSize: 26, fontWeight: "600", color: t.textPrimary, marginBottom: 8 },
+  title: { ...t.type.display, color: t.textPrimary, marginBottom: 8 },
   subtitle: { fontSize: 13, color: t.textSecondary, lineHeight: 18, marginBottom: 20 },
   error: { color: t.danger, fontSize: 13, marginBottom: 12 },
-  card: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 18, marginBottom: 16 },
+  card: { ...t.card, padding: t.space(5), marginBottom: 16 },
   cardTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary, marginBottom: 12 },
   cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   clear: { fontSize: 13, fontWeight: "600", color: t.accent, marginBottom: 12 },

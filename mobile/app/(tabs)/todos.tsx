@@ -299,7 +299,7 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 80, paddingBottom: 16 },
-  title: { fontSize: 26, fontWeight: "600", color: t.textPrimary, marginBottom: 20 },
+  title: { ...t.type.display, color: t.textPrimary, marginBottom: 20 },
   filterRow: { flexDirection: "row", gap: 8, marginBottom: 24 },
   chip: {
     flex: 1,
@@ -328,11 +328,9 @@ const createStyles = (t: Theme) =>
   hint: { fontSize: 12, color: t.textMuted, textAlign: "center", marginBottom: 8 },
   bucketTitle: { fontSize: 14, fontWeight: "600", color: t.textPrimary, marginBottom: 8 },
   emptyCard: {
-    backgroundColor: t.surface,
-    borderRadius: t.radius.lg,
+    ...t.card,
     padding: t.space(5),
-    marginBottom: t.space(5),
-    ...t.shadow,
+    marginBottom: t.space(5)
   },
   emptyTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary, marginBottom: t.space(1.5) },
   emptyBody: { fontSize: 13, color: t.textSecondary, lineHeight: 19 },

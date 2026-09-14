@@ -7,8 +7,85 @@
  * every name becoming a lie.
  */
 
+import { StyleSheet, type TextStyle, type ViewStyle } from "react-native";
+
 export type ThemeMode = "system" | "light" | "dark";
 export type Scheme = "light" | "dark";
+
+/**
+ * Type.
+ *
+ * Fraunces carries the display sizes and the numbers; the system font carries
+ * everything you actually read. That split is deliberate. A serif at 13px in a
+ * dense list is worse than SF Pro at 13px, and the system font also picks up
+ * Dynamic Type, the right numerals and the right language coverage for free.
+ * What a custom face buys is identity, and identity lives in the four or five
+ * large things on each screen, not in the body copy.
+ *
+ * Sizes were a free-for-all before this -- seventeen distinct values across
+ * twenty-three files, including a 19 and a 17 that existed because somebody
+ * nudged a number. A scale means a heading is a heading everywhere.
+ */
+export const FONT_DISPLAY = "Fraunces_600SemiBold";
+export const FONT_DISPLAY_STRONG = "Fraunces_700Bold";
+
+export type TypeScale = {
+  /** The one big number on a screen: a countdown, a total. */
+  hero: TextStyle;
+  /** Screen titles. */
+  display: TextStyle;
+  /** Card and section titles. */
+  title: TextStyle;
+  /** A row's own heading, inside a card. */
+  heading: TextStyle;
+  /** Default reading size. */
+  body: TextStyle;
+  /** A field label, a button. */
+  label: TextStyle;
+  /** Hints and secondary detail under a row. */
+  caption: TextStyle;
+  /** Small capitals above a group. */
+  eyebrow: TextStyle;
+};
+
+/**
+ * Fraunces is a display serif, so it needs tighter leading and slightly
+ * negative tracking at size -- left at defaults it looks loose and accidental.
+ * `fontVariant: ["tabular-nums"]` on anything numeric stops a countdown
+ * jittering as it ticks from 341 to 340.
+ */
+const type: TypeScale = {
+  hero: {
+    fontFamily: FONT_DISPLAY_STRONG,
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: -0.8,
+    fontVariant: ["tabular-nums"],
+  },
+  display: {
+    fontFamily: FONT_DISPLAY,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.4,
+  },
+  title: {
+    fontFamily: FONT_DISPLAY,
+    fontSize: 20,
+    lineHeight: 26,
+    letterSpacing: -0.2,
+  },
+  heading: { fontSize: 15, lineHeight: 20, fontWeight: "600" },
+  body: { fontSize: 15, lineHeight: 21 },
+  label: { fontSize: 13, lineHeight: 17, fontWeight: "600" },
+  caption: { fontSize: 12, lineHeight: 16 },
+  eyebrow: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+};
 
 export type Theme = {
   scheme: Scheme;
@@ -34,6 +111,17 @@ export type Theme = {
   dotKeyDate: string;
   dotWork: string;
   dotBusy: string;
+  // Type
+  type: TypeScale;
+  /**
+   * Everything a raised card needs, in one spread: ground, edge and lift.
+   *
+   * Twenty-three files each rolled their own and none matched -- padding of
+   * 16, 18 or 20, some with a shadow and most without. On a cream ground a
+   * card with no shadow and no border has no edge at all, which is why the
+   * screens read as flat lists of text rather than as a designed surface.
+   */
+  card: ViewStyle;
   // Shape
   radius: { sm: number; md: number; lg: number; xl: number; pill: number };
   space: (n: number) => number;
@@ -69,14 +157,29 @@ export const lightTheme: Theme = {
   dotKeyDate: "#1D9E75",
   dotWork: "#7A8B99",
   dotBusy: "#D6D2C8",
+  type,
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(58, 52, 40, 0.08)",
+    shadowColor: "#3A3428",
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
   radius,
   space,
+  // Two soft shadows read as paper on a cream ground; one hard one reads as a
+  // box. The colour is the warm near-black rather than pure black, so the
+  // shadow tints with the page instead of greying it.
   shadow: {
-    shadowColor: "#14140F",
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    shadowColor: "#3A3428",
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
 };
 
@@ -103,6 +206,14 @@ export const darkTheme: Theme = {
   dotKeyDate: "#35B98C",
   dotWork: "#8FA3B2",
   dotBusy: "#4A463E",
+  // No shadow worth seeing on a dark ground, so the edge does the work.
+  card: {
+    backgroundColor: "#1E1C17",
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#332F28",
+  },
+  type,
   radius,
   space,
   shadow: {

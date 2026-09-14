@@ -14,7 +14,7 @@ import { succeeded, warned } from "@/lib/haptics";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { CalendarIcon, MenuIcon } from "@/components/icons";
-import { Theme } from "@/theme/tokens";
+import { Theme, FONT_DISPLAY_STRONG } from "@/theme/tokens";
 import { Link, router } from "expo-router";
 import * as Calendar from "expo-calendar/legacy";
 import { PermissionStatus } from "expo";
@@ -22,8 +22,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { KeyDateRow, daysUntil, displayTitleFor, countdownLabel } from "@/lib/keyDates";
-import { Image } from "expo-image";
-import { Avatar } from "@/components/avatar";
+import { HomeHero } from "@/components/home-hero";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
 import { syncBusyBlocks } from "@/lib/calendarSync";
@@ -706,46 +705,38 @@ export default function Home() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
       }
     >
-      <View style={styles.topBar}>
-        <Link href="/menu" asChild>
-          <Pressable style={press(styles.iconButton)} hitSlop={8} accessibilityLabel="Menu">
-            <MenuIcon size={22} color={t.textPrimary} />
-          </Pressable>
-        </Link>
-        <Link href="/calendar" asChild>
-          <Pressable style={press(styles.iconButton)} hitSlop={8} accessibilityLabel="Shared calendar">
-            <CalendarIcon size={22} color={t.brand} />
-          </Pressable>
-        </Link>
-      </View>
+      {/* Full bleed, so the negative margins undo the page gutter. The top
+          bar floats over it rather than sitting above it: a row of buttons
+          between the status bar and the photo wastes the best space on the
+          screen. */}
+      <View style={styles.heroBleed}>
+        <HomeHero
+          coverUrl={coverUrl}
+          myAvatarUrl={myAvatarUrl}
+          partnerAvatarUrl={partnerAvatarUrl}
+          myName={me.display_name}
+          partnerName={partner?.display_name ?? null}
+          uploading={uploadingCover}
+          onChangeCover={changeCover}
+        />
 
-      <Pressable
-        style={press(styles.cover)}
-        onPress={changeCover}
-        accessibilityLabel={coverUrl ? "Change cover photo" : "Add a cover photo"}
-      >
-        {coverUrl ? (
-          <Image source={{ uri: coverUrl }} style={styles.coverImage} contentFit="cover" transition={200} />
-        ) : (
-          <View style={styles.coverEmpty}>
-            <Text style={styles.coverEmptyText}>
-              {uploadingCover ? "Adding your photo…" : "Add a photo of the two of you"}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.coverFaces}>
-          <Avatar url={myAvatarUrl} name={me.display_name} size={44} />
-          <View style={styles.coverFaceOverlap}>
-            <Avatar url={partnerAvatarUrl} name={partner?.display_name ?? null} size={44} />
-          </View>
+        <View style={styles.topBar} pointerEvents="box-none">
+          <Link href="/menu" asChild>
+            <Pressable style={press(styles.iconButton)} hitSlop={8} accessibilityLabel="Menu">
+              <MenuIcon size={22} color={coverUrl ? "#FFFFFF" : t.textPrimary} />
+            </Pressable>
+          </Link>
+          <Link href="/calendar" asChild>
+            <Pressable
+              style={press(styles.iconButton)}
+              hitSlop={8}
+              accessibilityLabel="Shared calendar"
+            >
+              <CalendarIcon size={22} color={coverUrl ? "#FFFFFF" : t.brand} />
+            </Pressable>
+          </Link>
         </View>
-      </Pressable>
-
-      <Text style={styles.title}>
-        {partner?.display_name ? `${me.display_name ?? "You"} & ${partner.display_name}` : "You're in"}
-      </Text>
-      <Text style={styles.subtitle}>Here&apos;s what&apos;s coming up together.</Text>
+      </View>
 
       {/* A brand-new couple lands here with nothing and no idea what to do
           first. This says so, in order, and disappears as each is done --
@@ -783,29 +774,13 @@ export default function Home() {
 const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flexGrow: 1, padding: t.space(6), paddingTop: t.space(14), paddingBottom: 40 },
-  cover: {
-    height: 170,
-    borderRadius: t.radius.lg,
-    overflow: "hidden",
-    backgroundColor: t.surface,
-    marginBottom: t.space(5),
-    justifyContent: "flex-end",
+  // Cancels the page gutter and the status-bar padding, so the hero runs to
+  // all three edges while everything below it stays in the grid.
+  heroBleed: {
+    marginHorizontal: -t.space(6),
+    marginTop: -t.space(14),
+    marginBottom: t.space(6),
   },
-  coverImage: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
-  coverEmpty: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  coverEmptyText: { fontSize: 13, color: t.textMuted },
-  coverFaces: { flexDirection: "row", padding: t.space(3) },
-  // Overlapped rather than side by side: two circles touching reads as a
-  // couple, two circles apart reads as a list of users.
-  coverFaceOverlap: { marginLeft: -14 },
   setupCard: {
     backgroundColor: t.accentSoft,
     borderRadius: t.radius.lg,
@@ -831,48 +806,50 @@ const createStyles = (t: Theme) =>
   setupStepWhy: { fontSize: 12, color: t.textSecondary, marginTop: 1 },
   setupChevron: { fontSize: 20, color: t.accent },
   topBar: {
+    position: "absolute",
+    top: t.space(13),
+    left: t.space(5),
+    right: t.space(5),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: t.space(5),
   },
   iconButton: {
     width: 44,
     height: 44,
     borderRadius: t.radius.pill,
-    backgroundColor: t.surface,
+    // Translucent rather than solid: over a photo a solid white circle is a
+    // hole punched in the picture, and over the empty state it disappears
+    // into the surface entirely.
+    backgroundColor: "rgba(20, 19, 15, 0.28)",
     alignItems: "center",
     justifyContent: "center",
-    ...t.shadow,
   },
   hoursCard: {
-    backgroundColor: t.surface,
-    borderRadius: t.radius.lg,
-    padding: 20,
+    ...t.card,
+    padding: t.space(5),
     marginTop: 16,
     borderLeftWidth: 3,
-    borderLeftColor: t.dotWork,
-    ...t.shadow,
+    borderLeftColor: t.dotWork
   },
-  hoursTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary },
+  hoursTitle: { ...t.type.title, color: t.textPrimary },
   cardHeadRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardAction: { fontSize: 13, color: t.accent, fontWeight: "600" },
-  title: { fontSize: 26, fontWeight: "600", marginBottom: 8, color: t.textPrimary },
+  title: { ...t.type.display, marginBottom: 8, color: t.textPrimary },
   subtitle: { fontSize: 14, color: t.textSecondary, lineHeight: 20, marginBottom: 24 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: "600", color: t.textPrimary },
+  sectionTitle: { ...t.type.title, color: t.textPrimary },
   sectionAction: { fontSize: 14, color: t.accent, fontWeight: "600" },
   sectionActions: { flexDirection: "row", gap: t.space(4) },
-  emptyCard: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 20, marginBottom: 24 },
+  emptyCard: { ...t.card, padding: t.space(5), marginBottom: 24 },
   emptyText: { fontSize: 13, color: t.textSecondary, lineHeight: 18 },
   keyDateCard: {
-    backgroundColor: t.surface,
-    borderRadius: t.radius.lg,
-    padding: 16,
+    ...t.card,
+    padding: t.space(4),
     marginRight: 12,
     width: 140,
   },
-  keyDateDays: { fontSize: 20, fontWeight: "700", color: t.brand, marginBottom: 6 },
+  keyDateDays: { ...t.type.title, fontFamily: FONT_DISPLAY_STRONG, color: t.brand, marginBottom: 6 },
   keyDateTitle: { fontSize: 13, color: t.textPrimary },
   keyDateNote: { fontSize: 11, color: t.textMuted, marginTop: 4, lineHeight: 15 },
   hero: {
@@ -881,7 +858,7 @@ const createStyles = (t: Theme) =>
     padding: t.space(5),
     marginBottom: t.space(4),
   },
-  heroCountdown: { fontSize: 30, fontWeight: "800", color: t.accent, letterSpacing: -0.5 },
+  heroCountdown: { ...t.type.hero, color: t.accent },
   heroTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary, marginTop: 2 },
   heroNote: { fontSize: 12, color: t.textSecondary, marginTop: t.space(2), lineHeight: 17 },
   planRow: {
@@ -931,8 +908,8 @@ const createStyles = (t: Theme) =>
   smallButtonDisabled: { opacity: 0.6 },
   smallButtonText: { color: t.surface, fontWeight: "600", fontSize: 13 },
   bookingCancel: { fontSize: 13, color: t.textMuted, marginLeft: 16 },
-  card: { backgroundColor: t.surface, borderRadius: t.radius.lg, padding: 20, marginTop: 16 },
-  cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 8, color: t.textPrimary },
+  card: { ...t.card, padding: t.space(5), marginTop: 16 },
+  cardTitle: { ...t.type.title, marginBottom: 8, color: t.textPrimary },
   cardBody: { fontSize: 14, color: t.textSecondary, lineHeight: 20, marginBottom: 16 },
   button: { backgroundColor: t.accent, borderRadius: t.radius.pill, paddingVertical: 12, alignItems: "center" },
   buttonText: { color: t.surface, fontWeight: "600", fontSize: 14 },

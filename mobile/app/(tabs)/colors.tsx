@@ -171,7 +171,7 @@ const createStyles = (t: Theme) =>
       paddingBottom: t.space(12),
     },
     back: { fontSize: 15, color: t.accent, fontWeight: "600", marginBottom: t.space(3) },
-    title: { fontSize: 28, fontWeight: "700", color: t.textPrimary, marginBottom: t.space(2) },
+    title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(2) },
     intro: { fontSize: 14, lineHeight: 21, color: t.textSecondary, marginBottom: t.space(5) },
     preview: { gap: t.space(2), marginBottom: t.space(6) },
     previewBlock: {

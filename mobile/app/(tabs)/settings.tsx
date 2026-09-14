@@ -354,7 +354,7 @@ const createStyles = (t: Theme) =>
       paddingBottom: t.space(12),
     },
     back: { fontSize: 15, color: t.accent, fontWeight: "600", marginBottom: t.space(3) },
-    title: { fontSize: 28, fontWeight: "700", color: t.textPrimary, marginBottom: t.space(6) },
+    title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(6) },
     groupTitle: {
       fontSize: 12,
       fontWeight: "700",
@@ -366,11 +366,9 @@ const createStyles = (t: Theme) =>
       marginLeft: t.space(1),
     },
     card: {
-      backgroundColor: t.surface,
-      borderRadius: t.radius.lg,
+      ...t.card,
       overflow: "hidden",
-      marginBottom: t.space(3),
-      ...t.shadow,
+      marginBottom: t.space(3)
     },
     row: {
       flexDirection: "row",

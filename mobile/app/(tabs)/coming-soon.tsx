@@ -29,7 +29,7 @@ const createStyles = (t: Theme) =>
       justifyContent: "center",
       padding: t.space(8),
     },
-    title: { fontSize: 22, fontWeight: "700", color: t.textPrimary, marginBottom: t.space(3) },
+    title: { ...t.type.display, color: t.textPrimary, marginBottom: t.space(3) },
     body: {
       fontSize: 14,
       color: t.textSecondary,

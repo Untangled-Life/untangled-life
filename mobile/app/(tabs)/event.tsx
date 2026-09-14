@@ -763,12 +763,10 @@ const createStyles = (t: Theme) =>
     bannerWarn: { backgroundColor: t.surfaceSunken },
     bannerText: { fontSize: 12, lineHeight: 18, color: t.textSecondary },
     titleInput: {
-      backgroundColor: t.surface,
-      borderRadius: t.radius.lg,
+      ...t.card,
       paddingHorizontal: t.space(4),
       paddingVertical: t.space(4),
-      fontSize: 19,
-      fontWeight: "600",
+      ...t.type.title,
       color: t.textPrimary,
     },
     groupTitle: {
@@ -781,8 +779,7 @@ const createStyles = (t: Theme) =>
       textTransform: "uppercase",
     },
     card: {
-      backgroundColor: t.surface,
-      borderRadius: t.radius.lg,
+      ...t.card,
       padding: t.space(4),
       marginBottom: t.space(3),
     },

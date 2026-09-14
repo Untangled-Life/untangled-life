@@ -67,7 +67,7 @@ export default function SignIn() {
 const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: t.bg },
-  title: { fontSize: 24, fontWeight: "600", textAlign: "center", marginBottom: 4 },
+  title: { ...t.type.display, textAlign: "center", marginBottom: 4 },
   subtitle: { fontSize: 16, color: t.textSecondary, textAlign: "center", marginBottom: 24 },
   input: {
     backgroundColor: t.surface,
