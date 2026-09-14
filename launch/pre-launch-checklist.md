@@ -63,9 +63,21 @@ Full detail in `supabase/functions/README.md`. In order:
 
 - [ ] Replace the placeholder testimonial in `src/app/page.tsx` (marked with a
       comment in the code) with a real one.
-- [ ] Add the privacy policy page.
+- [x] Add the privacy policy page. Live at /privacy, rewritten 14 Sep to
+      cover full event detail, photos, and the per-calendar choice.
 - [ ] Decide what the site says once the app is downloadable rather than a
       waitlist.
+
+## Roy has to supply these (they are placeholders on the live privacy page)
+
+The privacy policy renders these in orange as `[...]` marks, so they cannot
+reach Google's verification team unnoticed.
+
+- [ ] **Legal entity name** — the operator of the app. A sole trader's own name
+      is fine; it just has to be the real one.
+- [ ] **ABN**, if registered.
+- [ ] **Supabase region** — Project Settings → General → Region in the
+      dashboard. Google's data-access review asks where data is stored.
 
 ## Product gaps worth closing before launch
 
@@ -84,6 +96,26 @@ Full detail in `supabase/functions/README.md`. In order:
       treats the Calendar scope as "sensitive": beyond ~100 test accounts it
       needs data-access verification with a privacy policy, a demo video, and
       3–5 business days of review. Start early.
+
+## New on 14 Sep — needs device testing tonight
+
+- [ ] **Run `supabase/calendar-detail.sql` and `supabase/photos.sql`.** Nothing
+      below works until both have run.
+- [ ] **Per-calendar connection.** Every calendar now starts DISCONNECTED, so
+      on first open after this update Roy and Alyssa will both see no free time
+      until they pick calendars on the new Calendars screen. That is the
+      designed behaviour, not a bug, but it is the first thing to check.
+- [ ] **Event detail on the shared calendar.** A connected calendar's events
+      should show their title, location and notes, not a grey block.
+- [ ] **Disconnecting a calendar** should remove its events from the partner's
+      view immediately, not at the next sync.
+- [ ] **All-day events** now sync and show as "All day", but must NOT eat the
+      day's free windows. This is also the likely cause of the 23-hour busy
+      block seen on 14 Sep.
+- [ ] **Cover photo and profile pictures.** Picking, cropping, uploading,
+      showing on both phones, and replacing one (the old file should go).
+- [ ] **Photo permission copy** on iOS — the Info.plist string is set but has
+      never been seen on a device.
 
 ## Known rough edges
 
