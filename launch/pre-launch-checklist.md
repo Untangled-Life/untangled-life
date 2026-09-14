@@ -55,8 +55,9 @@ Full detail in `supabase/functions/README.md`. In order:
 - [ ] Screenshots for both stores.
 - [ ] App Store description, keywords, category, age rating.
 - [ ] Support URL and marketing URL.
-- [ ] Account deletion path — **Apple requires** any app with account creation
-      to offer in-app account deletion.
+- [x] Account deletion path — **Apple requires** any app with account creation
+      to offer in-app account deletion. Built 14 Sep, Settings → Leaving.
+      **Untested on a device.**
 - [ ] Test on Android. Everything so far has been verified on iPhone only.
 
 ## Landing page
@@ -90,8 +91,9 @@ reach Google's verification team unnoticed.
 - [ ] **Timezone handling** — the `notify-partner` Edge Function formats times
       in `Australia/Sydney`. Store a per-user timezone before shipping outside
       AU.
-- [ ] **Unpairing / leaving a couple** — no way to undo pairing. Needed if
-      someone pairs with the wrong account, or a relationship ends.
+- [x] **Unpairing / leaving a couple** — built 14 Sep, Settings → Leaving.
+      Shared things are handed to the remaining partner rather than cascaded
+      away. **Untested on a device.**
 - [ ] **Google / Outlook OAuth sync** (v1.5) — planned, not started. Google
       treats the Calendar scope as "sensitive": beyond ~100 test accounts it
       needs verification with a privacy policy, a demo video, and 3–5 business
@@ -110,6 +112,12 @@ reach Google's verification team unnoticed.
       after this update Roy and Alyssa will both see no free time until they
       choose on the new Calendars screen. Designed behaviour, but it is the
       first thing to check.
+- [ ] **Run `supabase/leaving.sql`** — adds the unpair and delete-account
+      functions.
+- [ ] **Unpairing and account deletion.** Test on the second account, not
+      Roy's. Check afterwards that the remaining partner still has the
+      anniversary, the to-dos and the wishlists, and that the leaver's birthday
+      is gone. Then re-pair and make sure a fresh invite code works.
 - [ ] **Busy-only really is busy-only.** Set a calendar to Busy only, sync, and
       confirm in Supabase that `title` is null on those rows. The promise is
       that titles never reach the server, not that the app hides them.

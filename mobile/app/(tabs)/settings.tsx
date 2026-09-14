@@ -11,6 +11,8 @@ import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
 import { supabase } from "@/lib/supabase";
 import { succeeded, warned } from "@/lib/haptics";
+import { useCoupleMembers } from "@/hooks/useCoupleMembers";
+import { leaveCouple, deleteOwnAccount } from "@/lib/leaving";
 
 const MODES: { key: ThemeMode; label: string; blurb: string }[] = [
   { key: "system", label: "Match my phone", blurb: "Follows your phone's light or dark setting." },
@@ -23,8 +25,84 @@ export default function Settings() {
   const t = useTheme();
   const { mode, setMode, scheme } = useThemeMode();
   const { session, profile, refreshProfile } = useAuth();
-  const { myAvatarUrl, reload: reloadPhotos } = useCouplePhotos();
+  const { myAvatarUrl, coverPath, reload: reloadPhotos } = useCouplePhotos();
+  const { partner } = useCoupleMembers();
   const [busy, setBusy] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+
+  const partnerName = partner?.display_name ?? "your partner";
+  const photoArgs = {
+    avatarPath: profile?.avatar_path ?? null,
+    coverPath,
+    lastOneOut: !partner,
+  };
+
+  function confirmUnpair() {
+    Alert.alert(
+      `Unpair from ${partnerName}?`,
+      `You'll keep your account and can pair again with a new code. ${partnerName} keeps your key dates, to-dos, wishlists and booked dates — they don't disappear from their phone. Your calendar, working hours and profile photo are removed.`,
+      [
+        { text: "Stay paired", style: "cancel" },
+        {
+          text: "Unpair",
+          style: "destructive",
+          onPress: async () => {
+            setLeaving(true);
+            const { error } = await leaveCouple(photoArgs);
+            if (error) {
+              setLeaving(false);
+              warned();
+              Alert.alert("Couldn't unpair", error);
+              return;
+            }
+            // The tabs gate sends an unpaired user to /pair on its own once
+            // the profile no longer has a couple_id.
+            await refreshProfile();
+            succeeded();
+          },
+        },
+      ]
+    );
+  }
+
+  function confirmDelete() {
+    Alert.alert(
+      "Delete your account?",
+      partner
+        ? `This can't be undone. Your sign-in, your calendar data, your working hours and your photo are deleted. ${partnerName} keeps the key dates, to-dos, wishlists and booked dates you both built — except your birthday, which goes with you.`
+        : "This can't be undone. Your sign-in and everything in the app is deleted. Nobody else is in your couple, so nothing is kept.",
+      [
+        { text: "Keep my account", style: "cancel" },
+        {
+          text: "Delete everything",
+          style: "destructive",
+          onPress: () => {
+            // Two taps. The first is easy to hit by accident from a list of
+            // settings rows; this one names the thing being destroyed.
+            Alert.alert("Last chance", "Delete your Untangled Life account permanently?", [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Delete",
+                style: "destructive",
+                onPress: async () => {
+                  setLeaving(true);
+                  const { error } = await deleteOwnAccount(photoArgs);
+                  if (error) {
+                    setLeaving(false);
+                    warned();
+                    Alert.alert("Couldn't delete your account", error);
+                  }
+                  // On success the sign-out inside deleteOwnAccount drops the
+                  // session and the app returns to the sign-in screen.
+                },
+              },
+            ]);
+          },
+        },
+      ]
+    );
+  }
+
 
   async function setAvatar(path: string | null) {
     if (!session?.user.id) return;
@@ -164,6 +242,34 @@ export default function Settings() {
         </View>
       </Pressable>
 
+      <Text style={styles.groupTitle}>Leaving</Text>
+      <View style={styles.card}>
+        {leaving ? (
+          <View style={styles.row}>
+            <ActivityIndicator />
+            <Text style={styles.rowHint}>Working on it…</Text>
+          </View>
+        ) : (
+          <>
+            <Pressable onPress={confirmUnpair} style={press(styles.row)}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowLabel}>Unpair from {partnerName}</Text>
+                <Text style={styles.rowHint}>Keep your account, start again with a new code</Text>
+              </View>
+              <ChevronRightIcon size={18} color={t.textMuted} />
+            </Pressable>
+
+            <Pressable onPress={confirmDelete} style={press([styles.row, styles.rowDivider])}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rowLabel, styles.rowLabelDanger]}>Delete my account</Text>
+                <Text style={styles.rowHint}>Permanent. Everything of yours goes.</Text>
+              </View>
+              <ChevronRightIcon size={18} color={t.textMuted} />
+            </Pressable>
+          </>
+        )}
+      </View>
+
       <Text style={styles.footnote}>
         More will land here before launch — see the pre-launch checklist in the repo for what&apos;s
         still outstanding.
@@ -209,6 +315,7 @@ const createStyles = (t: Theme) =>
     },
     rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border },
     rowLabel: { fontSize: 15, fontWeight: "500", color: t.textPrimary },
+    rowLabelDanger: { color: t.danger },
     rowLabelActive: { color: t.accent, fontWeight: "700" },
     rowHint: { fontSize: 12, color: t.textMuted, marginTop: 2 },
     profileCard: {
