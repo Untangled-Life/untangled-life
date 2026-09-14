@@ -1,9 +1,16 @@
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import { useState } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator } from "react-native";
 import { press } from "@/components/press";
 import { router } from "expo-router";
 import { useThemedStyles, useTheme, useThemeMode } from "@/contexts/theme";
 import { Theme, ThemeMode } from "@/theme/tokens";
 import { ChevronRightIcon } from "@/components/icons";
+import { Avatar } from "@/components/avatar";
+import { useAuth } from "@/contexts/auth";
+import { useCouplePhotos } from "@/hooks/useCouplePhotos";
+import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
+import { supabase } from "@/lib/supabase";
+import { succeeded, warned } from "@/lib/haptics";
 
 const MODES: { key: ThemeMode; label: string; blurb: string }[] = [
   { key: "system", label: "Match my phone", blurb: "Follows your phone's light or dark setting." },
@@ -15,6 +22,70 @@ export default function Settings() {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
   const { mode, setMode, scheme } = useThemeMode();
+  const { session, profile, refreshProfile } = useAuth();
+  const { myAvatarUrl, reload: reloadPhotos } = useCouplePhotos();
+  const [busy, setBusy] = useState(false);
+
+  async function setAvatar(path: string | null) {
+    if (!session?.user.id) return;
+    const previous = profile?.avatar_path ?? null;
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ avatar_path: path })
+      .eq("id", session.user.id);
+
+    if (error) {
+      // Undo the upload rather than leaving a file nothing points at.
+      if (path) await removePhoto(path);
+      warned();
+      Alert.alert("Couldn't save that", error.message);
+      return;
+    }
+
+    await removePhoto(previous);
+    await refreshProfile();
+    await reloadPhotos();
+    succeeded();
+  }
+
+  async function changePhoto() {
+    if (!session?.user.id || busy) return;
+
+    const { photo, error } = await pickPhoto("avatar");
+    if (error) {
+      warned();
+      Alert.alert("Couldn't use that photo", error);
+      return;
+    }
+    if (!photo) return;
+
+    setBusy(true);
+    const upload = await uploadPhoto("avatar", session.user.id, photo);
+    if (upload.error || !upload.path) {
+      setBusy(false);
+      warned();
+      Alert.alert("Couldn't save that photo", upload.error ?? "Please try again.");
+      return;
+    }
+    await setAvatar(upload.path);
+    setBusy(false);
+  }
+
+  function confirmRemove() {
+    Alert.alert("Remove your photo?", "Your initials will show instead.", [
+      { text: "Keep it", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          setBusy(true);
+          await setAvatar(null);
+          setBusy(false);
+        },
+      },
+    ]);
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -23,6 +94,31 @@ export default function Settings() {
       </Pressable>
 
       <Text style={styles.title}>Settings</Text>
+
+      <Text style={styles.groupTitle}>You</Text>
+      <View style={[styles.card, styles.profileCard]}>
+        <Avatar url={myAvatarUrl} name={profile?.display_name ?? null} size={64} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowLabel}>{profile?.display_name ?? "You"}</Text>
+          <Text style={styles.rowHint}>
+            {myAvatarUrl ? "Your partner sees this beside your events." : "No photo yet."}
+          </Text>
+          {busy ? (
+            <ActivityIndicator style={{ alignSelf: "flex-start", marginTop: 8 }} />
+          ) : (
+            <View style={styles.profileActions}>
+              <Pressable onPress={changePhoto} hitSlop={8}>
+                <Text style={styles.action}>{myAvatarUrl ? "Change photo" : "Add a photo"}</Text>
+              </Pressable>
+              {myAvatarUrl ? (
+                <Pressable onPress={confirmRemove} hitSlop={8}>
+                  <Text style={[styles.action, styles.actionDanger]}>Remove</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+        </View>
+      </View>
 
       <Text style={styles.groupTitle}>Appearance</Text>
       <View style={styles.card}>
@@ -115,6 +211,15 @@ const createStyles = (t: Theme) =>
     rowLabel: { fontSize: 15, fontWeight: "500", color: t.textPrimary },
     rowLabelActive: { color: t.accent, fontWeight: "700" },
     rowHint: { fontSize: 12, color: t.textMuted, marginTop: 2 },
+    profileCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.space(4),
+      padding: t.space(4),
+    },
+    profileActions: { flexDirection: "row", gap: t.space(4), marginTop: t.space(2) },
+    action: { fontSize: 13, fontWeight: "600", color: t.accent },
+    actionDanger: { color: t.danger },
     tick: { color: t.accent, fontSize: 17, fontWeight: "700" },
     footnote: {
       fontSize: 12,

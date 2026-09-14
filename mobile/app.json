@@ -14,7 +14,8 @@
       "infoPlist": {
         "NSCalendarsUsageDescription": "Untangled Life reads your calendar to find time you and your partner are both free.",
         "NSCalendarsFullAccessUsageDescription": "Untangled Life reads and adds events to your calendar so shared plans land on both your phones.",
-        "NSRemindersUsageDescription": "Untangled Life does not use reminders, but iOS groups this permission with calendars."
+        "NSRemindersUsageDescription": "Untangled Life does not use reminders, but iOS groups this permission with calendars.",
+        "NSPhotoLibraryUsageDescription": "Untangled Life needs access to pick the photo you choose for your profile picture or your shared cover image. It only ever receives the picture you select."
       }
     },
     "android": {
@@ -40,6 +41,13 @@
         "expo-calendar",
         {
           "calendarPermission": "Untangled Life reads your calendar to find time you and your partner are both free."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Untangled Life needs access to pick the photo you choose for your profile picture or your shared cover image. It only ever receives the picture you select.",
+          "cameraPermission": false
         }
       ],
       [

@@ -20,6 +20,8 @@ import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
+import { useCouplePhotos } from "@/hooks/useCouplePhotos";
+import { Avatar } from "@/components/avatar";
 import { Interval } from "@/lib/freeTime";
 import { KeyDateRow, displayTitleFor, nextOccurrence } from "@/lib/keyDates";
 import { PlannedEvent, formatPlanWhen } from "@/lib/plannedEvents";
@@ -106,9 +108,13 @@ const ACTION_LABELS: Record<string, string> = {
  */
 function SwipeRow({
   entry,
+  avatarUrl,
+  avatarName,
   onAction,
 }: {
   entry: DayEntry;
+  avatarUrl: string | null;
+  avatarName: string | null;
   onAction: (entry: DayEntry) => void;
 }) {
   const styles = useThemedStyles(createStyles);
@@ -149,6 +155,10 @@ function SwipeRow({
   const row = (
     <View style={styles.entryRow}>
       <View style={[styles.entryBar, styles[`bar_${entry.kind}` as const]]} />
+      {/* Only rows that belong to one person get a face. A shared date or a
+          key date belongs to both, and a picture of one of you beside it
+          would say something untrue. */}
+      {entry.whose ? <Avatar url={avatarUrl} name={avatarName} size={30} /> : null}
       <View style={{ flex: 1 }}>
         <Text style={styles.entryLabel}>{entry.label}</Text>
         <Text style={styles.entryDetail}>{entry.detail}</Text>
@@ -197,6 +207,7 @@ export default function CalendarScreen() {
 
   const { session, profile } = useAuth();
   const { me, partner } = useCoupleMembers();
+  const { avatarUrlFor } = useCouplePhotos();
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState<string>(toDateKey(new Date()));
 
@@ -532,7 +543,13 @@ export default function CalendarScreen() {
         </View>
       ) : (
         selectedEntries.map((e, i) => (
-          <SwipeRow key={i} entry={e} onAction={confirmAction} />
+          <SwipeRow
+            key={i}
+            entry={e}
+            avatarUrl={avatarUrlFor(e.whose)}
+            avatarName={e.whose ? nameFor(e.whose) : null}
+            onAction={confirmAction}
+          />
         ))
       )}
 

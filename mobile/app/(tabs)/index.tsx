@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { press } from "@/components/press";
-import { succeeded } from "@/lib/haptics";
+import { succeeded, warned } from "@/lib/haptics";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { CalendarIcon, MenuIcon } from "@/components/icons";
@@ -22,6 +22,10 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { KeyDateRow, daysUntil, displayTitleFor } from "@/lib/keyDates";
+import { Image } from "expo-image";
+import { Avatar } from "@/components/avatar";
+import { useCouplePhotos } from "@/hooks/useCouplePhotos";
+import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
 import { syncBusyBlocks } from "@/lib/calendarSync";
 import { listCalendars } from "@/lib/calendarPrefs";
 import { Interval, nextSharedFreeWindows, formatWindow } from "@/lib/freeTime";
@@ -46,6 +50,9 @@ export default function Home() {
   const [permission, setPermission] = useState<PermissionStatus | null>(null);
   const [calendarCount, setCalendarCount] = useState<number | null>(null);
   const [connectedCount, setConnectedCount] = useState<number | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const { coverUrl, coverPath, myAvatarUrl, partnerAvatarUrl, reload: reloadPhotos } =
+    useCouplePhotos();
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [freeWindows, setFreeWindows] = useState<Interval[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -272,6 +279,49 @@ export default function Home() {
     ]);
   }
 
+  async function changeCover() {
+    if (!profile?.couple_id || uploadingCover) return;
+
+    const { photo, error } = await pickPhoto("cover");
+    if (error) {
+      warned();
+      Alert.alert("Couldn't use that photo", error);
+      return;
+    }
+    if (!photo) return;
+
+    setUploadingCover(true);
+    const previous = coverPath;
+
+    const upload = await uploadPhoto("cover", profile.couple_id, photo);
+    if (upload.error || !upload.path) {
+      setUploadingCover(false);
+      warned();
+      Alert.alert("Couldn't save that photo", upload.error ?? "Please try again.");
+      return;
+    }
+
+    const { error: saveError } = await supabase
+      .from("couples")
+      .update({ cover_path: upload.path })
+      .eq("id", profile.couple_id);
+
+    if (saveError) {
+      // The file uploaded but nothing points at it, so take it back out rather
+      // than leaving an orphan in the bucket.
+      await removePhoto(upload.path);
+      setUploadingCover(false);
+      warned();
+      Alert.alert("Couldn't save that photo", saveError.message);
+      return;
+    }
+
+    await removePhoto(previous);
+    await reloadPhotos();
+    setUploadingCover(false);
+    succeeded();
+  }
+
   const setupSteps = [
     permission !== PermissionStatus.GRANTED
       ? {
@@ -326,10 +376,33 @@ export default function Home() {
         </Link>
       </View>
 
-      <Text style={styles.title}>You&apos;re in</Text>
-      <Text style={styles.subtitle}>
-        You&apos;re paired up. Here&apos;s what&apos;s coming up together.
+      <Pressable
+        style={press(styles.cover)}
+        onPress={changeCover}
+        accessibilityLabel={coverUrl ? "Change cover photo" : "Add a cover photo"}
+      >
+        {coverUrl ? (
+          <Image source={{ uri: coverUrl }} style={styles.coverImage} contentFit="cover" transition={200} />
+        ) : (
+          <View style={styles.coverEmpty}>
+            <Text style={styles.coverEmptyText}>
+              {uploadingCover ? "Adding your photo…" : "Add a photo of the two of you"}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.coverFaces}>
+          <Avatar url={myAvatarUrl} name={me.display_name} size={44} />
+          <View style={styles.coverFaceOverlap}>
+            <Avatar url={partnerAvatarUrl} name={partner?.display_name ?? null} size={44} />
+          </View>
+        </View>
+      </Pressable>
+
+      <Text style={styles.title}>
+        {partner?.display_name ? `${me.display_name ?? "You"} & ${partner.display_name}` : "You're in"}
       </Text>
+      <Text style={styles.subtitle}>Here&apos;s what&apos;s coming up together.</Text>
 
       {/* A brand-new couple lands here with nothing and no idea what to do
           first. This says so, in order, and disappears as each is done —
@@ -535,6 +608,29 @@ export default function Home() {
 const createStyles = (t: Theme) =>
   StyleSheet.create({
   container: { flexGrow: 1, padding: t.space(6), paddingTop: t.space(14), paddingBottom: 40 },
+  cover: {
+    height: 170,
+    borderRadius: t.radius.lg,
+    overflow: "hidden",
+    backgroundColor: t.surface,
+    marginBottom: t.space(5),
+    justifyContent: "flex-end",
+  },
+  coverImage: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+  coverEmpty: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  coverEmptyText: { fontSize: 13, color: t.textMuted },
+  coverFaces: { flexDirection: "row", padding: t.space(3) },
+  // Overlapped rather than side by side: two circles touching reads as a
+  // couple, two circles apart reads as a list of users.
+  coverFaceOverlap: { marginLeft: -14 },
   setupCard: {
     backgroundColor: t.accentSoft,
     borderRadius: t.radius.lg,
