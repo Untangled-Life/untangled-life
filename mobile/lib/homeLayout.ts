@@ -12,13 +12,14 @@
  * in Settings now, and a stored arrangement that still names them drops them
  * on the way in.
  */
-export type HomeSection = "pinned" | "keyDates" | "bookedIn" | "freeTogether";
+export type HomeSection = "pinned" | "keyDates" | "bookedIn" | "freeTogether" | "littleThings";
 
 export const HOME_SECTIONS: { key: HomeSection; label: string; blurb: string }[] = [
   { key: "pinned", label: "Pinned countdown", blurb: "The big one at the top" },
   { key: "keyDates", label: "Key dates & countdowns", blurb: "The row you swipe through" },
   { key: "bookedIn", label: "Dates", blurb: "What's booked, and a nudge when nothing is" },
   { key: "freeTogether", label: "Free together", blurb: "When you're both actually free" },
+  { key: "littleThings", label: "Little things", blurb: "In their words, at the bottom" },
 ];
 
 export const DEFAULT_HOME_ORDER: HomeSection[] = HOME_SECTIONS.map((s) => s.key);

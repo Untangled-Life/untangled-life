@@ -183,6 +183,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="welcome" options={{ href: null }} />
       <Tabs.Screen name="inbox" options={{ href: null }} />
       <Tabs.Screen name="plan" options={{ href: null }} />
+      <Tabs.Screen name="valued" options={{ href: null }} />
       <Tabs.Screen name="coming-soon" options={{ href: null }} />
       <Tabs.Screen name="roster-import" options={{ href: null }} />
     </Tabs>

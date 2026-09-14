@@ -176,6 +176,19 @@ export default function Privacy() {
                   picture.
                 </>,
                 <>
+                  <strong>Your answers about what makes you feel valued.</strong> The
+                  &ldquo;Feeling valued&rdquo; questions in the app ask what makes you feel wanted
+                  and what helps on a hard week. These answers are written by you, for your
+                  partner to read, and that is the purpose of the feature rather than a side
+                  effect of it. Nothing you write is visible to your partner until you turn
+                  sharing on yourself: until then the answers are readable only by you, which is
+                  enforced by our database rather than by the app politely not asking. You can
+                  edit them, stop sharing them, or delete them at any time, and deleting your
+                  account deletes them with it. We do not score these answers, rate your
+                  relationship, or compare the two of you, and we never use them for anything
+                  other than showing your own words to your own partner inside the app.
+                </>,
+                <>
                   <strong>Anything you send us.</strong> If you email us for support, we keep that
                   correspondence so we can help you.
                 </>,

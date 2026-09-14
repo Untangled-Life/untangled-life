@@ -59,6 +59,12 @@ export default function Menu() {
           onPress: () => router.push("/settings"),
         },
         {
+          label: "Feeling valued",
+          hint: "What makes each of you feel wanted",
+          icon: (p) => <HeartIcon {...p} />,
+          onPress: () => router.push("/valued"),
+        },
+        {
           label: "Personalisation",
           hint: "Appearance, colours, your Home screen",
           icon: (p) => <SlidersIcon {...p} />,

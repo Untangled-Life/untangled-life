@@ -65,7 +65,7 @@ describe("resolveHomeLayout", () => {
   // has to be exact: what you saved is what you get back.
   it("round-trips a complete arrangement unchanged", () => {
     const original = layout(
-      ["freeTogether", "pinned", "keyDates", "bookedIn"],
+      ["freeTogether", "pinned", "keyDates", "bookedIn", "littleThings"],
       ["pinned", "bookedIn"]
     );
     const full = resolveHomeLayout(serializeHomeLayout(original));

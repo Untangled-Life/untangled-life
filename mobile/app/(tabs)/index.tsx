@@ -29,6 +29,8 @@ import { shouldNudge } from "@/lib/dateNudge";
 import { loadFreeWindows as loadFreeWindowsData } from "@/lib/freeWindows";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { buildInbox } from "@/lib/inbox";
+import { ValuedAnswers, fallbackLine, partnerPrompt } from "@/lib/valued";
+import { daySeed } from "@/lib/dateIdeas";
 import { loadOpenProposals, splitProposals, DateProposal } from "@/lib/dateProposals";
 import { InboxBadge } from "@/app/(tabs)/inbox";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
@@ -81,6 +83,7 @@ export default function Home() {
   // question from what is coming up. See lib/dateNudge.ts.
   const [lastPlannedAt, setLastPlannedAt] = useState<Date | null>(null);
   const [proposals, setProposals] = useState<DateProposal[]>([]);
+  const [partnerValued, setPartnerValued] = useState<ValuedAnswers | null>(null);
 
   // Drives the top scrim. Home is the one screen where the fade cannot simply
   // be there: the cover photo runs to the top edge on purpose, so the wash has
@@ -128,6 +131,16 @@ export default function Home() {
   const loadPlans = useCallback(async () => {
     await loadOnboarding();
     setProposals(await loadOpenProposals());
+
+    // Only ever comes back when they have shared it. The policy does the
+    // gating, so there is nothing to check here beyond which row is theirs.
+    const { data: valued } = await supabase
+      .from("valued_answers")
+      .select("user_id, couple_id, ranking, feels_valued, little_things, hard_week, shared, updated_at")
+      .neq("user_id", session?.user.id ?? "")
+      .maybeSingle();
+
+    setPartnerValued((valued as ValuedAnswers | null) ?? null);
     setPlans(await loadUpcomingPlans());
 
     // When anything was last put in the diary, which is a different question
@@ -554,6 +567,36 @@ export default function Home() {
         )}
       </View>
     ),
+    littleThings: (
+      <View key="littleThings">
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Little things</Text>
+          <Link href="/valued" style={styles.sectionAction}>
+            {partnerValued ? "Yours" : "Answer"}
+          </Link>
+        </View>
+
+        {/* Their own sentence wherever there is one. A thing your partner
+            said about themselves beats anything this app could write, and a
+            rotating quote is invisible by day ten because it is not about
+            you and never changes in response to anything. */}
+        <View style={styles.littleCard}>
+          <Text style={styles.littleText}>
+            {partnerPrompt(partnerValued, partnerName, daySeed())?.line ??
+              fallbackLine(
+                {
+                  nextFree: freeWindows[0]?.start ?? null,
+                  keyDateIn: live.length > 0 ? daysUntil(live[0].date, live[0].recurring) : null,
+                  keyDateTitle: live.length > 0 ? displayTitleFor(live[0], nameFor) : null,
+                  partnerAnswered: Boolean(partnerValued),
+                  partnerName,
+                },
+                daySeed()
+              )}
+          </Text>
+        </View>
+      </View>
+    ),
     freeTogether: (
       <View key="freeTogether">
         <View style={styles.sectionHeader}>
@@ -945,5 +988,14 @@ const createStyles = (t: Theme) =>
     marginTop: t.space(4),
   },
   planPromptButtonText: { ...t.type.label, color: t.textOnBrand },
+  // Quiet on purpose. This sits at the bottom and is read once a day at
+  // most, so it earns no shadow and no brand colour.
+  littleCard: {
+    backgroundColor: t.surfaceSunken,
+    borderRadius: t.radius.lg,
+    padding: t.space(5),
+    marginBottom: t.space(6),
+  },
+  littleText: { ...t.type.body, color: t.textPrimary },
   link: { textAlign: "center", color: t.textMuted, ...t.type.caption },
   });
