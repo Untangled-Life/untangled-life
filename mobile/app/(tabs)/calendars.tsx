@@ -186,6 +186,16 @@ export default function Calendars() {
             ))}
           </View>
 
+          {/* The commonest "the app is broken" report there is, and it is
+              not the app: a calendar switched off in iOS Settings is invisible
+              to every app on the phone, so we cannot even name what is
+              missing. Saying where to look is the whole fix. */}
+          <Text style={styles.footnote}>
+            Missing a calendar? A calendar switched off in Settings &rsaquo; Apps &rsaquo; Calendar
+            &rsaquo; Accounts never reaches any app, including this one. Turn it on there and pull
+            down to refresh.
+          </Text>
+
           <Text style={styles.footnote}>
             {sharedCount === 0
               ? "Nothing is shared, so the app can't work out when you're free. Set at least the calendar your commitments live in to Busy only."

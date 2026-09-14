@@ -16,7 +16,7 @@ export type HomeSection =
 export const HOME_SECTIONS: { key: HomeSection; label: string; blurb: string }[] = [
   { key: "pinned", label: "Pinned countdown", blurb: "The big one at the top" },
   { key: "keyDates", label: "Key dates & countdowns", blurb: "The row you swipe through" },
-  { key: "bookedIn", label: "Booked in", blurb: "Dates you've already got in" },
+  { key: "bookedIn", label: "Dates", blurb: "What's booked, and a nudge when nothing is" },
   { key: "freeTogether", label: "Free together", blurb: "When you're both actually free" },
   { key: "workHours", label: "Your working hours", blurb: "Your shifts or pattern" },
   { key: "calendars", label: "Calendars", blurb: "What each calendar shares" },

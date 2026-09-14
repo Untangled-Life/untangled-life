@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { press } from "@/components/press";
-import { succeeded, warned } from "@/lib/haptics";
+import { succeeded, warned, tapped } from "@/lib/haptics";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { CalendarIcon, MenuIcon } from "@/components/icons";
@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { KeyDateRow, daysUntil, displayTitleFor, countdownLabel } from "@/lib/keyDates";
 import { HomeHero } from "@/components/home-hero";
+import { shouldNudge, suggestedSlot } from "@/lib/dateNudge";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
 import { syncBusyBlocks } from "@/lib/calendarSync";
@@ -71,6 +72,10 @@ export default function Home() {
   // told to clear a diary that is already empty is worse than being told
   // nothing.
   const [noZoneOverlap, setNoZoneOverlap] = useState(false);
+
+  // When the couple last put ANYTHING in the diary, which is a different
+  // question from what is coming up. See lib/dateNudge.ts.
+  const [lastPlannedAt, setLastPlannedAt] = useState<Date | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [myPattern, setMyPattern] = useState<WorkPattern | null>(null);
   const [plans, setPlans] = useState<UpcomingPlan[]>([]);
@@ -112,6 +117,20 @@ export default function Home() {
 
   const loadPlans = useCallback(async () => {
     setPlans(await loadUpcomingPlans());
+
+    // When anything was last put in the diary, which is a different question
+    // from what is coming up: a couple who booked a holiday for March did
+    // plan something, and a couple whose only plan is in March have an empty
+    // fortnight ahead. The nudge needs both answers.
+    const { data } = await supabase
+      .from("planned_events")
+      .select("created_at")
+      .eq("cancelled", false)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    setLastPlannedAt(data?.created_at ? new Date(data.created_at as string) : null);
   }, []);
 
   const loadFreeWindows = useCallback(async () => {
@@ -337,6 +356,17 @@ export default function Home() {
     }
   }
 
+  /**
+   * Open the date editor at a time you are both actually free.
+   *
+   * Landing on a real window rather than on 9am tomorrow is the difference
+   * between "plan a date" being an invitation and being a form.
+   */
+  function planADate() {
+    tapped();
+    router.push({ pathname: "/event", params: suggestedSlot(freeWindows) });
+  }
+
   function confirmCancel(plan: PlannedEvent) {
     // Cancelling flags the row, and a repeating event is a single row. Until
     // there is a way to skip one occurrence, saying "this plan" about a weekly
@@ -455,6 +485,11 @@ export default function Home() {
   // change until they go and move something.
   const visible = visibleSections(resolveHomeLayout(profile?.home_sections));
 
+  // Nothing booked for a fortnight and nothing planned for a fortnight. On
+  // Home this only changes the wording of a card that would be there anyway;
+  // the same rule drives the push, in supabase/functions/nudge-date.
+  const nudging = shouldNudge(plans, lastPlannedAt);
+
   // Each Home section, keyed so the arrangement can decide what appears
   // and in what order. Wrapped in a keyed <View> because the list is
   // rendered from an array -- without the key React reorders by position
@@ -523,11 +558,17 @@ export default function Home() {
     ),
     bookedIn: (
       <View key="bookedIn">
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{plans.length > 0 ? "Booked in" : "Dates"}</Text>
+          {plans.length > 0 ? (
+            <Pressable onPress={planADate} hitSlop={8}>
+              <Text style={styles.sectionAction}>Plan another</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
         {plans.length > 0 ? (
           <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Booked in</Text>
-            </View>
             <View style={{ marginBottom: 24 }}>
               {plans.map((plan) => (
                 <View key={plan.id} style={styles.planRow}>
@@ -551,7 +592,26 @@ export default function Home() {
               ))}
             </View>
           </>
-        ) : null}
+        ) : (
+          // The empty state IS the feature here. A couple with nothing booked
+          // is the couple this app exists for, and an empty section that says
+          // nothing is a missed moment rather than a tidy one.
+          <Pressable style={press(styles.planPrompt)} onPress={planADate}>
+            <Text style={styles.planPromptTitle}>
+              {nudging
+                ? "It\u2019s been a while since you had a date. \uD83E\uDD0D Keep the fire alive. \uD83D\uDD25"
+                : "Nothing in the diary yet"}
+            </Text>
+            <Text style={styles.planPromptBody}>
+              {freeWindows.length > 0
+                ? `You\u2019re both free ${formatWindow(freeWindows[0]).toLowerCase()}.`
+                : "Pick a time and it lands on both your calendars."}
+            </Text>
+            <View style={styles.planPromptButton}>
+              <Text style={styles.planPromptButtonText}>Plan a date</Text>
+            </View>
+          </Pressable>
+        )}
       </View>
     ),
     freeTogether: (
@@ -932,5 +992,24 @@ const createStyles = (t: Theme) =>
     alignItems: "center",
   },
   buttonText: { ...t.type.label, color: t.textOnBrand },
+  // Brand-tinted rather than a plain card: this is an invitation, and an
+  // invitation that looks like every other row is one nobody accepts.
+  planPrompt: {
+    backgroundColor: t.brandSoft,
+    borderRadius: t.radius.lg,
+    padding: t.space(5),
+    marginBottom: t.space(6),
+    alignItems: "flex-start",
+  },
+  planPromptTitle: { ...t.type.title, color: t.textPrimary },
+  planPromptBody: { ...t.type.body, color: t.textSecondary, marginTop: t.space(1) },
+  planPromptButton: {
+    backgroundColor: t.brand,
+    borderRadius: t.radius.pill,
+    paddingVertical: t.space(3),
+    paddingHorizontal: t.space(5),
+    marginTop: t.space(4),
+  },
+  planPromptButtonText: { ...t.type.label, color: t.textOnBrand },
   link: { textAlign: "center", color: t.textMuted, ...t.type.caption },
   });

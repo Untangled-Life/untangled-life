@@ -2,8 +2,8 @@ import { useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator } from "react-native";
 import { press } from "@/components/press";
 import { router } from "expo-router";
-import { useThemedStyles, useTheme, useThemeMode } from "@/contexts/theme";
-import { Theme, ThemeMode, ACCENTS } from "@/theme/tokens";
+import { useThemedStyles, useTheme } from "@/contexts/theme";
+import { Theme } from "@/theme/tokens";
 import { ChevronRightIcon } from "@/components/icons";
 import { Avatar } from "@/components/avatar";
 import { useAuth } from "@/contexts/auth";
@@ -14,16 +14,9 @@ import { succeeded, warned, tapped } from "@/lib/haptics";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { leaveCouple, deleteOwnAccount } from "@/lib/leaving";
 
-const MODES: { key: ThemeMode; label: string; blurb: string }[] = [
-  { key: "system", label: "Match my phone", blurb: "Follows your phone's light or dark setting." },
-  { key: "light", label: "Always light", blurb: "Keep the app light whatever the phone does." },
-  { key: "dark", label: "Always dark", blurb: "Keep the app dark whatever the phone does." },
-];
-
 export default function Settings() {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
-  const { mode, setMode, scheme, accent, setAccent } = useThemeMode();
   const { session, profile, refreshProfile } = useAuth();
   const { myAvatarUrl, reload: reloadPhotos } = useCouplePhotos();
   const { partner } = useCoupleMembers();
@@ -195,83 +188,15 @@ export default function Settings() {
         </View>
       </View>
 
-      <Text style={styles.groupTitle}>Appearance</Text>
-      <View style={styles.card}>
-        {MODES.map((m, i) => (
-          <Pressable
-            key={m.key}
-            onPress={() => setMode(m.key)}
-            style={press([styles.row, i > 0 ? styles.rowDivider : null])}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowLabel, mode === m.key ? styles.rowLabelActive : null]}>
-                {m.label}
-              </Text>
-              <Text style={styles.rowHint}>{m.blurb}</Text>
-            </View>
-            {mode === m.key ? <Text style={styles.tick}>✓</Text> : null}
-          </Pressable>
-        ))}
-      </View>
-      <Text style={styles.groupTitle}>Accent colour</Text>
-      <View style={[styles.card, styles.swatchCard]}>
-        {ACCENTS.map((a) => {
-          const on = a.name === accent;
-          const pair = scheme === "dark" ? a.dark : a.light;
-          return (
-            <Pressable
-              key={a.name}
-              onPress={() => {
-                tapped();
-                setAccent(a.name);
-              }}
-              style={press(styles.swatchWrap)}
-              accessibilityRole="button"
-              accessibilityLabel={a.label}
-              accessibilityState={{ selected: on }}
-            >
-              <View
-                style={[
-                  styles.swatch,
-                  { backgroundColor: pair.on },
-                  on ? { borderColor: t.textPrimary } : null,
-                ]}
-              >
-                {on ? <Text style={styles.swatchTick}>✓</Text> : null}
-              </View>
-              <Text style={[styles.swatchLabel, on ? styles.rowLabelActive : null]}>
-                {a.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <Text style={styles.footnote}>
-        Changes links, buttons and key dates. The brand orange stays put.
-      </Text>
-
-      <Text style={styles.footnote}>
-        Currently showing the {scheme} theme.
-        {mode === "system" ? " Change your phone's appearance setting to switch." : ""}
-      </Text>
-
-      <Text style={styles.groupTitle}>Calendar colour</Text>
-      <Pressable style={press(styles.card)} onPress={() => router.push("/colors")}>
+      {/* Appearance, the accent, your calendar colour and the Home
+          arrangement all moved to Personalisation. This screen is what the app
+          DOES; that one is what it looks like. Holding both meant "change the
+          accent" and "delete my account" shared a scroll. */}
+      <Pressable style={press(styles.card)} onPress={() => router.push("/personalisation")}>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Your colour</Text>
-            <Text style={styles.rowHint}>How your events look on the shared calendar</Text>
-          </View>
-          <ChevronRightIcon size={18} color={t.textMuted} />
-        </View>
-      </Pressable>
-
-      <Text style={styles.groupTitle}>Home screen</Text>
-      <Pressable style={press(styles.card)} onPress={() => router.push("/home-layout")}>
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Arrange Home</Text>
-            <Text style={styles.rowHint}>Reorder the sections, hide what you don&apos;t use</Text>
+            <Text style={styles.rowLabel}>Personalisation</Text>
+            <Text style={styles.rowHint}>Appearance, colours and your Home screen</Text>
           </View>
           <ChevronRightIcon size={18} color={t.textMuted} />
         </View>
@@ -380,27 +305,7 @@ const createStyles = (t: Theme) =>
     rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border },
     rowLabel: { ...t.type.heading, color: t.textPrimary },
     rowLabelDanger: { color: t.danger },
-    rowLabelActive: { color: t.accent, fontWeight: "700" },
     rowHint: { ...t.type.caption, color: t.textMuted, marginTop: 2 },
-    swatchCard: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      justifyContent: "space-between",
-      padding: t.space(4),
-      gap: t.space(3),
-    },
-    swatchWrap: { alignItems: "center", width: "28%" },
-    swatch: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      borderWidth: 2,
-      borderColor: "transparent",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    swatchTick: { color: "#fff", fontSize: 18, fontWeight: "700" },
-    swatchLabel: { ...t.type.caption, color: t.textMuted, marginTop: 6 },
     profileCard: {
       flexDirection: "row",
       alignItems: "center",
@@ -410,7 +315,6 @@ const createStyles = (t: Theme) =>
     profileActions: { flexDirection: "row", gap: t.space(4), marginTop: t.space(2) },
     action: { ...t.type.label, color: t.accent },
     actionDanger: { color: t.danger },
-    tick: { color: t.accent, fontSize: 17, fontWeight: "700" },
     footnote: {
       ...t.type.caption,
       color: t.textMuted,

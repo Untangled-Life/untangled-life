@@ -54,19 +54,15 @@ export default function Menu() {
       items: [
         {
           label: "Settings",
-          hint: "Appearance and more",
+          hint: "Calendars, hours, your account",
           icon: (p) => <CogIcon {...p} />,
           onPress: () => router.push("/settings"),
         },
         {
           label: "Personalisation",
-          hint: "Not built yet",
+          hint: "Appearance, colours, your Home screen",
           icon: (p) => <SlidersIcon {...p} />,
-          onPress: () =>
-            notReady(
-              "Personalisation",
-              "Nothing to change here yet. It'll cover how the app addresses you both and what shows on your home screen."
-            ),
+          onPress: () => router.push("/personalisation"),
         },
         {
           label: "Notification settings",
