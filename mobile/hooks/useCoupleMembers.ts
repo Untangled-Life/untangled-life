@@ -9,7 +9,7 @@ type Member = {
   color: string | null;
 };
 
-// Both partners' profile rows, split into "me" and "partner" — relies on the
+// Both partners' profile rows, split into "me" and "partner" -- relies on the
 // "View own or partner profile" RLS policy, which lets each user read both
 // rows in their couple (and nothing outside it).
 //
@@ -30,7 +30,7 @@ export function useCoupleMembers() {
     let cancelled = false;
 
     // Auth hasn't settled, so there's no couple to look up yet. Staying
-    // loading here is the whole point — "no couple_id" at this moment means
+    // loading here is the whole point -- "no couple_id" at this moment means
     // "not known", not "not paired".
     if (authLoading) {
       setLoading(true);

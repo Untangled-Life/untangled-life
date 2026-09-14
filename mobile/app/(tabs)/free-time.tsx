@@ -127,7 +127,7 @@ export default function FreeTimeSettings() {
 
       <Text style={styles.title}>Free together</Text>
       <Text style={styles.intro}>
-        What counts as time worth offering the two of you. These apply to both of you — there&apos;s
+        What counts as time worth offering the two of you. These apply to both of you, because there&apos;s
         no useful sense in which one of you thinks 11pm is too late for a window you&apos;d both
         have to be in.
       </Text>
@@ -145,7 +145,7 @@ export default function FreeTimeSettings() {
         <HourRow value={prefs.dayEndHour} onPick={(h) => save({ ...prefs, dayEndHour: h })} />
         <Text style={styles.hint}>
           Pick Midnight to run right through to the end of the day. If you work nights, the window
-          that matters is probably your morning — 4am to 12pm rather than 7am to 11pm.
+          that matters is probably your morning: 4am to 12pm rather than 7am to 11pm.
         </Text>
       </View>
 

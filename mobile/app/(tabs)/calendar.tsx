@@ -343,7 +343,7 @@ export default function CalendarScreen() {
   }, [session?.user.id, month]);
 
   // Refreshes whenever this screen comes back into view, not just on
-  // mount — otherwise changes made elsewhere aren't here until a restart.
+  // mount -- otherwise changes made elsewhere aren't here until a restart.
   const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
   // Everything that falls on each day, keyed by YYYY-MM-DD.
@@ -688,7 +688,7 @@ export default function CalendarScreen() {
 
       {selectedEntries.some((e) => e.kind === "busy") ? (
         <Text style={styles.footnote}>
-          Events come from the calendars you&apos;ve connected — change them there and they update
+          Events come from the calendars you&apos;ve connected. Change them there and they update
           here.
         </Text>
       ) : null}

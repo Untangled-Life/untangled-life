@@ -187,7 +187,7 @@ export default function Calendars() {
           <Text style={styles.footnote}>
             {sharedCount === 0
               ? "Nothing is shared, so the app can't work out when you're free. Set at least the calendar your commitments live in to Busy only."
-              : `${sharedCount} of ${calendars.length} shared${detailedCount > 0 ? `, ${detailedCount} in full detail` : ""}. Turning one down deletes what it shared straight away — the times come back on the next sync if it's still on.`}
+              : `${sharedCount} of ${calendars.length} shared${detailedCount > 0 ? `, ${detailedCount} in full detail` : ""}. Turning one down deletes what it shared straight away. The times come back on the next sync if it's still on.`}
           </Text>
         </>
       )}

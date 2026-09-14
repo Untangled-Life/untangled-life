@@ -35,7 +35,7 @@ export default function Settings() {
   function confirmUnpair() {
     Alert.alert(
       `Unpair from ${partnerName}?`,
-      `You'll keep your account and can pair again with a new code. ${partnerName} keeps your key dates, to-dos, wishlists and booked dates — they don't disappear from their phone. Your calendar, working hours and profile photo are removed.`,
+      `You'll keep your account and can pair again with a new code. ${partnerName} keeps your key dates, to-dos, wishlists and booked dates. They don't disappear from their phone. Your calendar, working hours and profile photo are removed.`,
       [
         { text: "Stay paired", style: "cancel" },
         {
@@ -65,7 +65,7 @@ export default function Settings() {
     Alert.alert(
       "Delete your account?",
       partner
-        ? `This can't be undone. Your sign-in, your calendar data, your working hours and your photo are deleted. ${partnerName} keeps the key dates, to-dos, wishlists and booked dates you both built — except your birthday, which goes with you.`
+        ? `This can't be undone. Your sign-in, your calendar data, your working hours and your photo are deleted. ${partnerName} keeps the key dates, to-dos, wishlists and booked dates you both built, except your birthday, which goes with you.`
         : "This can't be undone. Your sign-in and everything in the app is deleted. Nobody else is in your couple, so nothing is kept.",
       [
         { text: "Keep my account", style: "cancel" },
@@ -337,7 +337,7 @@ export default function Settings() {
       </View>
 
       <Text style={styles.footnote}>
-        More will land here before launch — see the pre-launch checklist in the repo for what&apos;s
+        More will land here before launch. See the pre-launch checklist in the repo for what&apos;s
         still outstanding.
       </Text>
     </ScrollView>

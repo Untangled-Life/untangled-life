@@ -121,7 +121,7 @@ begin
       values (new_code, auth.uid(), new_couple_id, 'pending');
       exit;
     exception when unique_violation then
-      -- code collision (very unlikely) — loop and try a fresh one
+      -- code collision (very unlikely) -- loop and try a fresh one
     end;
   end loop;
 
@@ -168,7 +168,7 @@ revoke all on function redeem_couple_invite(text) from public;
 grant execute on function redeem_couple_invite(text) to authenticated;
 
 -- Auto-create a profile row the moment someone signs up, rather than relying
--- on a client-side insert right after signUp() — that would race against
+-- on a client-side insert right after signUp() -- that would race against
 -- Supabase's "confirm email" setting, which leaves no active session (and so
 -- no auth.uid()) until the user clicks the confirmation link.
 create or replace function handle_new_user()

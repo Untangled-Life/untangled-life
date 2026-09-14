@@ -54,7 +54,7 @@ export function toDateKey(d: Date): string {
  * Which week of the rotation a given day falls in.
  *
  * Counted in whole weeks from the Monday on or before anchor_date, so the
- * rotation doesn't drift when the anchor is set mid-week — someone entering
+ * rotation doesn't drift when the anchor is set mid-week -- someone entering
  * "my cycle started this Wednesday" means the week containing that Wednesday.
  */
 export function cycleWeekFor(day: Date, anchorDate: string, cycleWeeks: number): number {
@@ -168,7 +168,7 @@ export function weekdayLabel(weekday: number): string {
 
 export function describePattern(pattern: WorkPattern | null): string {
   if (!pattern || pattern.mode === "irregular" || pattern.shifts.length === 0) {
-    return "No regular hours set — shifts added one at a time.";
+    return "No regular hours set. Shifts added one at a time.";
   }
 
   const days = [...new Set(pattern.shifts.map((s) => s.weekday))]

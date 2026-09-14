@@ -23,7 +23,7 @@ import {
 const MODES: { key: WorkMode; label: string; blurb: string }[] = [
   { key: "weekly", label: "Regular hours", blurb: "The same shifts every week." },
   { key: "rotating", label: "Rotating roster", blurb: "A cycle that repeats every few weeks." },
-  { key: "irregular", label: "Shift work", blurb: "No pattern — each shift added as it comes." },
+  { key: "irregular", label: "Shift work", blurb: "No pattern, each shift added as it comes." },
 ];
 
 export default function WorkHours() {
@@ -79,7 +79,7 @@ export default function WorkHours() {
   }, [userId]);
 
   // Refreshes whenever this screen comes back into view, not just on
-  // mount — otherwise changes made elsewhere aren't here until a restart.
+  // mount -- otherwise changes made elsewhere aren't here until a restart.
   const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
   async function persist(next: {
@@ -267,7 +267,7 @@ export default function WorkHours() {
           <Text style={styles.cardTitle}>Shifts</Text>
 
           {shifts.length === 0 ? (
-            <Text style={styles.empty}>None yet — add your first below.</Text>
+            <Text style={styles.empty}>None yet. Add your first below.</Text>
           ) : (
             shifts.map((s, i) => (
               <Pressable key={i} style={press(styles.shiftRow)} onLongPress={() => removeShift(i)}>

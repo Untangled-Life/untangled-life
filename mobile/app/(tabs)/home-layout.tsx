@@ -63,7 +63,7 @@ export default function HomeLayoutSettings() {
       <Text style={styles.title}>Arrange Home</Text>
       <Text style={styles.intro}>
         Put the sections in the order you want them and switch off the ones you don&apos;t use.
-        This is yours alone — your partner keeps their own arrangement.
+        This is yours alone. Your partner keeps their own arrangement.
       </Text>
 
       <View style={styles.card}>
@@ -118,7 +118,7 @@ export default function HomeLayoutSettings() {
 
       <Text style={styles.footnote}>
         {shown.length === 0
-          ? "Everything is switched off, so Home will show just your photo and the setup prompts. That's allowed — switch something back on whenever you like."
+          ? "Everything is switched off, so Home will show just your photo and the setup prompts. That's allowed. Switch something back on whenever you like."
           : "A section with nothing in it still hides itself. Switching one off here keeps it hidden even when there's something to show."}
       </Text>
 

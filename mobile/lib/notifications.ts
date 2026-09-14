@@ -61,7 +61,7 @@ export async function rescheduleKeyDateReminders(dates: ReminderInput[]): Promis
           body:
             offset === 0
               ? "Today's the day."
-              : `${reminderLabel(offset)} to go — time to sort a card and a gift.`,
+              : `${reminderLabel(offset)} to go. Time to sort a card and a gift.`,
         },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: reminderAt },
       });

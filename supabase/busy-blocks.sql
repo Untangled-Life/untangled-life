@@ -1,5 +1,5 @@
 -- Busy/free sync: each partner's phone reads its own device calendars
--- (Google, Apple/iCloud, Outlook — whatever's synced there) and uploads only
+-- (Google, Apple/iCloud, Outlook -- whatever's synced there) and uploads only
 -- start/end times, never event titles or details, so the app can compute
 -- shared free time without either partner seeing the other's actual
 -- calendar entries. Run after key-dates-kind.sql.
@@ -17,7 +17,7 @@ create index if not exists busy_blocks_couple_window on busy_blocks (couple_id, 
 
 alter table busy_blocks enable row level security;
 
--- Both partners can VIEW each other's busy blocks (that's the point — this
+-- Both partners can VIEW each other's busy blocks (that's the point -- this
 -- is how "when are we both free" gets computed), but each person can only
 -- write their own: user_id = auth.uid() on every insert/update/delete.
 

@@ -74,11 +74,13 @@ describe("time formats", () => {
 
   it("accepts en and em dashes", () => {
     expect(only("Mon 9am – 5pm").end).toBe("17:00");
-    expect(only("Mon 9am — 5pm").end).toBe("17:00");
+    // Deliberately an em dash: this is roster text somebody pasted in, not
+    // our own writing, and the parser has to cope with what people send.
+    expect(only("Mon 9am \u2014 5pm").end).toBe("17:00");
   });
 });
 
-describe("ambiguity — guesses, flagged", () => {
+describe("ambiguity -- guesses, flagged", () => {
   /** "9-5" is 9am-5pm to any human. The parser should agree, and admit it. */
   it("reads a bare 9-5 as a working day", () => {
     const s = only("Mon 9-5");

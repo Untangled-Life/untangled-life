@@ -54,7 +54,7 @@ export function fromDisplayDate(text: string): string | null {
   return fromISODate(iso) ? iso : null;
 }
 
-/** "Sun 20 Sep 2026" — for reading rather than editing. */
+/** "Sun 20 Sep 2026" -- for reading rather than editing. */
 export function toFriendlyDate(iso: string | null | undefined, withYear = true): string {
   if (!iso) return "";
   const d = fromISODate(iso.slice(0, 10));
@@ -74,7 +74,7 @@ export function toTimeString(d: Date): string {
  *
  * Validated rather than trusted: Number("") is 0, not NaN, so a blank time
  * would otherwise sail through a Number.isFinite check and silently become
- * midnight — which reads as a real answer and blocks out the whole night.
+ * midnight -- which reads as a real answer and blocks out the whole night.
  */
 export function fromTimeString(time: string): Date {
   const parts = (time ?? "").split(":");

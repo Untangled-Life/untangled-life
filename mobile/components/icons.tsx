@@ -3,7 +3,7 @@ import Svg, { Path, Rect, Circle, Line } from "react-native-svg";
 
 /**
  * Stroke icons in the same language as the website's set in
- * src/components/icons.tsx — 24x24 box, 1.75 stroke, round caps and joins — so
+ * src/components/icons.tsx -- 24x24 box, 1.75 stroke, round caps and joins -- so
  * the app and the landing page look like one product.
  */
 export type IconProps = {

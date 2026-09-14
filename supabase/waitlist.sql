@@ -11,7 +11,7 @@ create table if not exists waitlist (
 
 alter table waitlist enable row level security;
 
--- Allow anonymous inserts only — no select/update/delete for the anon role.
+-- Allow anonymous inserts only -- no select/update/delete for the anon role.
 -- The app's server-side route uses the anon key, so this policy is what
 -- keeps a leaked anon key from being able to read the waitlist back.
 drop policy if exists "Allow anonymous insert" on waitlist;
@@ -22,7 +22,7 @@ create policy "Allow anonymous insert" on waitlist
 
 -- Public signup counter (for the landing page "X/500 registered" display).
 -- SECURITY DEFINER lets this function read the row count on behalf of the
--- anon role without granting anon a general SELECT policy on the table —
+-- anon role without granting anon a general SELECT policy on the table --
 -- it returns only a single aggregate number, never any row data, so the
 -- privacy guarantee above (anon can insert but never read the list) holds.
 create or replace function waitlist_count()

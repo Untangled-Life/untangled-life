@@ -46,7 +46,7 @@ export default function RosterImport() {
     if (result.shifts.length === 0) {
       Alert.alert(
         "Couldn't read that",
-        "No shifts found. Each line needs a day and its hours — like \"Mon 8:30am - 5:30pm\"."
+        "No shifts found. Each line needs a day and its hours, like \"Mon 8:30am - 5:30pm\"."
       );
       return;
     }
@@ -121,7 +121,7 @@ export default function RosterImport() {
         {!parsed ? (
           <>
             <Text style={styles.intro}>
-              Paste your roster below — from an email, a message, wherever it arrives. You&apos;ll
+              Paste your roster below, from an email, a message, wherever it arrives. You&apos;ll
               see exactly what was understood before anything is saved.
             </Text>
 
@@ -153,7 +153,7 @@ export default function RosterImport() {
             <Text style={styles.intro}>
               {parsed.length} {parsed.length === 1 ? "row" : "rows"} read
               {warningCount > 0
-                ? `, ${warningCount} worth a look — anything it had to guess at is marked.`
+                ? `, ${warningCount} worth a look. Anything it had to guess at is marked.`
                 : ". Nothing needed guessing."}
             </Text>
 
@@ -186,7 +186,7 @@ export default function RosterImport() {
 
                 {shift.warnings.map((w) => (
                   <Text key={w} style={styles.warning}>
-                    {w} — check this one
+                    {w}, check this one
                   </Text>
                 ))}
 

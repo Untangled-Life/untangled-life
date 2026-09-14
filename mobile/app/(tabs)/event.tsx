@@ -467,7 +467,7 @@ export default function EventEditor() {
         <View style={[styles.banner, editability.editable ? null : styles.bannerWarn]}>
           <Text style={styles.bannerText}>
             {editability.editable
-              ? `This lives in ${nameFor(deviceEvent.user_id)} phone calendar. Changing it here changes it there${deviceEvent.recurring ? ", and it repeats — you'll be asked which ones" : ""}.`
+              ? `This lives in ${nameFor(deviceEvent.user_id)} phone calendar. Changing it here changes it there${deviceEvent.recurring ? ", and it repeats, so you'll be asked which ones" : ""}.`
               : editability.reason}
           </Text>
         </View>

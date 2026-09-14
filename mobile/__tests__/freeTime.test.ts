@@ -49,7 +49,7 @@ describe("nextSharedFreeWindows", () => {
   const freeze = (d: Date) => jest.useFakeTimers().setSystemTime(d);
 
   /**
-   * REGRESSION — bookings never reached the calendar.
+   * REGRESSION -- bookings never reached the calendar.
    *
    * The filter only required a window's END to be in the future, so today's
    * 7am-11pm span stayed on offer all evening. Booking it created an event

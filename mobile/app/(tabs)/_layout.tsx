@@ -16,7 +16,7 @@ export default function TabsLayout() {
   const userId = session?.user.id;
   const paired = Boolean(profile?.couple_id) && Boolean(partner);
 
-  // Ask for push once they're actually paired — the only notifications that
+  // Ask for push once they're actually paired -- the only notifications that
   // need a token are the ones triggered by the other partner, so there's
   // nothing to explain (or grant) before there is one.
   useEffect(() => {
@@ -138,7 +138,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => <GiftIcon size={24} color={color} />,
         }}
       />
-      {/* Reached from the Home header / cards, not the tab bar — href: null
+      {/* Reached from the Home header / cards, not the tab bar -- href: null
           keeps them inside the gated tab group without adding tab buttons. */}
       <Tabs.Screen name="calendar" options={{ href: null }} />
       <Tabs.Screen name="calendars" options={{ href: null }} />

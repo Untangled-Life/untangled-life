@@ -5,7 +5,7 @@ import { useFocusEffect } from "expo-router";
  * Re-run a screen's loader whenever it comes back into view.
  *
  * Every screen loaded once on mount and never again, so anything changed
- * elsewhere — a key date added on another tab, a date your partner booked —
+ * elsewhere -- a key date added on another tab, a date your partner booked --
  * simply wasn't there until the app was restarted. That reads as the app being
  * broken rather than stale.
  *

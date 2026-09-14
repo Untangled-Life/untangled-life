@@ -47,7 +47,7 @@ describe("cycleWeekFor", () => {
     expect(cycleWeekFor(new Date(2026, 8, 28), "2026-09-14", 2)).toBe(0);
   });
 
-  /** REGRESSION — JS % keeps the dividend's sign, so dates before the anchor
+  /** REGRESSION -- JS % keeps the dividend's sign, so dates before the anchor
    *  returned negative weeks and matched nothing. */
   it("handles dates before the anchor without going negative", () => {
     expect(cycleWeekFor(new Date(2026, 8, 7), "2026-09-14", 2)).toBe(1);
@@ -84,7 +84,7 @@ describe("expandWorkHours", () => {
   });
 
   /**
-   * REGRESSION — regular hours ran fortnightly.
+   * REGRESSION -- regular hours ran fortnightly.
    *
    * The work-hours screen defaults its cycle length to 2 for the rotating
    * case, and persist() wrote it in every mode. Mode must be the authority:

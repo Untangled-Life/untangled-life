@@ -75,7 +75,7 @@ export default function Colors() {
 
       <Text style={styles.title}>Your colour</Text>
       <Text style={styles.intro}>
-        Everything of yours is drawn in this — events, your busy time, your working hours. Both of
+        Everything of yours is drawn in this: events, your busy time, your working hours. Both of
         you see the same scheme, so pick something {partnerName.toLowerCase() === "your partner" ? "your partner" : partnerName} isn&apos;t.
       </Text>
 
@@ -154,7 +154,7 @@ export default function Colors() {
       </View>
 
       <Text style={styles.footnote}>
-        Shared events — the ones marked &quot;Us&quot; — stay in the app&apos;s own orange, so it
+        Shared events, the ones marked &quot;Us&quot;, stay in the app&apos;s own orange, so it
         is always clear which things belong to both of you.
       </Text>
     </ScrollView>

@@ -23,7 +23,7 @@ describe("ISO <-> Date", () => {
 
   /**
    * `new Date("2026-09-20")` parses as UTC midnight, which in Australia is the
-   * morning of the 20th but in the Americas is the evening of the 19th —
+   * morning of the 20th but in the Americas is the evening of the 19th --
    * countdowns would be a day out. Parsing field by field keeps it local.
    */
   it("treats an ISO string as a local date, not UTC", () => {

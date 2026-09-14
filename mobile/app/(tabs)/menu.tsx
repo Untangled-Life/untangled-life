@@ -28,7 +28,7 @@ export default function Menu() {
   const t = useTheme();
 
   // Nothing here pretends to work. Anything without a real destination says so
-  // rather than opening an empty screen — the outstanding ones are tracked in
+  // rather than opening an empty screen -- the outstanding ones are tracked in
   // launch/pre-launch-checklist.md.
   const notReady = (what: string, why: string) =>
     Alert.alert(what, why, [{ text: "OK" }]);
@@ -93,7 +93,7 @@ export default function Menu() {
           hint: "Coming soon",
           icon: (p) => <HeartIcon {...p} />,
           onPress: () =>
-            notReady("Follow us", "No Facebook or Instagram accounts yet — these will link up once they exist."),
+            notReady("Follow us", "No Facebook or Instagram accounts yet. These will link up once they exist."),
         },
         {
           label: "Give us 5 stars",

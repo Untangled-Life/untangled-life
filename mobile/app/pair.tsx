@@ -145,7 +145,7 @@ export default function Pair() {
             <Text style={styles.buttonSecondaryText}>Create an invite code</Text>
           </Pressable>
 
-          <Text style={styles.orText}>— or —</Text>
+          <Text style={styles.orText}>or</Text>
 
           <TextInput
             style={styles.input}

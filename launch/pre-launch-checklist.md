@@ -2,7 +2,7 @@
 
 Things that must be real before Untangled Life goes to the App Store and Play
 Store. Anything listed here currently exists as a placeholder, a stub, or not
-at all — the app says so honestly rather than pretending.
+at all -- the app says so honestly rather than pretending.
 
 Last reviewed: 2026-09-13 (updated after overnight work)
 
@@ -13,7 +13,7 @@ Last reviewed: 2026-09-13 (updated after overnight work)
 Each of these opens an alert explaining it isn't built. None silently fail.
 Wire them up in `mobile/app/(tabs)/menu.tsx`.
 
-- [ ] **Privacy policy** — not written. Needs a real page, ideally at
+- [ ] **Privacy policy** -- not written. Needs a real page, ideally at
       `untangledlife.com.au/privacy`, linked from the menu.
       **Also required for Google Calendar API verification**, so this blocks
       the OAuth work too, not just launch.
@@ -21,26 +21,26 @@ Wire them up in `mobile/app/(tabs)/menu.tsx`.
       end times only), never event titles, locations or notes; working hours;
       key dates; to-dos and wishlists; push tokens. Data lives in Supabase,
       row-level-secured to the couple.
-- [ ] **Facebook page** — doesn't exist. Create, then replace the placeholder
+- [ ] **Facebook page** -- doesn't exist. Create, then replace the placeholder
       alert with a `Linking.openURL` to it.
-- [ ] **Instagram account** — same.
-- [ ] **"Give us 5 stars"** — needs the App Store listing to exist first. Then
+- [ ] **Instagram account** -- same.
+- [ ] **"Give us 5 stars"** -- needs the App Store listing to exist first. Then
       link to `itms-apps://apps.apple.com/app/id<APP_ID>?action=write-review`
       on iOS and the Play Store equivalent on Android. Consider
       `expo-store-review` rather than a raw link.
-- [ ] **Personalisation** — not designed yet. Intended to cover how the app
+- [ ] **Personalisation** -- not designed yet. Intended to cover how the app
       addresses you both and what appears on the home screen.
-- [ ] **Notification settings** — reminders are currently hardcoded to 14, 7
+- [ ] **Notification settings** -- reminders are currently hardcoded to 14, 7
       and 3 days before a key date, and can only be turned off at the OS level.
       Needs per-couple control of offsets and categories.
 
-## Push notifications — written but never once fired
+## Push notifications -- written but never once fired
 
 Full detail in `supabase/functions/README.md`. In order:
 
-- [ ] `eas init` in `mobile/` — writes `extra.eas.projectId`. Without it push
+- [ ] `eas init` in `mobile/` -- writes `extra.eas.projectId`. Without it push
       registration silently no-ops by design.
-- [ ] Development build — Expo Go cannot receive remote push from SDK 53 on.
+- [ ] Development build -- Expo Go cannot receive remote push from SDK 53 on.
       Android dev builds are free; **iOS needs a paid Apple Developer account
       (~$150/yr)**.
 - [ ] Deploy the `notify-partner` Edge Function.
@@ -50,12 +50,12 @@ Full detail in `supabase/functions/README.md`. In order:
 
 ## App store readiness
 
-- [ ] **Real app icon and splash** — still Expo defaults.
+- [ ] **Real app icon and splash** -- still Expo defaults.
 - [ ] Apple Developer account ($149 AUD/yr) and Google Play account ($25 once).
 - [ ] Screenshots for both stores.
 - [ ] App Store description, keywords, category, age rating.
 - [ ] Support URL and marketing URL.
-- [x] Account deletion path — **Apple requires** any app with account creation
+- [x] Account deletion path -- **Apple requires** any app with account creation
       to offer in-app account deletion. Built 14 Sep, Settings → Leaving.
       **Untested on a device.**
 - [ ] Test on Android. Everything so far has been verified on iPhone only.
@@ -74,34 +74,34 @@ Full detail in `supabase/functions/README.md`. In order:
 The privacy policy renders these in orange as `[...]` marks, so they cannot
 reach Google's verification team unnoticed.
 
-- [ ] **Legal entity name** — the operator of the app. A sole trader's own name
+- [ ] **Legal entity name** -- the operator of the app. A sole trader's own name
       is fine; it just has to be the real one.
 - [ ] **ABN**, if registered.
-- [ ] **Supabase region** — Project Settings → General → Region in the
+- [ ] **Supabase region** -- Project Settings → General → Region in the
       dashboard. Google's data-access review asks where data is stored.
 
 ## Product gaps worth closing before launch
 
-- [x] **Roster import (paste)** — done. Paste a roster, it reads the shifts,
+- [x] **Roster import (paste)** -- done. Paste a roster, it reads the shifts,
       you confirm and edit before anything saves. Ambiguous rows are flagged.
       **Untested on a device.**
-- [ ] **Roster import (photo / PDF)** — not started. Needs either an on-device
+- [ ] **Roster import (photo / PDF)** -- not started. Needs either an on-device
       ML kit (a native module Expo Go won't have) or a vision API (cost, keys,
       an Edge Function). Worth doing only if pasting proves not to be enough.
-- [ ] **Timezone handling** — the `notify-partner` Edge Function formats times
+- [ ] **Timezone handling** -- the `notify-partner` Edge Function formats times
       in `Australia/Sydney`. Store a per-user timezone before shipping outside
       AU.
-- [x] **Unpairing / leaving a couple** — built 14 Sep, Settings → Leaving.
+- [x] **Unpairing / leaving a couple** -- built 14 Sep, Settings → Leaving.
       Shared things are handed to the remaining partner rather than cascaded
       away. **Untested on a device.**
-- [ ] **Google / Outlook OAuth sync** (v1.5) — planned, not started. Google
+- [ ] **Google / Outlook OAuth sync** (v1.5) -- planned, not started. Google
       treats the Calendar scope as "sensitive": beyond ~100 test accounts it
       needs verification with a privacy policy, a demo video, and 3–5 business
       days of review. **Step-by-step console instructions are now in
-      `launch/google-cloud-setup.md`** — everything but the demo video can be
+      `launch/google-cloud-setup.md`** -- everything but the demo video can be
       done today, and the review clock is the longest lead time on the project.
 
-## New on 14 Sep — needs device testing tonight
+## New on 14 Sep -- needs device testing tonight
 
 - [x] **Run `supabase/calendar-detail.sql` and `supabase/photos.sql`.** Both
       run 14 Sep. Not yet verified from the app.
@@ -109,14 +109,14 @@ reach Google's verification team unnoticed.
       `on conflict do nothing` on the bucket, which would have left an existing
       bucket public. The fixed version forces `public = false` and adds a size
       and MIME cap. Safe to re-run.
-- [ ] **Run `supabase/calendar-sharing.sql`** — replaces the connected boolean
+- [ ] **Run `supabase/calendar-sharing.sql`** -- replaces the connected boolean
       with off / busy-only / full-detail, and clears `busy_blocks` once so no
       row outlives the setting that allowed it.
 - [ ] **Per-calendar sharing.** Every calendar starts OFF, so on first open
       after this update Roy and Alyssa will both see no free time until they
       choose on the new Calendars screen. Designed behaviour, but it is the
       first thing to check.
-- [ ] **Run `supabase/leaving.sql`** — adds the unpair and delete-account
+- [ ] **Run `supabase/leaving.sql`** -- adds the unpair and delete-account
       functions.
 - [ ] **Unpairing and account deletion.** Test on the second account, not
       Roy's. Check afterwards that the remaining partner still has the
@@ -127,20 +127,20 @@ reach Google's verification team unnoticed.
       Found by grep after fixing it in Key Dates, patched in seven places
       (sign-in, sign-up, pairing, to-dos, both wishlist screens, key dates).
       Worth a pass through the app with dark mode on.
-- [ ] **Run `supabase/key-date-extras.sql`** — per-date reminders and notes.
+- [ ] **Run `supabase/key-date-extras.sql`** -- per-date reminders and notes.
 - [ ] **Key Dates editing.** Tap a misc date to rename or re-date it; Clear on
       the anniversary and either birthday.
 - [ ] **Per-date reminders.** Change a date's reminder chips, then check the
-      old notification is gone and the new one is scheduled — rescheduling
+      old notification is gone and the new one is scheduled -- rescheduling
       cancels by `keydate-` prefix, so a stale offset should not survive.
-- [ ] **Run `supabase/trips-and-pins.sql`** — end dates and the pinned flag.
+- [ ] **Run `supabase/trips-and-pins.sql`** -- end dates and the pinned flag.
 - [ ] **Trips.** Add a misc date with an end date; check it shows across every
       day on the calendar, that the countdown switches to "4 days left" once it
       starts, and that it disappears from Home the day after it ends.
 - [ ] **Pinning.** Pin something, check the hero countdown appears on Home for
       both of you and the date leaves the horizontal row.
-- [ ] **Run `supabase/free-time-prefs.sql`** — the free-window settings.
-- [ ] **Run `supabase/home-layout.sql`** — per-person Home arrangement.
+- [ ] **Run `supabase/free-time-prefs.sql`** -- the free-window settings.
+- [ ] **Run `supabase/home-layout.sql`** -- per-person Home arrangement.
 - [ ] **Accent colour.** Pick each one in both light and dark mode. The soft
       tints behind chips and the hero countdown are the ones most likely to
       look wrong.
@@ -164,7 +164,7 @@ reach Google's verification team unnoticed.
       block seen on 14 Sep.
 - [ ] **Cover photo and profile pictures.** Picking, cropping, uploading,
       showing on both phones, and replacing one (the old file should go).
-- [ ] **Photo permission copy** on iOS — the Info.plist string is set but has
+- [ ] **Photo permission copy** on iOS -- the Info.plist string is set but has
       never been seen on a device.
 
 ## Found by review, fixed but never run on a device (14 Sep)
@@ -201,18 +201,18 @@ committed; none has been seen working on a phone.
       settings or the cover photo stop saving with a permission error, the
       grant in `free-time-prefs.sql` is missing a column.
 
-## The calendar build (14 Sep, evening) — needs device testing
+## The calendar build (14 Sep, evening) -- needs device testing
 
 - [ ] **Run `supabase/calendar-events.sql`** (in the combined file).
 - [ ] **Day view.** Tap a day in the month grid once to select it, again to
       open the hour-by-hour view. 24 rows, everything in its real slot, a red
       line at the current time on today.
 - [ ] **Tap-to-add.** Tapping empty space should open the editor pre-filled
-      with that half-hour slot — check the slot matches where you tapped.
+      with that half-hour slot -- check the slot matches where you tapped.
 - [ ] **Overlaps.** Two events at the same time should sit side by side, not
       on top of each other.
 - [ ] **Owner and colour.** An event set to Alyssa should show in her colour
-      everywhere — day view, month dots, the day list.
+      everywhere -- day view, month dots, the day list.
 - [ ] **Push toggles.** The critical one. Turn a toggle ON and the event should
       appear in that phone's own calendar app; turn it OFF and it should
       *disappear* from there on the next sync. Editing the time in the app
@@ -223,7 +223,7 @@ committed; none has been seen working on a phone.
       with their name so you don't pick the same one.
 - [ ] **Editing and deleting an event**, including one the partner created.
 
-## Calendar review fixes (14 Sep) — all untested on a device
+## Calendar review fixes (14 Sep) -- all untested on a device
 
 A second pair of reviews on the calendar diff found twelve more. The ones
 worth checking by hand:
@@ -235,14 +235,14 @@ worth checking by hand:
       different day showed the previous one. Same for the editor: tapping 2pm
       after cancelling a 10am draft reopened the 10am draft. Check both.
 - [ ] **The ‹ › arrows didn't reload.** Two days out and the grid was empty.
-- [ ] **Tapping a work or busy block did nothing at all** — a disabled
+- [ ] **Tapping a work or busy block did nothing at all** -- a disabled
       Pressable wins the hit test and then swallows the tap. On a day with an
       eight-hour shift the whole working day was untappable.
 - [ ] **The last hour of the day couldn't be saved.** 23:30 + 1 hour stayed on
       the same date, so every save was refused. Tap the bottom of the grid.
 - [ ] **Daylight saving.** Offsets were measured in elapsed time while the rows
       were drawn in wall-clock. AU has no transition until October, so this
-      won't show in testing — the suite now runs in a DST timezone instead.
+      won't show in testing -- the suite now runs in a DST timezone instead.
 - [ ] **Cancelling a past event, or editing one backwards, left it on the
       phone forever.** The sync now reconciles from the link rows, not just
       from a future-events query. Test: book something, move it to yesterday,
@@ -254,14 +254,14 @@ worth checking by hand:
 - [ ] **Tapping your partner's colour silently made you both the same.** Now
       asks first.
 
-## Event editing (14 Sep, late) — needs device testing
+## Event editing (14 Sep, late) -- needs device testing
 
 - [ ] **Run `supabase/event-editing.sql`** (in the combined file).
 - [ ] **Edit a synced event.** Tap a Google/Apple event on the day view, change
       its time, save. It should move in the calendar it came from, and the app
       should show the new time after the re-sync.
 - [ ] **Edit a repeating synced event.** Should ask "just this one" or "this
-      and future". Check the right occurrence moves — passing the wrong
+      and future". Check the right occurrence moves -- passing the wrong
       instance start date silently moves the FIRST one in the series, which
       could be months ago.
 - [ ] **Delete a synced event.** Comes out of the source calendar, not just the
@@ -270,16 +270,16 @@ worth checking by hand:
       roster) should say so rather than failing. If you don't have one, add a
       holiday subscription to test it.
 - [ ] **Your partner's synced event.** Should be read-only with an explanation
-      — a phone can't write to someone else's Google account.
+      -- a phone can't write to someone else's Google account.
 - [ ] **Change notification.** Move a booked date and check the other phone
       gets "Roy moved Dinner to 8pm" and that its calendar updates.
-      **Blocked on the development build and the Edge Function deploy** — see
+      **Blocked on the development build and the Edge Function deploy** -- see
       the push section below. Until then, nothing is pushed and the change
       still lands when the app is next opened.
 - [ ] **The third webhook.** `supabase/functions/README.md` now specifies
       planned_events UPDATE as well.
 - [ ] **Noise check.** Toggling a push switch or editing a note should NOT
-      notify the partner — only a real change to the time, name or place.
+      notify the partner -- only a real change to the time, name or place.
 
 ## Known rough edges
 
@@ -294,8 +294,8 @@ worth checking by hand:
   report an all-day event's start as UTC midnight, which is the previous day
   local time anywhere west of UTC. Australia is UTC+10 so it reads correctly
   here either way, which is exactly why it won't be caught by testing. Needs
-  fixing before the app ships outside AU — most likely by storing an explicit
+  fixing before the app ships outside AU -- most likely by storing an explicit
   date-only field for all-day rows rather than inferring the day from a
   timestamp.
 - No Android testing whatsoever. The date pickers in particular behave
-  differently there — Android's dialog confirms itself, iOS uses a sheet.
+  differently there -- Android's dialog confirms itself, iOS uses a sheet.

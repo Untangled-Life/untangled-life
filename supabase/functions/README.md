@@ -15,7 +15,7 @@ npx supabase link --project-ref <your-project-ref>
 npx supabase functions deploy notify-partner
 ```
 
-`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically — you
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically -- you
 don't set those yourself.
 
 ### 2. Expo access token (optional)
@@ -49,7 +49,7 @@ to send, which is why all three can share one function.
 Webhook 2 is the one that makes an edit reach the other phone: it fires on
 every update, the function works out from `old_record` whether anything worth
 mentioning actually changed, and the app syncs on receiving the push. **It can
-be created as one webhook with both Insert and Update ticked** — two rows are
+be created as one webhook with both Insert and Update ticked** -- two rows are
 shown above only because the events column differs.
 
 A note on why updates are filtered in the function rather than the webhook: an
@@ -68,6 +68,6 @@ readable from SQL.
 ### Checking it works
 
 `supabase functions logs notify-partner` shows each invocation. The function
-returns `{"skipped": "..."}` rather than failing when there's nothing to do —
+returns `{"skipped": "..."}` rather than failing when there's nothing to do --
 no partner paired yet, partner has no push token, the row was a cancellation.
 Those are normal, not errors.

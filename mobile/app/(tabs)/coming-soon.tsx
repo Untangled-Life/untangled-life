@@ -11,7 +11,7 @@ export default function ComingSoon() {
       <Text style={styles.title}>Not built yet</Text>
       <Text style={styles.body}>
         This one&apos;s on the list rather than in the app. Nothing here is hiding behind a
-        placeholder — when it works, it&apos;ll work.
+        placeholder. When it works, it&apos;ll work.
       </Text>
       <Pressable onPress={() => router.back()} style={press(styles.button)}>
         <Text style={styles.buttonText}>Back</Text>

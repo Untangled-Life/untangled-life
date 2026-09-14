@@ -192,7 +192,7 @@ export default function Home() {
   }, [profile?.couple_id, session?.user.id, loadFreeWindows, loadPlans]);
 
   /**
-   * Everything this screen shows can change elsewhere — your partner books a
+   * Everything this screen shows can change elsewhere -- your partner books a
    * date, you add a key date on another tab, a calendar event moves. So it
    * reloads whenever it comes back into view rather than only on mount, and
    * re-reads the phone's calendar when permission allows.
@@ -287,7 +287,7 @@ export default function Home() {
       } else if (syncResult.added === 0) {
         Alert.alert(
           "Saved, but not on your calendar",
-          "The date was saved but nothing was added to this phone's calendar. It may not have synced back yet — reopen the app to retry."
+          "The date was saved but nothing was added to this phone's calendar. It may not have synced back yet, so reopen the app to retry."
         );
       }
     } catch (e) {
@@ -445,8 +445,8 @@ export default function Home() {
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>
               {pinned.length > 0
-                ? "Nothing else coming up — the one that matters is pinned above."
-                : `No key dates yet — add ${partnerName}'s birthday or your anniversary to start a countdown.`}
+                ? "Nothing else coming up. The one that matters is pinned above."
+                : `No key dates yet. Add ${partnerName}'s birthday or your anniversary to start a countdown.`}
             </Text>
           </View>
         ) : (
@@ -535,7 +535,7 @@ export default function Home() {
         ) : freeWindows.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>
-              No shared free time found in the next week — both calendars look packed.
+              No shared free time found in the next week. Both calendars look packed.
             </Text>
           </View>
         ) : (
@@ -617,7 +617,7 @@ export default function Home() {
                   ? "Checking which calendars you're sharing…"
                   : connectedCount === 0
                     ? `None of the ${calendarCount ?? 0} calendars on this phone are shared, so nothing from them reaches your partner.`
-                    : `${connectedCount} of ${calendarCount ?? connectedCount} shared. Tap to change what each one gives away — busy times only, or the full detail.`}
+                    : `${connectedCount} of ${calendarCount ?? connectedCount} shared. Tap to change what each one gives away: busy times only, or the full detail.`}
               </Text>
             </Pressable>
           </Link>
@@ -626,7 +626,7 @@ export default function Home() {
             <Text style={styles.cardTitle}>Calendar access</Text>
             <Text style={styles.cardBody}>
               Not connected yet. We read the calendars already synced to your phone, so this covers
-              Google and Apple/iCloud without a separate sign-in for each — and you choose, calendar
+              Google and Apple/iCloud without a separate sign-in for each, and you choose, calendar
               by calendar, whether your partner sees just your busy times or the full detail.
             </Text>
             <Pressable style={press(styles.button)} onPress={requestAccess}>
@@ -687,7 +687,7 @@ export default function Home() {
       <Text style={styles.subtitle}>Here&apos;s what&apos;s coming up together.</Text>
 
       {/* A brand-new couple lands here with nothing and no idea what to do
-          first. This says so, in order, and disappears as each is done —
+          first. This says so, in order, and disappears as each is done --
           rather than leaving three empty sections to interpret. */}
       {setupSteps.length > 0 ? (
         <View style={styles.setupCard}>

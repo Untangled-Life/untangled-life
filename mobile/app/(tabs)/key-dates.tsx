@@ -196,7 +196,7 @@ export default function KeyDates() {
   }, [myId, partnerId, nameFor]);
 
   // Refreshes whenever this screen comes back into view, not just on
-  // mount — otherwise changes made elsewhere aren't here until a restart.
+  // mount -- otherwise changes made elsewhere aren't here until a restart.
   const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
   async function saveSingleton(
@@ -499,7 +499,7 @@ export default function KeyDates() {
       } contentContainerStyle={styles.container}>
       <Text style={styles.title}>Key Dates</Text>
       <Text style={styles.subtitle}>
-        Reminders land at 9am, 2 weeks, 1 week and 3 days before by default — change that per date
+        Reminders land at 9am, 2 weeks, 1 week and 3 days before by default. Change that per date
         under Reminders &amp; notes. Dates save as soon as you pick them.
       </Text>
 
@@ -678,7 +678,7 @@ export default function KeyDates() {
         ) : null}
         {miscEnd ? (
           <Text style={styles.detailsHint}>
-            A trip — it won&apos;t repeat next year, and it&apos;ll show across the whole stretch on
+            A trip. It won&apos;t repeat next year, and it&apos;ll show across the whole stretch on
             your calendar.
           </Text>
         ) : null}

@@ -6,7 +6,7 @@ import { toISODate } from "@/lib/dates";
  *
  * Rosters are written by people for people, so this is heuristics, not a
  * grammar. The contract is therefore: guess sensibly, and say when you guessed.
- * Nothing here saves anything — every result goes to a confirm screen where the
+ * Nothing here saves anything -- every result goes to a confirm screen where the
  * uncertain rows are flagged and everything is editable.
  */
 
@@ -44,7 +44,7 @@ const DAY_WORDS: Record<string, number> = {
 const OFF_WORDS = /\b(off|rdo|rest|leave|annual leave|a\/l|day off)\b/i;
 
 /**
- * A dash or an x standing in for "nothing on" — but only when it is the entire
+ * A dash or an x standing in for "nothing on" -- but only when it is the entire
  * content beside the day. Treating any dash as "off" made "Mon 25:00-30:00"
  * into a day off, which is the worst possible reading: a shift you can't parse
  * silently becomes a day you're free.
@@ -58,7 +58,7 @@ const FOUR_DIGIT_RANGE = /\b(\d{4})\s*(?:-|–|—|to)\s*(\d{4})\b/;
 const DATE_DMY = /\b(\d{1,2})[/\-.](\d{1,2})(?:[/\-.](\d{2,4}))?\b/;
 
 /**
- * Two unmistakable times with only whitespace between them — how a roster
+ * Two unmistakable times with only whitespace between them -- how a roster
  * arrives when pasted from spreadsheet cells. Each side must carry minutes or
  * an am/pm to qualify, so "Total hours 38 40" isn't read as a shift.
  */
@@ -131,7 +131,7 @@ function parseRange(line: string): { start: string; end: string; warnings: strin
       warnings.push("Assumed the finish is in the afternoon");
     }
   } else if (!startRaw.explicit && endRaw.explicit) {
-    // "9-5pm" — the start is almost certainly morning.
+    // "9-5pm" -- the start is almost certainly morning.
     if (startRaw.hour >= 12) warnings.push("Assumed the start is in the morning");
   }
 

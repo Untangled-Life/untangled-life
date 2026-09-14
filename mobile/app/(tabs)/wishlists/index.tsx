@@ -51,7 +51,7 @@ export default function Wishlists() {
   }, []);
 
   // Refreshes whenever this screen comes back into view, not just on
-  // mount — otherwise changes made elsewhere aren't here until a restart.
+  // mount -- otherwise changes made elsewhere aren't here until a restart.
   const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
   async function createWishlist() {
@@ -142,7 +142,7 @@ export default function Wishlists() {
       {wishlists.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyText}>
-            No wishlists yet — start one for gift ideas, date ideas, or travel.
+            No wishlists yet. Start one for gift ideas, date ideas, or travel.
           </Text>
         </View>
       ) : (

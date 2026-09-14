@@ -19,7 +19,7 @@ import { CalendarIcon, ClockIcon } from "@/components/icons";
  *
  * Everything was typed as YYYY-MM-DD text before, which is both the slowest
  * way to enter a date and the easiest to get wrong. Values still travel as ISO
- * dates and 24-hour times — only the interaction and the display change.
+ * dates and 24-hour times -- only the interaction and the display change.
  *
  * iOS shows the picker in a sheet with an explicit Done, because its spinner
  * has no inherent confirm step; Android's dialog closes itself.
@@ -60,7 +60,7 @@ export function DateField({
       mode="date"
       display={Platform.OS === "ios" ? "spinner" : "default"}
       // The native picker follows the PHONE's appearance unless told
-      // otherwise, while this sheet follows the app's theme — which renders
+      // otherwise, while this sheet follows the app's theme -- which renders
       // white text on a white sheet and makes the picker look missing.
       themeVariant={t.scheme}
       textColor={t.textPrimary}

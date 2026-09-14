@@ -135,7 +135,7 @@ describe("displayTitleFor", () => {
   });
 
   /**
-   * REGRESSION — birthdays showed the wrong name.
+   * REGRESSION -- birthdays showed the wrong name.
    *
    * A single birthday row per couple was labelled with whoever the viewer's
    * partner was, so the same row read as a different person's birthday on each

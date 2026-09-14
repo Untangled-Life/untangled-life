@@ -67,7 +67,7 @@ export default function Todos() {
   }, []);
 
   // Refreshes whenever this screen comes back into view, not just on
-  // mount — otherwise changes made elsewhere aren't here until a restart.
+  // mount -- otherwise changes made elsewhere aren't here until a restart.
   const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
   const assignedIdForFilter =
@@ -186,7 +186,7 @@ export default function Todos() {
                   : `Nothing on ${partner?.display_name ?? "their"}'s list`}
             </Text>
             <Text style={styles.emptyBody}>
-              Add one below — anything either of you would otherwise be carrying around in your
+              Add one below: anything either of you would otherwise be carrying around in your
               head.
             </Text>
           </View>

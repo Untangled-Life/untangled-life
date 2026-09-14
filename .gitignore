@@ -42,3 +42,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /data
+
+# Files delivered into the chat by a Claude session land here when they're
+# saved to this folder. They're copies of things already in supabase/ and
+# launch/, not source.
+/Claude outputs/

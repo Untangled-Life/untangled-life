@@ -498,7 +498,7 @@ export default function DayView() {
         </View>
 
         <Text style={styles.footnote}>
-          Tap anywhere empty to add an event at that time. Tap an event to change it — including
+          Tap anywhere empty to add an event at that time. Tap an event to change it, including
           the ones from your own phone calendars, which change there too. Working hours are set
           under Your hours.
         </Text>

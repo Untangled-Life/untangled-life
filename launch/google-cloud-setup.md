@@ -1,4 +1,4 @@
-# Google Cloud setup — step by step
+# Google Cloud setup -- step by step
 
 _Written 14 September 2026. Check the dates on Google's own pages; this process
 changes._
@@ -7,11 +7,11 @@ This is what has to happen before Untangled Life can sync with Google Calendar
 for anyone other than a handful of test accounts. It is the longest-lead item
 on the whole project: the review itself is **3–5 business days**, and that clock
 only starts once everything below is in place. Nothing here needs the app to be
-finished — start it now and let it run in the background.
+finished -- start it now and let it run in the background.
 
 **Who does what:** every step in this file is console clicking and is yours.
 The code it unblocks (the OAuth exchange, the token store, the sync) is mine,
-and is v1.5 — see `claude/project-status.md`.
+and is v1.5 -- see `claude/project-status.md`.
 
 ---
 
@@ -33,7 +33,7 @@ We only want Calendar, so this is the lighter of the two processes.
 Have these to hand:
 
 - The Google account that should **own** this project long-term. Not a personal
-  throwaway — whoever owns it controls the app's Google identity forever.
+  throwaway -- whoever owns it controls the app's Google identity forever.
   `hello@untangledlife.com.au` if that is a real mailbox, otherwise your main
   account.
 - Access to the DNS for `untangledlife.com.au` (for domain verification).
@@ -55,7 +55,7 @@ Have these to hand:
 1. **APIs & Services → Library**.
 2. Search **Google Calendar API** → **Enable**.
 
-That is the only API we need. Do not enable others "just in case" — every
+That is the only API we need. Do not enable others "just in case" -- every
 enabled API with a sensitive scope is something the reviewer will ask about.
 
 ## 3. Verify the domain
@@ -77,7 +77,7 @@ than adding a second record.
 **APIs & Services → OAuth consent screen.**
 
 - **User type: External.** (Internal is for Google Workspace organisations only.)
-- **App name:** `Untangled Life` — this is the name users see on the consent
+- **App name:** `Untangled Life` -- this is the name users see on the consent
   screen, and it must match the app's name in the stores.
 - **User support email:** `hello@untangledlife.com.au`.
 - **App logo:** the 120×120 icon. Uploading a logo triggers brand review, which
@@ -89,7 +89,7 @@ than adding a second record.
 
 > **The privacy policy must live on the same domain as the home page.** Ours
 > does. This is one of the most common rejection reasons and it is already
-> handled — don't move the policy to a Notion page or a Google Doc.
+> handled -- don't move the policy to a Notion page or a Google Doc.
 
 ### Scopes
 
@@ -100,12 +100,12 @@ https://www.googleapis.com/auth/calendar.events
 ```
 
 Read and write events, and nothing else. Not `calendar` (which also grants
-calendar settings and ACLs — sharing permissions), not `calendar.readonly`
+calendar settings and ACLs -- sharing permissions), not `calendar.readonly`
 (we need to write booked dates back).
 
 The reviewer will ask **why a narrower scope won't do**. The answer:
-`calendar.events.readonly` cannot write, and "Book it on both phones" — writing
-a shared date into each partner's calendar — is a core feature, not an extra.
+`calendar.events.readonly` cannot write, and "Book it on both phones" -- writing
+a shared date into each partner's calendar -- is a core feature, not an extra.
 
 ### Test users
 
@@ -127,19 +127,19 @@ Edge Function, and the function does the rest.
   `https://<your-project-ref>.supabase.co/functions/v1/google-oauth-callback`
 
   The project ref is the subdomain in `EXPO_PUBLIC_SUPABASE_URL` in
-  `mobile/.env`. The function doesn't exist yet — the URI just has to be
+  `mobile/.env`. The function doesn't exist yet -- the URI just has to be
   registered before the flow is first run, and it can be added later.
 
 Save the **client ID** and **client secret**. The secret goes into Supabase as
 an Edge Function secret. **It must never appear in the repo, in `mobile/.env`,
-or in anything with `EXPO_PUBLIC_` in the name** — anything prefixed that way is
+or in anything with `EXPO_PUBLIC_` in the name** -- anything prefixed that way is
 compiled into the app and readable by anyone who downloads it.
 
 ## 6. The demo video
 
 This is the step people redo, so read it before recording.
 
-An **unlisted YouTube video** (not private — the reviewer must be able to open
+An **unlisted YouTube video** (not private -- the reviewer must be able to open
 it without requesting access) showing:
 
 1. Starting from the app, tapping whatever begins the Google connection.
@@ -154,7 +154,7 @@ it without requesting access) showing:
 
 Narration isn't required but helps. Keep it under about three minutes.
 
-**Record this after the sync feature is built** — it has to show real
+**Record this after the sync feature is built** -- it has to show real
 functionality. Steps 1–5 above can all be done today; this one waits.
 
 ## 7. Submit
@@ -184,7 +184,7 @@ quickly, because the clock restarts each time.
 ## Two things that will bite
 
 **The unverified-app warning is not a bug.** Until verification comes back,
-everyone — including you — sees a "Google hasn't verified this app" interstitial
+everyone -- including you -- sees a "Google hasn't verified this app" interstitial
 with the real button hidden behind *Advanced → Go to Untangled Life (unsafe)*.
 That is expected, it goes away on approval, and it is not worth a support email.
 
