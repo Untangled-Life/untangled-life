@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+import { StyleProp, StyleSheet, ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/theme";
@@ -15,8 +15,14 @@ import { useTheme } from "@/contexts/theme";
  * A fade rather than a solid bar, for the same reason the cover photo gets one
  * rather than being dimmed: a bar is a piece of chrome you have to design
  * around on every screen, and a fade is just the page running out.
+ *
+ * Home passes a style because it has to fade the scrim itself IN. Its cover
+ * photo runs to the top edge on purpose, so a cream wash sitting over it from
+ * the start would be a bar across two faces -- but once the photo has scrolled
+ * away, the names underneath collide with the clock exactly like anywhere
+ * else. So there it appears as the photo leaves.
  */
-export function TopScrim() {
+export function TopScrim({ style }: { style?: StyleProp<ViewStyle> } = {}) {
   const insets = useSafeAreaInsets();
   const t = useTheme();
 
@@ -30,7 +36,7 @@ export function TopScrim() {
       pointerEvents="none"
       colors={[t.bg, t.bg, withAlpha(t.bg, 0)]}
       locations={[0, 0.62, 1]}
-      style={[styles.scrim, { height }]}
+      style={[styles.scrim, { height }, style]}
     />
   );
 }

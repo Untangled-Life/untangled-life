@@ -1,5 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
+  Animated,
   View,
   Text,
   StyleSheet,
@@ -23,6 +24,7 @@ import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { KeyDateRow, daysUntil, displayTitleFor, countdownLabel } from "@/lib/keyDates";
 import { HomeHero } from "@/components/home-hero";
+import { TopScrim } from "@/components/top-scrim";
 import { shouldNudge, suggestedSlot } from "@/lib/dateNudge";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
@@ -39,7 +41,7 @@ import {
   FreeTimePrefs,
   DEFAULT_FREE_TIME_PREFS,
 } from "@/lib/freeTime";
-import { WorkPattern, WorkShift, expandWorkHours, toDateKey, describePattern } from "@/lib/workHours";
+import { WorkPattern, WorkShift, expandWorkHours, toDateKey } from "@/lib/workHours";
 import {
   PlannedEvent,
   createPlannedEvent,
@@ -59,7 +61,6 @@ export default function Home() {
   const { session, profile, signOut } = useAuth();
   const { me, partner } = useCoupleMembers();
   const [permission, setPermission] = useState<PermissionStatus | null>(null);
-  const [calendarCount, setCalendarCount] = useState<number | null>(null);
   const [connectedCount, setConnectedCount] = useState<number | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const { coverUrl, coverPath, myAvatarUrl, partnerAvatarUrl, reload: reloadPhotos } =
@@ -76,6 +77,11 @@ export default function Home() {
   // When the couple last put ANYTHING in the diary, which is a different
   // question from what is coming up. See lib/dateNudge.ts.
   const [lastPlannedAt, setLastPlannedAt] = useState<Date | null>(null);
+
+  // Drives the top scrim. Home is the one screen where the fade cannot simply
+  // be there: the cover photo runs to the top edge on purpose, so the wash has
+  // to arrive as the photo leaves rather than sit over it from the start.
+  const scrollY = useRef(new Animated.Value(0)).current;
   const [syncing, setSyncing] = useState(false);
   const [myPattern, setMyPattern] = useState<WorkPattern | null>(null);
   const [plans, setPlans] = useState<UpcomingPlan[]>([]);
@@ -259,7 +265,6 @@ export default function Home() {
 
     if (permissionResult.status === PermissionStatus.GRANTED && session?.user.id) {
       const all = await listCalendars(session.user.id);
-      setCalendarCount(all.length);
       setConnectedCount(all.filter((c) => c.shareLevel !== "off").length);
     }
 
@@ -708,59 +713,16 @@ export default function Home() {
         )}
       </View>
     ),
-    workHours: (
-      <View key="workHours">
-        <Link href="/work-hours" asChild>
-          <Pressable style={press(styles.hoursCard)}>
-            <View style={styles.cardHeadRow}>
-              <Text style={styles.hoursTitle}>Your working hours</Text>
-              <Text style={styles.cardAction}>
-                {myPattern && myPattern.shifts.length > 0 ? "Change ›" : "Set up ›"}
-              </Text>
-            </View>
-            <Text style={styles.cardBody}>{describePattern(myPattern)}</Text>
-          </Pressable>
-        </Link>
-      </View>
-    ),
-    calendars: (
-      <View key="calendars">
-        {permission === PermissionStatus.GRANTED ? (
-          <Link href="/calendars" asChild>
-            <Pressable style={press(styles.card)}>
-              <Text style={styles.cardTitle}>Calendars</Text>
-              <Text style={styles.cardBody}>
-                {/* connectedCount is null until the calendar enumeration
-                    lands, and null === 0 is false -- which used to render the
-                    literal "null of null shared" on every cold start. */}
-                {connectedCount === null
-                  ? "Checking which calendars you're sharing…"
-                  : connectedCount === 0
-                    ? `None of the ${calendarCount ?? 0} calendars on this phone are shared, so nothing from them reaches your partner.`
-                    : `${connectedCount} of ${calendarCount ?? connectedCount} shared. Tap to change what each one gives away: busy times only, or the full detail.`}
-              </Text>
-            </Pressable>
-          </Link>
-        ) : (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Calendar access</Text>
-            <Text style={styles.cardBody}>
-              Not connected yet. We read the calendars already synced to your phone, so this covers
-              Google and Apple/iCloud without a separate sign-in for each, and you choose, calendar
-              by calendar, whether your partner sees just your busy times or the full detail.
-            </Text>
-            <Pressable style={press(styles.button)} onPress={requestAccess}>
-              <Text style={styles.buttonText}>Connect my calendar</Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
-    ),
   };
 
   return (
-    <ScrollView
+    <View style={{ flex: 1 }}>
+    <Animated.ScrollView
       contentContainerStyle={styles.container}
+      scrollEventThrottle={16}
+      onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+        useNativeDriver: true,
+      })}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
       }
@@ -827,7 +789,21 @@ export default function Home() {
       <Pressable onPress={() => signOut()} style={press({ marginTop: 32 })}>
         <Text style={styles.link}>Signed in as {profile?.display_name ?? "you"}. Sign out</Text>
       </Pressable>
-    </ScrollView>
+    </Animated.ScrollView>
+
+    {/* Fully in by the time the hero's own text reaches the status bar, so
+        the names never cross the clock. Native-driven, so it does not stutter
+        against the scroll it is following. */}
+    <TopScrim
+      style={{
+        opacity: scrollY.interpolate({
+          inputRange: [0, 90],
+          outputRange: [0, 1],
+          extrapolate: "clamp",
+        }),
+      }}
+    />
+    </View>
   );
 }
 

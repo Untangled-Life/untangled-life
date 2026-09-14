@@ -202,7 +202,10 @@ export default function Settings() {
         </View>
       </Pressable>
 
-      <Text style={styles.groupTitle}>Account</Text>
+      {/* Working hours and Calendars used to sit on Home as well. They are
+          set up once and then true, and a card repeating "2-week rotation, 10
+          shifts" every day forever is furniture. Home is for what changed. */}
+      <Text style={styles.groupTitle}>Set up</Text>
       <Pressable style={press(styles.card)} onPress={() => router.push("/calendars")}>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>

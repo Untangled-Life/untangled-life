@@ -5,21 +5,20 @@
  * the other only opens the app to see when you're both free. There's no reason
  * they should have to agree.
  */
-export type HomeSection =
-  | "pinned"
-  | "keyDates"
-  | "bookedIn"
-  | "freeTogether"
-  | "workHours"
-  | "calendars";
+/**
+ * Working hours and Calendars used to be here too. They came off because they
+ * are SET UP once and then true: a card that says "2-week rotation, 10 shifts"
+ * every single day, forever, is furniture. Home is for what changed. Both live
+ * in Settings now, and a stored arrangement that still names them drops them
+ * on the way in.
+ */
+export type HomeSection = "pinned" | "keyDates" | "bookedIn" | "freeTogether";
 
 export const HOME_SECTIONS: { key: HomeSection; label: string; blurb: string }[] = [
   { key: "pinned", label: "Pinned countdown", blurb: "The big one at the top" },
   { key: "keyDates", label: "Key dates & countdowns", blurb: "The row you swipe through" },
   { key: "bookedIn", label: "Dates", blurb: "What's booked, and a nudge when nothing is" },
   { key: "freeTogether", label: "Free together", blurb: "When you're both actually free" },
-  { key: "workHours", label: "Your working hours", blurb: "Your shifts or pattern" },
-  { key: "calendars", label: "Calendars", blurb: "What each calendar shares" },
 ];
 
 export const DEFAULT_HOME_ORDER: HomeSection[] = HOME_SECTIONS.map((s) => s.key);

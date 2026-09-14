@@ -25,16 +25,16 @@ describe("resolveHomeLayout", () => {
   // name keep their relative order while the ones it never saw are woven in
   // near where they'd default to. Their absolute positions aren't promised.
   it("keeps the relative order of what was stored", () => {
-    const { order } = resolveHomeLayout(["calendars", "pinned"]);
-    expect(order.indexOf("calendars")).toBeLessThan(order.indexOf("pinned"));
+    const { order } = resolveHomeLayout(["freeTogether", "pinned"]);
+    expect(order.indexOf("freeTogether")).toBeLessThan(order.indexOf("pinned"));
     expect(order).toHaveLength(DEFAULT_HOME_ORDER.length);
   });
 
   it("reads the ! marker as hidden", () => {
-    const resolved = resolveHomeLayout(["pinned", "!calendars"]);
-    expect(resolved.hidden.has("calendars")).toBe(true);
+    const resolved = resolveHomeLayout(["pinned", "!freeTogether"]);
+    expect(resolved.hidden.has("freeTogether")).toBe(true);
     expect(resolved.hidden.has("pinned")).toBe(false);
-    expect(resolved.order).toContain("calendars");
+    expect(resolved.order).toContain("freeTogether");
   });
 
   // The reason hidden is a marker rather than an absence. A section added
@@ -65,8 +65,8 @@ describe("resolveHomeLayout", () => {
   // has to be exact: what you saved is what you get back.
   it("round-trips a complete arrangement unchanged", () => {
     const original = layout(
-      ["calendars", "pinned", "keyDates", "bookedIn", "freeTogether", "workHours"],
-      ["pinned", "workHours"]
+      ["freeTogether", "pinned", "keyDates", "bookedIn"],
+      ["pinned", "bookedIn"]
     );
     const full = resolveHomeLayout(serializeHomeLayout(original));
     expect(full.order).toEqual(original.order);
@@ -76,8 +76,8 @@ describe("resolveHomeLayout", () => {
 
 describe("visibleSections", () => {
   it("leaves out the hidden ones but keeps the order", () => {
-    expect(visibleSections(layout(["calendars", "pinned", "keyDates"], ["pinned"]))).toEqual([
-      "calendars",
+    expect(visibleSections(layout(["freeTogether", "pinned", "keyDates"], ["pinned"]))).toEqual([
+      "freeTogether",
       "keyDates",
     ]);
   });
