@@ -360,46 +360,76 @@ export default function DayView() {
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={10} style={press(styles.backTap)}>
           <Text style={styles.back}>‹ Month</Text>
         </Pressable>
+
+        {/* The primary action on this screen, so it looks like one. As a
+            plain word beside the back link it read as navigation. */}
         <Pressable
           onPress={() =>
             router.push({ pathname: "/event", params: { date: toISODate(day), start: "09:00" } })
           }
           hitSlop={8}
+          accessibilityRole="button"
+          style={press(styles.addButton)}
         >
           <Text style={styles.add}>+ Event</Text>
         </Pressable>
       </View>
 
       <View style={styles.dayHeader}>
-        <Pressable onPress={() => shiftDay(-1)} hitSlop={12}>
-          <Text style={styles.dayArrow}>‹</Text>
-        </Pressable>
-        <View style={{ alignItems: "center" }}>
+        <View style={styles.dayTitleWrap}>
+          <View style={styles.dayEyebrowRow}>
+            <Text style={styles.dayEyebrow}>
+              {day.toLocaleDateString(undefined, { weekday: "long" })}
+            </Text>
+            {isToday ? (
+              <View style={styles.todayTag}>
+                <Text style={styles.todayTagText}>Today</Text>
+              </View>
+            ) : null}
+          </View>
           <Text style={styles.dayTitle}>
-            {day.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
+            {day.toLocaleDateString(undefined, { day: "numeric", month: "long" })}
           </Text>
-          {isToday ? <Text style={styles.todayTag}>Today</Text> : null}
         </View>
-        <Pressable onPress={() => shiftDay(1)} hitSlop={12}>
-          <Text style={styles.dayArrow}>›</Text>
-        </Pressable>
+
+        <View style={styles.dayNav}>
+          <Pressable
+            onPress={() => shiftDay(-1)}
+            hitSlop={10}
+            accessibilityLabel="Previous day"
+            style={press(styles.navButton)}
+          >
+            <Text style={styles.dayArrow}>‹</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => shiftDay(1)}
+            hitSlop={10}
+            accessibilityLabel="Next day"
+            style={press(styles.navButton)}
+          >
+            <Text style={styles.dayArrow}>›</Text>
+          </Pressable>
+        </View>
       </View>
 
       {allDay.length > 0 ? (
         <View style={styles.allDayBand}>
-          {allDay.map((entry) => (
-            <View
-              key={entry.key}
-              style={[styles.allDayChip, entry.kind === "keydate" ? styles.allDayKeyDate : null]}
-            >
-              <Text style={styles.allDayText} numberOfLines={1}>
-                {entry.label}
-              </Text>
-            </View>
-          ))}
+          <Text style={styles.allDayLabel}>All day</Text>
+          <View style={styles.allDayChips}>
+            {allDay.map((entry) => (
+              <View
+                key={entry.key}
+                style={[styles.allDayChip, entry.kind === "keydate" ? styles.allDayKeyDate : null]}
+              >
+                <Text style={styles.allDayText} numberOfLines={1}>
+                  {entry.label}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
       ) : null}
 
@@ -543,36 +573,61 @@ const createStyles = (t: Theme) =>
       paddingHorizontal: t.space(5),
       marginBottom: t.space(2),
     },
-    back: { fontSize: 15, color: t.accent, fontWeight: "600" },
-    add: { fontSize: 15, color: t.brand, fontWeight: "700" },
+    backTap: { paddingVertical: t.space(1) },
+    back: { ...t.type.label, color: t.accent },
+    addButton: {
+      backgroundColor: t.brand,
+      borderRadius: t.radius.pill,
+      paddingHorizontal: t.space(4),
+      paddingVertical: t.space(2),
+    },
+    add: { ...t.type.label, color: t.textOnBrand },
     dayHeader: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-end",
       justifyContent: "space-between",
       paddingHorizontal: t.space(5),
-      marginBottom: t.space(3),
+      marginBottom: t.space(4),
     },
-    dayTitle: { ...t.type.title, color: t.textPrimary },
-    todayTag: { fontSize: 11, color: t.brand, fontWeight: "700", marginTop: 1 },
-    dayArrow: { fontSize: 28, color: t.accent, paddingHorizontal: 12 },
+    dayTitleWrap: { gap: 2, flexShrink: 1 },
+    dayEyebrowRow: { flexDirection: "row", alignItems: "center", gap: t.space(2) },
+    dayEyebrow: { ...t.type.eyebrow, color: t.textMuted },
+    dayTitle: { ...t.type.display, color: t.textPrimary },
+    todayTag: {
+      backgroundColor: t.brandSoft,
+      borderRadius: t.radius.pill,
+      paddingHorizontal: t.space(2),
+      paddingVertical: 1,
+    },
+    todayTagText: { ...t.type.eyebrow, color: t.brand },
+    dayNav: { flexDirection: "row", gap: t.space(2) },
+    navButton: {
+      width: 38,
+      height: 38,
+      borderRadius: t.radius.pill,
+      backgroundColor: t.surfaceSunken,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    dayArrow: { fontSize: 22, lineHeight: 26, color: t.accent },
     allDayBand: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 6,
       paddingHorizontal: t.space(5),
       paddingBottom: t.space(3),
+      gap: t.space(2),
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: t.border,
     },
+    allDayLabel: { ...t.type.eyebrow, color: t.textMuted },
+    allDayChips: { flexDirection: "row", flexWrap: "wrap", gap: t.space(2) },
     allDayChip: {
       backgroundColor: t.surfaceSunken,
       borderRadius: t.radius.pill,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
+      paddingHorizontal: t.space(3),
+      paddingVertical: t.space(1),
       maxWidth: "100%",
     },
     allDayKeyDate: { backgroundColor: t.accentSoft },
-    allDayText: { fontSize: 12, color: t.textSecondary, fontWeight: "500" },
+    allDayText: { ...t.type.caption, fontWeight: "600", color: t.textSecondary },
     gridScroll: { paddingBottom: t.space(12) },
     grid: { height: GRID_HEIGHT, marginTop: t.space(3) },
     hourRow: { position: "absolute", left: 0, right: 0, height: HOUR_HEIGHT, flexDirection: "row" },
@@ -580,9 +635,10 @@ const createStyles = (t: Theme) =>
       width: GUTTER,
       paddingRight: 8,
       textAlign: "right",
-      fontSize: 11,
+      ...t.type.caption,
+      fontVariant: ["tabular-nums"],
       color: t.textMuted,
-      marginTop: -6,
+      marginTop: -8,
     },
     hourLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: t.border },
     tapLayer: { position: "absolute", left: GUTTER, right: 0, top: 0, height: GRID_HEIGHT },
@@ -590,26 +646,49 @@ const createStyles = (t: Theme) =>
     block: {
       position: "absolute",
       borderRadius: t.radius.sm,
-      borderLeftWidth: 3,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
+      borderLeftWidth: 4,
+      paddingHorizontal: t.space(2),
+      paddingVertical: t.space(1),
       overflow: "hidden",
       backgroundColor: t.surfaceSunken,
       borderLeftColor: t.textMuted,
+      // A hairline all the way round. Two blocks of the same colour sitting
+      // against each other were one block, and at this density a shadow is
+      // too heavy to use for the same job.
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderRightWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderTopColor: t.border,
+      borderRightColor: t.border,
+      borderBottomColor: t.border,
     },
     // Shared events carry no partner colour, so they take the brand instead.
     block_event: { backgroundColor: t.brandSoft, borderLeftColor: t.brand },
     block_busy: { backgroundColor: t.surfaceSunken, borderLeftColor: t.dotBusy },
     block_work: { backgroundColor: t.surfaceSunken, borderLeftColor: t.dotWork },
-    blockLabel: { fontSize: 12, fontWeight: "600", color: t.textPrimary },
-    blockTime: { fontSize: 11, color: t.textSecondary, marginTop: 1 },
-    nowLine: { position: "absolute", left: GUTTER - 4, right: 0, flexDirection: "row", alignItems: "center" },
-    nowDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: t.brand },
-    nowRule: { flex: 1, height: 1, backgroundColor: t.brand },
+    blockLabel: { ...t.type.caption, fontWeight: "700", color: t.textPrimary },
+    blockTime: { ...t.type.caption, fontSize: 11, color: t.textSecondary },
+    nowLine: {
+      position: "absolute",
+      left: GUTTER - 5,
+      right: 0,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    // A ring round the dot so the line still reads where it crosses a block
+    // in the brand colour.
+    nowDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: t.brand,
+      borderWidth: 2,
+      borderColor: t.bg,
+    },
+    nowRule: { flex: 1, height: 1.5, backgroundColor: t.brand },
     footnote: {
-      fontSize: 11,
+      ...t.type.caption,
       color: t.textMuted,
-      lineHeight: 16,
       paddingHorizontal: t.space(5),
       marginTop: t.space(4),
     },

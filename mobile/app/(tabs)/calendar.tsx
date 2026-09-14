@@ -65,7 +65,10 @@ type DayEntry = {
     | null;
 };
 
-const WEEK_HEADINGS = ["M", "T", "W", "T", "F", "S", "S"];
+// Two letters, not one. A column of M T W T F S S makes the two Ts and the
+// two Ss indistinguishable at a glance, so people count across from Monday
+// instead of reading.
+const WEEK_HEADINGS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 
 function startOfMonth(d: Date): Date {
@@ -574,27 +577,64 @@ export default function CalendarScreen() {
     setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
   }
 
+  function goToToday() {
+    const now = new Date();
+    setMonth(startOfMonth(now));
+    setSelected(toDateKey(now));
+  }
+
+  const viewingThisMonth =
+    month.getFullYear() === new Date().getFullYear() && month.getMonth() === new Date().getMonth();
+
   return (
     <ScrollView
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
       } contentContainerStyle={styles.container}>
-      <Pressable onPress={() => router.back()} hitSlop={8}>
-        <Text style={styles.back}>‹ Back</Text>
-      </Pressable>
+      <View style={styles.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={10} style={press(styles.backTap)}>
+          <Text style={styles.back}>‹ Home</Text>
+        </Pressable>
 
-      <View style={styles.monthHeader}>
-        <Pressable onPress={() => shiftMonth(-1)} hitSlop={12}>
-          <Text style={styles.monthArrow}>‹</Text>
-        </Pressable>
-        <Text style={styles.monthTitle}>
-          {month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
-        </Text>
-        <Pressable onPress={() => shiftMonth(1)} hitSlop={12}>
-          <Text style={styles.monthArrow}>›</Text>
-        </Pressable>
+        {/* Only offered when it would do something. A Today button on today
+            is a button that does nothing, which teaches people not to trust
+            the other buttons. */}
+        {viewingThisMonth ? null : (
+          <Pressable onPress={goToToday} hitSlop={8} style={press(styles.todayPill)}>
+            <Text style={styles.todayPillText}>Today</Text>
+          </Pressable>
+        )}
       </View>
 
+      <View style={styles.monthHeader}>
+        <View style={styles.monthTitleWrap}>
+          <Text style={styles.monthYear}>{month.getFullYear()}</Text>
+          <Text style={styles.monthTitle}>
+            {month.toLocaleDateString(undefined, { month: "long" })}
+          </Text>
+        </View>
+
+        <View style={styles.monthNav}>
+          <Pressable
+            onPress={() => shiftMonth(-1)}
+            hitSlop={10}
+            accessibilityLabel="Previous month"
+            style={press(styles.navButton)}
+          >
+            <Text style={styles.monthArrow}>‹</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => shiftMonth(1)}
+            hitSlop={10}
+            accessibilityLabel="Next month"
+            style={press(styles.navButton)}
+          >
+            <Text style={styles.monthArrow}>›</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.gridCard}>
       <View style={styles.weekHeader}>
         {WEEK_HEADINGS.map((h, i) => (
           <Text key={i} style={styles.weekHeading}>
@@ -632,7 +672,7 @@ export default function CalendarScreen() {
           return (
             <Pressable
               key={i}
-              style={press([styles.cell, isSelected ? styles.cellSelected : null])}
+              style={press(styles.cell)}
               // First tap selects the day and shows its list below; a second
               // tap on the day already selected opens the hour-by-hour view.
               // Going straight there on the first tap would make the month
@@ -643,15 +683,27 @@ export default function CalendarScreen() {
                   : setSelected(key)
               }
             >
-              <Text
+              {/* A ring for today, a filled disc for whatever is selected.
+                  Colouring the digit alone was too quiet to find on a grid of
+                  forty-two digits, which is the one thing a month view has to
+                  make easy. */}
+              <View
                 style={[
-                  styles.cellDay,
-                  isToday ? styles.cellDayToday : null,
-                  isSelected ? styles.cellDaySelected : null,
+                  styles.dayPill,
+                  isToday && !isSelected ? styles.dayPillToday : null,
+                  isSelected ? styles.dayPillSelected : null,
                 ]}
               >
-                {cell.getDate()}
-              </Text>
+                <Text
+                  style={[
+                    styles.cellDay,
+                    isToday && !isSelected ? styles.cellDayToday : null,
+                    isSelected ? styles.cellDaySelected : null,
+                  ]}
+                >
+                  {cell.getDate()}
+                </Text>
+              </View>
               <View style={styles.dotRow}>
                 {owners.slice(0, 2).map(([userId, tint]) => (
                   // ink, not chip: a 5px dot in a pastel is invisible against
@@ -665,6 +717,8 @@ export default function CalendarScreen() {
             </Pressable>
           );
         })}
+      </View>
+
       </View>
 
       <View style={styles.legend}>
@@ -739,37 +793,78 @@ const CELL = `${100 / 7}%`;
 
 const createStyles = (t: Theme) =>
   StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, paddingTop: 70, paddingBottom: 48 },
-  back: { fontSize: 15, color: t.accent, fontWeight: "600", marginBottom: 12 },
-  monthHeader: {
+  container: { flexGrow: 1, padding: t.space(5), paddingTop: t.space(14), paddingBottom: 48 },
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: t.space(4),
   },
-  monthTitle: { ...t.type.title, color: t.textPrimary },
-  monthArrow: { fontSize: 28, color: t.accent, paddingHorizontal: 12 },
-  weekHeader: { flexDirection: "row", marginBottom: 4 },
+  backTap: { alignSelf: "flex-start", paddingVertical: t.space(1) },
+  back: { ...t.type.label, color: t.accent },
+  todayPill: {
+    paddingHorizontal: t.space(3),
+    paddingVertical: t.space(1),
+    borderRadius: t.radius.pill,
+    backgroundColor: t.accentSoft,
+  },
+  todayPillText: { ...t.type.label, color: t.accent },
+  monthHeader: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    marginBottom: t.space(4),
+  },
+  // The year is an eyebrow rather than part of the title. "September 2026" in
+  // one line spends the largest type on the half nobody is looking for, and
+  // the month name is what you navigate by.
+  monthTitleWrap: { gap: 2 },
+  monthYear: { ...t.type.eyebrow, color: t.textMuted },
+  monthTitle: { ...t.type.display, color: t.textPrimary },
+  monthNav: { flexDirection: "row", gap: t.space(2) },
+  navButton: {
+    width: 38,
+    height: 38,
+    borderRadius: t.radius.pill,
+    backgroundColor: t.surfaceSunken,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  monthArrow: { fontSize: 22, lineHeight: 26, color: t.accent },
+  // The grid sits on its own surface. On a cream ground a bare grid of digits
+  // reads as a table someone forgot to style; on a card it reads as a
+  // calendar.
+  gridCard: { ...t.card, padding: t.space(2), paddingBottom: t.space(3) },
+  weekHeader: { flexDirection: "row", marginBottom: t.space(1) },
   weekHeading: {
     width: CELL,
     textAlign: "center",
-    fontSize: 11,
+    ...t.type.eyebrow,
     color: t.textMuted,
-    fontWeight: "600",
   },
   grid: { flexDirection: "row", flexWrap: "wrap" },
   cell: {
     width: CELL,
-    aspectRatio: 1,
+    aspectRatio: 0.92,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: t.radius.sm,
+    gap: 3,
   },
-  cellSelected: { backgroundColor: t.accentSoft },
-  cellDay: { fontSize: 14, color: t.textPrimary },
+  dayPill: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "transparent",
+  },
+  dayPillToday: { borderColor: t.brand },
+  dayPillSelected: { backgroundColor: t.brand, borderColor: t.brand },
+  cellDay: { ...t.type.body, color: t.textPrimary, fontVariant: ["tabular-nums"] },
   cellDayToday: { color: t.brand, fontWeight: "700" },
-  cellDaySelected: { fontWeight: "700" },
-  dotRow: { flexDirection: "row", gap: 3, marginTop: 3, height: 5 },
+  cellDaySelected: { color: t.textOnBrand, fontWeight: "700" },
+  dotRow: { flexDirection: "row", gap: 3, height: 5 },
   dot: { width: 5, height: 5, borderRadius: 3 },
   dot_plan: { backgroundColor: t.brand },
   dot_keydate: { backgroundColor: t.accent },
@@ -778,38 +873,39 @@ const createStyles = (t: Theme) =>
   legend: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 14,
-    marginTop: 14,
-    marginBottom: 20,
-    justifyContent: "center",
+    gap: t.space(4),
+    marginTop: t.space(4),
+    marginBottom: t.space(7),
   },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendText: { fontSize: 11, color: t.textMuted },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: t.space(2) },
+  legendText: { ...t.type.caption, color: t.textMuted },
   dayTitleRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
-    marginBottom: 12,
+    gap: t.space(3),
+    marginBottom: t.space(3),
   },
-  dayTitle: { ...t.type.title, color: t.textPrimary },
-  dayTitleAction: { fontSize: 13, fontWeight: "600", color: t.accent },
-  emptyCard: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 18 },
-  emptyText: { fontSize: 13, color: t.textSecondary },
+  dayTitle: { ...t.type.title, color: t.textPrimary, flexShrink: 1 },
+  dayTitleAction: { ...t.type.label, color: t.accent, paddingBottom: 2 },
+  emptyCard: { backgroundColor: t.surfaceSunken, borderRadius: t.radius.lg, padding: t.space(5) },
+  emptyText: { ...t.type.body, color: t.textSecondary },
   entryRow: {
     flexDirection: "row",
-    backgroundColor: t.surface,
-    borderRadius: t.radius.md,
-    padding: 14,
-    marginBottom: 8,
+    ...t.card,
+    padding: t.space(4),
+    marginBottom: t.space(2),
     alignItems: "center",
-    gap: 12,
+    gap: t.space(3),
   },
-  entryBar: { width: 3, alignSelf: "stretch", borderRadius: 2 },
+  // A wider, fully-rounded bar. At 3px it read as a rendering artefact rather
+  // than as the thing that tells you whose event this is.
+  entryBar: { width: 4, alignSelf: "stretch", borderRadius: 2, minHeight: 28 },
   bar_plan: { backgroundColor: t.brand },
   bar_keydate: { backgroundColor: t.accent },
   bar_work: { backgroundColor: t.dotWork },
   bar_busy: { backgroundColor: t.dotBusy },
-  entryLabel: { fontSize: 14, fontWeight: "500", color: t.textPrimary },
+  entryLabel: { ...t.type.heading, color: t.textPrimary },
   swipeWrap: { position: "relative" },
   swipeActionLayer: {
     position: "absolute",
@@ -830,7 +926,7 @@ const createStyles = (t: Theme) =>
   swipeActionSoft: { backgroundColor: t.surfaceSunken },
   swipeActionText: { color: t.surface, fontWeight: "600", fontSize: 13 },
   swipeActionTextSoft: { color: t.textSecondary },
-  footnote: { fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 16 },
-  entryDetail: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
+  footnote: { ...t.type.caption, color: t.textMuted, marginTop: t.space(2) },
+  entryDetail: { ...t.type.caption, color: t.textSecondary, marginTop: 2 },
   entryNote: { fontSize: 12, color: t.textMuted, marginTop: 4, lineHeight: 17 },
   });
