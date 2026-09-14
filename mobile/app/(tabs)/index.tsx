@@ -14,7 +14,7 @@ import { press } from "@/components/press";
 import { succeeded, warned, tapped } from "@/lib/haptics";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
-import { CalendarIcon, MenuIcon } from "@/components/icons";
+import { BellIcon, CalendarIcon, MenuIcon } from "@/components/icons";
 import { Theme, FONT_DISPLAY_STRONG } from "@/theme/tokens";
 import { Link, router } from "expo-router";
 import * as Calendar from "expo-calendar/legacy";
@@ -26,6 +26,9 @@ import { KeyDateRow, daysUntil, displayTitleFor, countdownLabel } from "@/lib/ke
 import { HomeHero } from "@/components/home-hero";
 import { TopScrim } from "@/components/top-scrim";
 import { shouldNudge, suggestedSlot } from "@/lib/dateNudge";
+import { useOnboarding } from "@/hooks/useOnboarding";
+import { buildInbox } from "@/lib/inbox";
+import { InboxBadge } from "@/app/(tabs)/inbox";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
 import { syncBusyBlocks } from "@/lib/calendarSync";
@@ -59,6 +62,7 @@ export default function Home() {
   const t = useTheme();
 
   const { session, profile, signOut } = useAuth();
+  const { outstanding, load: loadOnboarding } = useOnboarding();
   const { me, partner } = useCoupleMembers();
   const [permission, setPermission] = useState<PermissionStatus | null>(null);
   const [connectedCount, setConnectedCount] = useState<number | null>(null);
@@ -122,6 +126,7 @@ export default function Home() {
   }, []);
 
   const loadPlans = useCallback(async () => {
+    await loadOnboarding();
     setPlans(await loadUpcomingPlans());
 
     // When anything was last put in the diary, which is a different question
@@ -137,7 +142,11 @@ export default function Home() {
       .maybeSingle();
 
     setLastPlannedAt(data?.created_at ? new Date(data.created_at as string) : null);
-  }, []);
+    // loadOnboarding is a useCallback over the profile and the photo urls, so
+    // it changes identity when either does. Leaving it out of the deps would
+    // pin this to the first render's copy and the bell would stop counting
+    // after the first photo was added.
+  }, [loadOnboarding]);
 
   const loadFreeWindows = useCallback(async () => {
     if (!session?.user.id) return;
@@ -495,6 +504,16 @@ export default function Home() {
   // the same rule drives the push, in supabase/functions/nudge-date.
   const nudging = shouldNudge(plans, lastPlannedAt);
 
+  // The bell's contents. Built from the same facts Home already has, so the
+  // count and the screen behind it can never disagree.
+  const inbox = buildInbox({
+    outstanding,
+    keyDates,
+    plans,
+    nudging,
+    nameFor,
+  });
+
   // Each Home section, keyed so the arrangement can decide what appears
   // and in what order. Wrapped in a keyed <View> because the list is
   // rendered from an array -- without the key React reorders by position
@@ -750,15 +769,35 @@ export default function Home() {
               <MenuIcon size={22} color={coverUrl ? "#FFFFFF" : t.textPrimary} />
             </Pressable>
           </Link>
-          <Link href="/calendar" asChild>
-            <Pressable
-              style={press(styles.iconButton)}
-              hitSlop={8}
-              accessibilityLabel="Shared calendar"
-            >
-              <CalendarIcon size={22} color={coverUrl ? "#FFFFFF" : t.brand} />
-            </Pressable>
-          </Link>
+
+          <View style={styles.topBarRight}>
+            {/* The bell holds anything skipped during setup, a key date
+                inside its own reminder window, and the fortnight nudge. Each
+                of those used to be a card on this screen arguing for the same
+                space, and a skipped step had nowhere to live at all. */}
+            <Link href="/inbox" asChild>
+              <Pressable
+                style={press(styles.iconButton)}
+                hitSlop={8}
+                accessibilityLabel={
+                  inbox.length > 0 ? `${inbox.length} things waiting on you` : "Nothing waiting"
+                }
+              >
+                <BellIcon size={22} color={coverUrl ? "#FFFFFF" : t.textPrimary} />
+                <InboxBadge count={inbox.length} />
+              </Pressable>
+            </Link>
+
+            <Link href="/calendar" asChild>
+              <Pressable
+                style={press(styles.iconButton)}
+                hitSlop={8}
+                accessibilityLabel="Shared calendar"
+              >
+                <CalendarIcon size={22} color={coverUrl ? "#FFFFFF" : t.brand} />
+              </Pressable>
+            </Link>
+          </View>
         </View>
       </View>
 
@@ -843,6 +882,7 @@ const createStyles = (t: Theme) =>
   setupStepLabel: { ...t.type.heading, color: t.textPrimary },
   setupStepWhy: { ...t.type.caption, color: t.textSecondary, marginTop: 1 },
   setupChevron: { fontSize: 20, color: t.accent },
+  topBarRight: { flexDirection: "row", alignItems: "center", gap: t.space(2) },
   topBar: {
     position: "absolute",
     top: t.space(13),

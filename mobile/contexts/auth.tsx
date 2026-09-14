@@ -9,6 +9,10 @@ type Profile = {
   avatar_path: string | null;
   /** Their Home screen arrangement. Null means never set. */
   home_sections: string[] | null;
+  /** Steps of the walkthrough explicitly finished or dismissed. See lib/onboarding.ts. */
+  onboarding_done: string[] | null;
+  /** When the walkthrough ended, however it ended. Null means never seen. */
+  onboarded_at: string | null;
   /** Their palette colour. Null means they haven't picked one. */
   color: string | null;
   /** IANA zone from their phone, kept current by useTimeZoneSync. */
@@ -33,7 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function loadProfile(userId: string) {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, display_name, couple_id, avatar_path, home_sections, color, time_zone")
+      .select(
+        "id, display_name, couple_id, avatar_path, home_sections, color, time_zone, onboarding_done, onboarded_at"
+      )
       .eq("id", userId)
       .maybeSingle();
 

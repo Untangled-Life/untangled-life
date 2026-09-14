@@ -104,6 +104,19 @@ export default function TabsLayout() {
     return <Redirect href="/pair" />;
   }
 
+  // Straight into the walkthrough the first time, and once only. onboarded_at
+  // is stamped however it ends, including "I'll do the rest later", so nobody
+  // is sent back to it twice -- what they skipped waits under the bell
+  // instead.
+  //
+  // After the partner check on purpose: the inviter has a couple_id from the
+  // moment they generate a code, and walking somebody through setting up a
+  // shared calendar before there is anybody to share it with is a tour of an
+  // empty house.
+  if (!profile.onboarded_at && pathname !== "/welcome") {
+    return <Redirect href="/welcome" />;
+  }
+
   return (
     <View style={{ flex: 1 }}>
     <Tabs
@@ -167,6 +180,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="menu" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="personalisation" options={{ href: null }} />
+      <Tabs.Screen name="welcome" options={{ href: null }} />
+      <Tabs.Screen name="inbox" options={{ href: null }} />
       <Tabs.Screen name="coming-soon" options={{ href: null }} />
       <Tabs.Screen name="roster-import" options={{ href: null }} />
     </Tabs>
