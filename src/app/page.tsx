@@ -1,6 +1,7 @@
 import { Logo, HeroMark } from "@/components/logo";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { WaitlistCounter } from "@/components/waitlist-counter";
+import { ScreenshotCarousel } from "@/components/screenshot-carousel";
 import {
   CalendarIcon,
   ClockIcon,
@@ -72,8 +73,12 @@ export default function Home() {
       </header>
 
       <main className="flex-1">
-        <section className="px-6 pb-16 pt-16 text-center sm:pt-24">
-          <div className="mx-auto max-w-xl">
+        <section className="px-6 pb-16 pt-16 sm:pt-24">
+          {/* Two columns from lg up, stacked below it. The carousel comes
+              second in the markup so that on a phone the form is still the
+              first thing you reach -- it is what this page is for. */}
+          <div className="mx-auto flex max-w-5xl flex-col items-center gap-12 lg:flex-row lg:items-center lg:justify-between lg:gap-16">
+            <div className="max-w-xl text-center lg:flex-1 lg:text-left">
             <HeroMark />
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
               Two calendars. One life. No knots.
@@ -95,6 +100,11 @@ export default function Home() {
               Free for the first 100 registered users.
             </p>
             <WaitlistCounter />
+            </div>
+
+            <div className="flex shrink-0 justify-center lg:justify-end">
+              <ScreenshotCarousel />
+            </div>
           </div>
         </section>
 
