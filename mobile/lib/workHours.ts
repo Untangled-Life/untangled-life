@@ -1,4 +1,6 @@
 import { Interval } from "@/lib/freeTime";
+import { dateKeyInZone, zonedTimeToInstant } from "@/lib/timezone";
+
 
 export type WorkMode = "weekly" | "rotating" | "irregular";
 
@@ -11,6 +13,8 @@ export type PatternShift = {
 };
 
 export type WorkPattern = {
+  /** The zone the roster was entered in. Null means the device's own. */
+  time_zone?: string | null;
   id: string;
   user_id: string;
   mode: WorkMode;
@@ -26,15 +30,35 @@ export type WorkShift = {
   start_time: string | null; // "HH:MM:SS"
   end_time: string | null;
   kind: "extra" | "off";
+  /** The zone these hours were entered in. Null means the device's own. */
+  time_zone?: string | null;
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-function atLocalTime(day: Date, hhmm: string): Date {
+/**
+ * A shift's clock time, turned into a real instant.
+ *
+ * `timeZone` is the zone the roster was ENTERED in, not the one the phone is
+ * currently showing. A 9am start means nine o'clock at work; without an anchor
+ * it silently becomes nine o'clock wherever its owner happens to be standing,
+ * so flying Sydney to Perth would move every shift three hours and quietly
+ * offer your partner time you are actually at work.
+ *
+ * Null falls back to the device, which is what every row did before this and
+ * is correct for anyone who has not travelled.
+ */
+function atShiftTime(day: Date, hhmm: string, timeZone: string | null): Date {
   const [h, m] = hhmm.split(":").map(Number);
-  const d = new Date(day);
-  d.setHours(h, m ?? 0, 0, 0);
-  return d;
+
+  if (!timeZone) {
+    const d = new Date(day);
+    d.setHours(h, m ?? 0, 0, 0);
+    return d;
+  }
+
+  const [year, month, date] = dateKeyInZone(day, timeZone).split("-").map(Number);
+  return zonedTimeToInstant(year, month, date, h, m ?? 0, timeZone);
 }
 
 function startOfDay(d: Date): Date {
@@ -134,8 +158,8 @@ export function expandWorkOccurrences(
         if (shift.weekday !== day.getDay()) continue;
         if (rotating && shift.week !== week) continue;
 
-        const start = atLocalTime(day, shift.start);
-        let end = atLocalTime(day, shift.end);
+        const start = atShiftTime(day, shift.start, pattern.time_zone ?? null);
+        let end = atShiftTime(day, shift.end, pattern.time_zone ?? null);
         // A shift ending at or before it starts runs past midnight.
         if (end <= start) end = new Date(end.getTime() + MS_PER_DAY);
 
@@ -148,8 +172,8 @@ export function expandWorkOccurrences(
     if (s.kind !== "extra" || !s.start_time || !s.end_time) continue;
 
     const day = new Date(s.date + "T00:00:00");
-    const start = atLocalTime(day, s.start_time.slice(0, 5));
-    let end = atLocalTime(day, s.end_time.slice(0, 5));
+    const start = atShiftTime(day, s.start_time.slice(0, 5), s.time_zone ?? null);
+    let end = atShiftTime(day, s.end_time.slice(0, 5), s.time_zone ?? null);
     if (end <= start) end = new Date(end.getTime() + MS_PER_DAY);
 
     intervals.push({ interval: { start, end }, source: { type: "shift", id: s.id } });

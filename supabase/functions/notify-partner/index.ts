@@ -23,9 +23,16 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-// Times are rendered in Australia/Sydney for now. If this ever ships beyond
-// AU, store each user's timezone on their profile and read it here instead.
-function formatDateTime(iso: string): string {
+// Times are rendered in the RECIPIENT'S zone, which is the only one that makes
+// sense: the notification lands on their phone and tells them when to be
+// somewhere. It used to be hard-coded to Australia/Sydney, so a partner
+// anywhere else was told the wrong hour with complete confidence.
+//
+// Sydney remains the fallback for somebody whose phone has not reported a zone
+// yet -- a wrong guess for a minority beats no time at all for everyone.
+const FALLBACK_ZONE = "Australia/Sydney";
+
+function formatDateTime(iso: string, timeZone: string): string {
   const d = new Date(iso);
   return d.toLocaleString("en-AU", {
     weekday: "short",
@@ -33,16 +40,19 @@ function formatDateTime(iso: string): string {
     month: "short",
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "Australia/Sydney",
+    timeZone,
   });
 }
 
-function formatDate(dateOnly: string): string {
+// A key date is a DAY, not an instant, so it is read at midday to keep it on
+// the right side of midnight in every zone. Formatting "2026-11-03" at
+// 00:00 UTC gives the 2nd of November to anyone west of Greenwich.
+function formatDate(dateOnly: string, timeZone: string): string {
   const d = new Date(`${dateOnly}T12:00:00Z`);
   return d.toLocaleDateString("en-AU", {
     day: "numeric",
     month: "long",
-    timeZone: "Australia/Sydney",
+    timeZone,
   });
 }
 
@@ -63,7 +73,12 @@ type Row = Record<string, string | boolean | null>;
  * for every one of the leaver's events, attributed to nobody, at the worst
  * possible moment.
  */
-function describeChange(record: Row, old: Row | null, actorName: string): string | null {
+function describeChange(
+  record: Row,
+  old: Row | null,
+  actorName: string,
+  timeZone: string
+): string | null {
   const title = String(record.title);
 
   if (record.cancelled === true && old?.cancelled !== true) {
@@ -78,7 +93,7 @@ function describeChange(record: Row, old: Row | null, actorName: string): string
   const renamed = old && String(record.title) !== String(old.title);
 
   if (movedStart) {
-    return `${actorName} moved "${title}" to ${formatDateTime(String(record.start_at))}. Your calendar's been updated.`;
+    return `${actorName} moved "${title}" to ${formatDateTime(String(record.start_at), timeZone)}. Your calendar's been updated.`;
   }
 
   if (renamed) {
@@ -102,11 +117,12 @@ function buildMessage(
   type: "INSERT" | "UPDATE",
   record: Row,
   oldRecord: Row | null,
-  actorName: string
+  actorName: string,
+  timeZone: string
 ): { title: string; body: string; data: Record<string, unknown> } | null {
   if (table === "planned_events") {
     if (type === "UPDATE") {
-      const body = describeChange(record, oldRecord, actorName);
+      const body = describeChange(record, oldRecord, actorName, timeZone);
       if (!body) return null;
 
       return {
@@ -122,7 +138,7 @@ function buildMessage(
     if (record.cancelled === true) return null;
     return {
       title: "You've got a date",
-      body: `${actorName} booked "${record.title}" for ${formatDateTime(String(record.start_at))}. It's in your calendar.`,
+      body: `${actorName} booked "${record.title}" for ${formatDateTime(String(record.start_at), timeZone)}. It's in your calendar.`,
       data: { type: "planned_event", id: record.id, action: "created" },
     };
   }
@@ -130,7 +146,7 @@ function buildMessage(
   if (table === "key_dates") {
     return {
       title: "New key date",
-      body: `${actorName} added "${record.title}" for ${formatDate(String(record.date))}. It's counting down on your home screen too, and you'll get the usual nudges.`,
+      body: `${actorName} added "${record.title}" for ${formatDate(String(record.date), timeZone)}. It's counting down on your home screen too, and you'll get the usual nudges.`,
       data: { type: "key_date", id: record.id },
     };
   }
@@ -163,7 +179,7 @@ Deno.serve(async (req: Request) => {
     // Both members of the couple; the partner is whichever one isn't the actor.
     const { data: members } = await supabase
       .from("profiles")
-      .select("id, display_name")
+      .select("id, display_name, time_zone")
       .eq("couple_id", coupleId);
 
     const actor = members?.find((m) => m.id === actorId);
@@ -188,7 +204,8 @@ Deno.serve(async (req: Request) => {
       payload.type,
       payload.record,
       payload.old_record,
-      actor?.display_name ?? "Your partner"
+      actor?.display_name ?? "Your partner",
+      partner.time_zone ?? FALLBACK_ZONE
     );
 
     if (!message) {

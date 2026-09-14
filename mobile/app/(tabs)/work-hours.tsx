@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { deviceTimeZone } from "@/lib/timezone";
 import { RefreshControl,
   View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert } from "react-native";
 import { press } from "@/components/press";
@@ -56,7 +57,7 @@ export default function WorkHours() {
 
     const { data: pattern } = await supabase
       .from("work_patterns")
-      .select("id, user_id, mode, cycle_weeks, anchor_date, shifts")
+      .select("id, user_id, mode, cycle_weeks, anchor_date, shifts, time_zone")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -70,7 +71,7 @@ export default function WorkHours() {
 
     const { data: shiftRows } = await supabase
       .from("work_shifts")
-      .select("id, user_id, date, start_time, end_time, kind")
+      .select("id, user_id, date, start_time, end_time, kind, time_zone")
       .eq("user_id", userId)
       .gte("date", toDateKey(new Date()))
       .order("date", { ascending: true });
@@ -103,6 +104,11 @@ export default function WorkHours() {
       anchor_date: next.anchorDate ?? anchorDate,
       shifts: next.shifts ?? shifts,
       updated_at: new Date().toISOString(),
+      // Stamped with where you are when you enter it. A 9am start means nine
+      // o'clock at work, and without this it becomes nine o'clock wherever the
+      // phone happens to be -- so flying Sydney to Perth would move every
+      // shift three hours and offer your partner time you are at work.
+      time_zone: deviceTimeZone(),
     };
 
     setSaving(true);
@@ -157,6 +163,7 @@ export default function WorkHours() {
       kind,
       start_time: kind === "extra" ? `${offStart}:00` : null,
       end_time: kind === "extra" ? `${offEnd}:00` : null,
+      time_zone: deviceTimeZone(),
     });
 
     if (error) {

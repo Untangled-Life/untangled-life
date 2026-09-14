@@ -28,6 +28,8 @@ import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
 import { syncBusyBlocks } from "@/lib/calendarSync";
 import { listCalendars } from "@/lib/calendarPrefs";
+import { deviceTimeZone } from "@/lib/timezone";
+import { dualTimeText, zoneGapSentence } from "@/components/dual-time";
 import { HomeSection, resolveHomeLayout, visibleSections } from "@/lib/homeLayout";
 import {
   Interval,
@@ -72,6 +74,17 @@ export default function Home() {
   const partnerName = partner?.display_name ?? "Partner";
   const myId = me.id;
   const partnerId = partner?.id ?? null;
+
+  // The stored zone is what the partner's phone last reported; ours comes
+  // straight off this device, so it is right even before the sync has written
+  // it back.
+  const myZone = profile?.time_zone ?? deviceTimeZone();
+  const partnerZone = partner?.time_zone ?? null;
+
+  // Worked out once per render against now rather than per row: the answer is
+  // the same for everything on screen and each call costs a formatter.
+  const zoneGap = zoneGapSentence(new Date(), myZone, partnerZone, partner?.display_name ?? "They");
+  const zonesApart = zoneGap !== null;
 
   const nameFor = useCallback(
     (userId: string | null) => {
@@ -144,10 +157,10 @@ export default function Home() {
     // suggests the middle of a shift.
     const now = new Date();
     const [patternRes, shiftRes] = await Promise.all([
-      supabase.from("work_patterns").select("id, user_id, mode, cycle_weeks, anchor_date, shifts"),
+      supabase.from("work_patterns").select("id, user_id, mode, cycle_weeks, anchor_date, shifts, time_zone"),
       supabase
         .from("work_shifts")
-        .select("id, user_id, date, start_time, end_time, kind")
+        .select("id, user_id, date, start_time, end_time, kind, time_zone")
         .gte("date", toDateKey(now))
         .lte("date", toDateKey(windowEnd)),
     ]);
@@ -175,9 +188,12 @@ export default function Home() {
 
     setMyPattern(patterns.find((p) => p.user_id === session.user.id) ?? null);
     setFreeWindows(
-      nextSharedFreeWindows([...mine, ...myWork], [...theirs, ...theirWork], prefs)
+      nextSharedFreeWindows([...mine, ...myWork], [...theirs, ...theirWork], prefs, {
+        mine: myZone,
+        theirs: partnerZone,
+      })
     );
-  }, [session?.user.id, profile?.couple_id]);
+  }, [session?.user.id, profile?.couple_id, myZone, partnerZone]);
 
   const syncAndLoad = useCallback(async () => {
     if (!profile?.couple_id || !session?.user.id) return;
@@ -517,6 +533,8 @@ export default function Home() {
           </View>
         </View>
 
+        {zoneGap ? <Text style={styles.zoneGap}>{zoneGap}</Text> : null}
+
         {permission !== PermissionStatus.GRANTED ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>Connect your calendar below to see this.</Text>
@@ -544,6 +562,11 @@ export default function Home() {
               <View key={i} style={styles.freeRow}>
                 <View style={styles.freeRowTop}>
                   <Text style={styles.freeText}>{formatWindow(w)}</Text>
+                  {zonesApart ? (
+                    <Text style={styles.freeTheirTime}>
+                      {dualTimeText(w.start, myZone, partnerZone, partnerName)}
+                    </Text>
+                  ) : null}
                   {bookingIndex === i ? null : (
                     <Pressable onPress={() => startBooking(i)} hitSlop={8}>
                       <Text style={styles.bookLink}>Book it</Text>
@@ -836,6 +859,17 @@ const createStyles = (t: Theme) =>
   planCancel: { fontSize: 13, color: t.textMuted, marginLeft: 12 },
   freeRow: { backgroundColor: t.surface, borderRadius: t.radius.md, padding: 14, marginBottom: 8 },
   freeRowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  freeTheirTime: { fontSize: 12, color: t.textMuted, marginTop: 2 },
+  zoneGap: {
+    fontSize: 12,
+    color: t.textSecondary,
+    backgroundColor: t.accentSoft,
+    borderRadius: t.radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+    lineHeight: 17,
+  },
   freeText: { fontSize: 14, color: t.textPrimary, fontWeight: "500", flex: 1 },
   bookLink: { fontSize: 13, color: t.accent, fontWeight: "600", marginLeft: 12 },
   bookingBox: { marginTop: 12 },

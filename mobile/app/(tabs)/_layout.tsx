@@ -8,11 +8,16 @@ import { HomeIcon, BellIcon, CheckSquareIcon, GiftIcon } from "@/components/icon
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { registerForPushNotifications } from "@/lib/pushRegistration";
 import { syncPlannedEventsToDevice } from "@/lib/plannedEvents";
+import { useTimeZoneSync } from "@/hooks/useTimeZoneSync";
 
 export default function TabsLayout() {
   const { session, profile, loading } = useAuth();
   const t = useTheme();
   const { partner, loading: membersLoading } = useCoupleMembers();
+
+  // Keeps the stored zone matching the phone, here rather than on one screen
+  // so it happens wherever in the app you happen to open.
+  useTimeZoneSync();
   const userId = session?.user.id;
   const paired = Boolean(profile?.couple_id) && Boolean(partner);
 

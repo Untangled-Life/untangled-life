@@ -147,10 +147,10 @@ export default function DayView() {
         .select("id, user_id, start_at, end_at, title, all_day")
         .gte("end_at", from.toISOString())
         .lte("start_at", to.toISOString()),
-      supabase.from("work_patterns").select("id, user_id, mode, cycle_weeks, anchor_date, shifts"),
+      supabase.from("work_patterns").select("id, user_id, mode, cycle_weeks, anchor_date, shifts, time_zone"),
       supabase
         .from("work_shifts")
-        .select("id, user_id, date, start_time, end_time, kind")
+        .select("id, user_id, date, start_time, end_time, kind, time_zone")
         .gte("date", toDateKey(from))
         .lte("date", toDateKey(to)),
     ]);

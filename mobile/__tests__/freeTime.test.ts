@@ -4,6 +4,8 @@ import {
   formatWindow,
   DEFAULT_FREE_TIME_PREFS,
   FreeTimePrefs,
+  subtractIntervals,
+  intersectIntervals,
 } from "@/lib/freeTime";
 
 const at = (day: number, h: number, m = 0) => new Date(2026, 8, day, h, m, 0, 0);
@@ -110,7 +112,7 @@ describe("nextSharedFreeWindows", () => {
 
   it("caps how many windows it returns", () => {
     freeze(at(14, 6, 0));
-    expect(nextSharedFreeWindows([], [], DEFAULT_FREE_TIME_PREFS, 3)).toHaveLength(3);
+    expect(nextSharedFreeWindows([], [], DEFAULT_FREE_TIME_PREFS, undefined, 3)).toHaveLength(3);
   });
 
   it("reports a day fully blocked out as having no free time", () => {
@@ -163,5 +165,166 @@ describe("formatWindow", () => {
     expect(label).toMatch(/Sep/);
     expect(label).toMatch(/14/);
     expect(label).toContain("–");
+  });
+});
+
+describe("two people, two time zones", () => {
+  const both = (mine: string, theirs: string | null) => ({ mine, theirs });
+  const freeze = (d: Date) => jest.useFakeTimers().setSystemTime(d);
+
+  afterEach(() => jest.useRealTimers());
+
+  // Sydney is 14 hours ahead of New York in September. With a 7am-11pm window
+  // each, the only stretch where both are awake is the Sydney morning, which
+  // is the New York evening before.
+  it("finds the overlap between two distant evenings", () => {
+    freeze(at(14, 6, 0));
+
+    const windows = nextSharedFreeWindows(
+      [],
+      [],
+      DEFAULT_FREE_TIME_PREFS,
+      both("America/New_York", "Australia/Sydney")
+    );
+
+    expect(windows.length).toBeGreaterThan(0);
+
+    for (const w of windows) {
+      const nyHour = Number(
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York",
+          hour: "2-digit",
+          hour12: false,
+        }).format(w.start)
+      );
+      const sydHour = Number(
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: "Australia/Sydney",
+          hour: "2-digit",
+          hour12: false,
+        }).format(w.start)
+      );
+
+      // Inside both people's waking hours, in their own local time.
+      expect(nyHour).toBeGreaterThanOrEqual(7);
+      expect(nyHour).toBeLessThan(23);
+      expect(sydHour).toBeGreaterThanOrEqual(7);
+      expect(sydHour).toBeLessThan(23);
+    }
+  });
+
+  // The case the old day-by-day loop could not express at all: it had to pick
+  // whose day it was looping over.
+  it("returns nothing when the two waking windows never meet", () => {
+    freeze(at(14, 6, 0));
+
+    // A four-hour window each, deliberately placed on opposite sides of the
+    // world so they cannot overlap.
+    const narrow = { dayStartHour: 9, dayEndHour: 13, minFreeMinutes: 30 };
+
+    expect(
+      nextSharedFreeWindows([], [], narrow, both("America/New_York", "Australia/Sydney"))
+    ).toHaveLength(0);
+  });
+
+  it("is unchanged when both are in the same zone", () => {
+    freeze(at(14, 6, 0));
+
+    const apart = nextSharedFreeWindows(
+      [],
+      [],
+      DEFAULT_FREE_TIME_PREFS,
+      both("America/New_York", "America/New_York")
+    );
+    const together = nextSharedFreeWindows(
+      [],
+      [],
+      DEFAULT_FREE_TIME_PREFS,
+      both("America/New_York", null)
+    );
+
+    expect(apart).toEqual(together);
+  });
+
+  // Busy time is an absolute instant, so it has to cut the overlap wherever it
+  // lands, regardless of whose clock it was entered against.
+  it("subtracts a partner's busy time across the date line", () => {
+    freeze(at(14, 6, 0));
+
+    const zones = both("America/New_York", "Australia/Sydney");
+    const clear = nextSharedFreeWindows([], [], DEFAULT_FREE_TIME_PREFS, zones);
+    expect(clear.length).toBeGreaterThan(0);
+
+    // Block out the whole of the first window from the partner's side.
+    const theirBusy = [{ start: clear[0].start, end: clear[0].end }];
+    const after = nextSharedFreeWindows([], theirBusy, DEFAULT_FREE_TIME_PREFS, zones);
+
+    expect(after[0].start.getTime()).toBeGreaterThanOrEqual(clear[0].end.getTime());
+  });
+
+  it("copes with a half-hour offset zone", () => {
+    freeze(at(14, 6, 0));
+
+    const windows = nextSharedFreeWindows(
+      [],
+      [],
+      DEFAULT_FREE_TIME_PREFS,
+      both("Australia/Sydney", "Australia/Adelaide")
+    );
+
+    expect(windows.length).toBeGreaterThan(0);
+    // Half an hour of the day is lost at each end, not a whole one.
+    expect(windows[0].start.getMinutes() % 30).toBe(0);
+  });
+});
+
+describe("subtractIntervals", () => {
+  const iv2 = (h1: number, h2: number) => ({ start: at(14, h1), end: at(14, h2) });
+
+  it("removes a block from the middle, leaving two pieces", () => {
+    expect(subtractIntervals([iv2(9, 17)], [iv2(12, 13)])).toEqual([iv2(9, 12), iv2(13, 17)]);
+  });
+
+  it("trims an overlapping edge", () => {
+    expect(subtractIntervals([iv2(9, 17)], [iv2(8, 10)])).toEqual([iv2(10, 17)]);
+  });
+
+  it("removes the whole thing when fully covered", () => {
+    expect(subtractIntervals([iv2(9, 17)], [iv2(8, 18)])).toEqual([]);
+  });
+
+  it("leaves a non-overlapping block alone", () => {
+    expect(subtractIntervals([iv2(9, 12)], [iv2(13, 14)])).toEqual([iv2(9, 12)]);
+  });
+
+  it("handles several blocks at once", () => {
+    expect(subtractIntervals([iv2(9, 17)], [iv2(10, 11), iv2(14, 15)])).toEqual([
+      iv2(9, 10),
+      iv2(11, 14),
+      iv2(15, 17),
+    ]);
+  });
+});
+
+describe("intersectIntervals", () => {
+  const iv2 = (h1: number, h2: number) => ({ start: at(14, h1), end: at(14, h2) });
+
+  it("keeps only the shared stretch", () => {
+    expect(intersectIntervals([iv2(9, 17)], [iv2(12, 20)])).toEqual([iv2(12, 17)]);
+  });
+
+  it("is empty when they only touch", () => {
+    expect(intersectIntervals([iv2(9, 12)], [iv2(12, 17)])).toEqual([]);
+  });
+
+  it("is empty when they do not meet", () => {
+    expect(intersectIntervals([iv2(9, 10)], [iv2(14, 15)])).toEqual([]);
+  });
+
+  it("handles many against many", () => {
+    expect(intersectIntervals([iv2(9, 12), iv2(14, 18)], [iv2(11, 15)])).toEqual([
+      iv2(11, 12),
+      iv2(14, 15),
+    ]);
   });
 });

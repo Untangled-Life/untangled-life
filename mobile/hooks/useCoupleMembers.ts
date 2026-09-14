@@ -7,6 +7,7 @@ type Member = {
   display_name: string | null;
   avatar_path: string | null;
   color: string | null;
+  time_zone: string | null;
 };
 
 // Both partners' profile rows, split into "me" and "partner" -- relies on the
@@ -48,7 +49,7 @@ export function useCoupleMembers() {
     (async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_path, color")
+        .select("id, display_name, avatar_path, color, time_zone")
         .eq("couple_id", coupleId);
 
       if (cancelled) return;
@@ -71,6 +72,7 @@ export function useCoupleMembers() {
     display_name: profile?.display_name ?? "Me",
     avatar_path: profile?.avatar_path ?? null,
     color: profile?.color ?? null,
+    time_zone: profile?.time_zone ?? null,
   };
 
   return { me, partner, loading };

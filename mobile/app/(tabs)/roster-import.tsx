@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { deviceTimeZone } from "@/lib/timezone";
 import {
   View,
   Text,
@@ -83,6 +84,9 @@ export default function RosterImport() {
         anchor_date: new Date().toISOString().slice(0, 10),
         shifts,
         updated_at: new Date().toISOString(),
+        // A pasted roster is in the hours of the place that sent it, which is
+        // where you are when you paste it.
+        time_zone: deviceTimeZone(),
       },
       { onConflict: "user_id" }
     );

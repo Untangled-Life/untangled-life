@@ -11,6 +11,8 @@ type Profile = {
   home_sections: string[] | null;
   /** Their palette colour. Null means they haven't picked one. */
   color: string | null;
+  /** IANA zone from their phone, kept current by useTimeZoneSync. */
+  time_zone: string | null;
 };
 
 type AuthContextValue = {
@@ -31,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function loadProfile(userId: string) {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, display_name, couple_id, avatar_path, home_sections, color")
+      .select("id, display_name, couple_id, avatar_path, home_sections, color, time_zone")
       .eq("id", userId)
       .maybeSingle();
 

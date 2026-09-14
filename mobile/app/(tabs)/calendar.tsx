@@ -291,10 +291,10 @@ export default function CalendarScreen() {
         .select("id, user_id, start_at, end_at, title, location, notes, all_day")
         .gte("end_at", rangeStart.toISOString())
         .lte("start_at", rangeEnd.toISOString()),
-      supabase.from("work_patterns").select("id, user_id, mode, cycle_weeks, anchor_date, shifts"),
+      supabase.from("work_patterns").select("id, user_id, mode, cycle_weeks, anchor_date, shifts, time_zone"),
       supabase
         .from("work_shifts")
-        .select("id, user_id, date, start_time, end_time, kind")
+        .select("id, user_id, date, start_time, end_time, kind, time_zone")
         .gte("date", toDateKey(rangeStart))
         .lte("date", toDateKey(rangeEnd)),
     ]);

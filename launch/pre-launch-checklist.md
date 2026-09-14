@@ -317,6 +317,27 @@ Standing rule: **the combined file gets run against a throwaway Postgres before
 it goes anywhere near the live database.** Every one of the above passed a
 read-through.
 
+## Time zones (14 Sep) -- needs device testing
+
+- [ ] **Run `supabase/time-zones.sql`.**
+- [ ] **Detection.** Open the app and check `profiles.time_zone` in Supabase
+      holds your real zone. Change the phone's zone in Settings, background and
+      foreground the app, and check it updates.
+- [ ] **The zone gap line.** Set one phone to another zone and check Home says
+      so above Free together, and that free windows show both clocks.
+- [ ] **Free together across zones.** With the phones in different zones, every
+      window offered has to fall inside 7am-11pm for BOTH of you, in your own
+      local times. This is the part with no manual workaround if it is wrong.
+- [ ] **Push notification times.** Blocked on the development build, but when
+      it lands: the time in the notification must be the RECIPIENT'S local
+      time. It was hard-coded to Sydney for everyone until now.
+- [ ] **Rosters after travel.** Enter working hours, change the phone's zone,
+      and check the shifts stay at the same clock time rather than sliding.
+- [ ] **Hermes Intl.** `supportsNamedZones()` checks at runtime whether this
+      build can do arithmetic in a named zone. If it returns false the app
+      falls back to the device's own offset and cross-zone maths silently stops
+      working -- worth logging once on a real device to confirm it is true.
+
 ## Known rough edges
 
 - Everything is verified on two iPhones only, with one couple, on one Supabase
