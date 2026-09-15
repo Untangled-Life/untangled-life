@@ -126,3 +126,82 @@ export async function removePhoto(path: string | null): Promise<void> {
   if (!path) return;
   await supabase.storage.from(BUCKET).remove([path]);
 }
+
+/**
+ * Move the cover you had on your own to the couple you have just joined.
+ *
+ * Its path has the old couple's id in it, and both storage policies check
+ * that segment against your couple -- so the moment you join somebody else's
+ * couple, your own cover photo becomes a file nobody can read and nobody can
+ * delete, including you. Deleting the row in SQL is not enough either: that
+ * orphans the actual file in the object store rather than removing it.
+ *
+ * So the bytes are fetched first, while the old path is still readable, and
+ * re-uploaded afterwards under the new couple -- but only if the couple being
+ * joined has not got a cover of its own, because theirs is the one that wins.
+ *
+ * Returns nothing and throws nothing. A cover photo is worth carrying across
+ * and not worth failing a pairing over.
+ */
+export async function carryCoverInto(
+  oldCoupleId: string | null,
+  read: () => Promise<{ coverPath: string | null }>,
+  join: () => Promise<{ error: string | null }>,
+  newCoupleId: () => string | null,
+  setCover: (path: string) => Promise<void>
+): Promise<{ error: string | null }> {
+  let carried: ArrayBuffer | null = null;
+  let oldPath: string | null = null;
+
+  if (oldCoupleId) {
+    try {
+      const { coverPath } = await read();
+      oldPath = coverPath;
+
+      if (coverPath) {
+        const { data } = await supabase.storage.from(BUCKET).download(coverPath);
+        if (data) carried = await data.arrayBuffer();
+      }
+    } catch {
+      // No cover, or it could not be read. Either way, carry on and pair.
+    }
+  }
+
+  // Removed through the Storage API rather than left to the SQL, which only
+  // takes the metadata row and leaves the file itself on the server forever.
+  if (oldPath) {
+    try {
+      await supabase.storage.from(BUCKET).remove([oldPath]);
+    } catch {
+      // Nothing to do about it, and not a reason to stop.
+    }
+  }
+
+  const { error } = await join();
+  if (error) return { error };
+
+  const joined = newCoupleId();
+  if (!carried || !joined) return { error: null };
+
+  try {
+    const { data: couple } = await supabase
+      .from("couples")
+      .select("cover_path")
+      .eq("id", joined)
+      .maybeSingle();
+
+    if (couple?.cover_path) return { error: null };
+
+    const path = `covers/${joined}/${Date.now()}.jpg`;
+    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, carried, {
+      contentType: "image/jpeg",
+      upsert: false,
+    });
+
+    if (!uploadError) await setCover(path);
+  } catch {
+    // The pairing worked, which is the part that matters.
+  }
+
+  return { error: null };
+}

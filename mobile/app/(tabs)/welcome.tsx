@@ -185,14 +185,20 @@ export default function Welcome() {
             : `Step ${stepNumber} of ${progress.total}`}
       </Text>
       <Text style={styles.title}>
-        {complete ? "You're all set" : `You're paired with ${partnerName}`}
+        {complete
+          ? "You're all set"
+          : partner
+            ? `You're paired with ${partnerName}`
+            : "Let's set your side up"}
       </Text>
       <Text style={styles.intro}>
         {complete
           ? "Everything's in place. You can change any of it later from the menu."
           : settled
             ? "Whatever you skipped is waiting under the bell on your home screen. Nothing is lost."
-            : "A few things and the app starts earning its keep. Skip anything you like. The bell on your home screen keeps whatever is left."}
+            : partner
+              ? "A few things and the app starts earning its keep. Skip anything you like. The bell on your home screen keeps whatever is left."
+              : "A few things worth doing before anybody else arrives -- and it is what makes the app useful to them on the day they do. Skip anything you like."}
       </Text>
 
       <View style={styles.track}>

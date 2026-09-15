@@ -15,17 +15,21 @@ import {
   ClockIcon,
   ChevronRightIcon,
 } from "@/components/icons";
+import { useCoupleMembers } from "@/hooks/useCoupleMembers";
+
+type IconProps = { size?: number; color?: string };
 
 type Item = {
   label: string;
   hint?: string;
-  icon: (p: { size?: number; color?: string }) => React.ReactElement;
+  icon: (p: IconProps) => React.ReactElement;
   onPress: () => void;
 };
 
 export default function Menu() {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
+  const { partner } = useCoupleMembers();
 
   // Nothing here pretends to work. Anything without a real destination says so
   // rather than opening an empty screen -- the outstanding ones are tracked in
@@ -37,6 +41,16 @@ export default function Menu() {
     {
       title: "Your couple",
       items: [
+        ...(partner
+          ? []
+          : [
+              {
+                label: "Invite your partner",
+                hint: "Everything you have already put in comes with you",
+                icon: (p: IconProps) => <HeartIcon {...p} />,
+                onPress: () => router.push("/pair"),
+              },
+            ]),
         {
           label: "Shared calendar",
           icon: (p) => <CalendarIcon {...p} />,
@@ -58,12 +72,16 @@ export default function Menu() {
           icon: (p) => <CogIcon {...p} />,
           onPress: () => router.push("/settings"),
         },
-        {
-          label: "Feeling valued",
-          hint: "What makes each of you feel wanted",
-          icon: (p) => <HeartIcon {...p} />,
-          onPress: () => router.push("/valued"),
-        },
+        ...(partner
+          ? [
+              {
+                label: "Feeling valued",
+                hint: "What makes each of you feel wanted",
+                icon: (p: IconProps) => <HeartIcon {...p} />,
+                onPress: () => router.push("/valued"),
+              },
+            ]
+          : []),
         {
           label: "Personalisation",
           hint: "Appearance, colours, your Home screen",

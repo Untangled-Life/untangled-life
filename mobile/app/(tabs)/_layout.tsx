@@ -84,14 +84,15 @@ export default function TabsLayout() {
     return <Redirect href="/sign-in" />;
   }
 
-  if (!profile?.couple_id) {
-    return <Redirect href="/pair" />;
-  }
-
-  // A couple_id alone isn't "paired" -- create_couple_invite() sets it the
-  // moment you generate a code, before anyone has joined. Without this, an
-  // inviter waiting on their partner lands in the app alone, with no way back
-  // to the screen showing their code.
+  // Pairing is no longer a wall. It used to be the first thing a new account
+  // met: sign up, and the app immediately asked for a code from a partner who
+  // had not been invited yet, with nothing else reachable. The whole app is
+  // worth something on your own -- your calendar, your key dates, your list --
+  // and the invitation is an offer on the Home screen rather than a gate.
+  //
+  // A couple of one is still a couple as far as every table is concerned, so
+  // the only thing worth waiting for is knowing whether there is somebody in
+  // it with you; the screens read `partner` and go quiet where it is null.
   if (membersLoading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: t.bg }}>
@@ -100,7 +101,12 @@ export default function TabsLayout() {
     );
   }
 
-  if (!partner) {
+  // Everybody gets one at sign-up and the app asks for one on the way in, so
+  // this means the ask failed -- offline, or against a database that has not
+  // had solo-start.sql run against it. The pairing screen is the honest place
+  // to land: it is the one screen that works without a couple, and it has a
+  // sign-out on it, where a spinner has nothing at all.
+  if (!profile?.couple_id) {
     return <Redirect href="/pair" />;
   }
 
@@ -109,10 +115,9 @@ export default function TabsLayout() {
   // is sent back to it twice -- what they skipped waits under the bell
   // instead.
   //
-  // After the partner check on purpose: the inviter has a couple_id from the
-  // moment they generate a code, and walking somebody through setting up a
-  // shared calendar before there is anybody to share it with is a tour of an
-  // empty house.
+  // It runs on your own too. Connecting your calendars and putting your
+  // working hours in is worth doing before anybody else arrives -- and it is
+  // what makes the app show them something real the day they do.
   if (!profile.onboarded_at && pathname !== "/welcome") {
     return <Redirect href="/welcome" />;
   }

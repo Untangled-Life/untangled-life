@@ -1,3 +1,9 @@
+-- SUPERSEDED by supabase/solo-start.sql, which redefines this same function to
+-- carry the joiner's rows across before deleting the couple they left. Once
+-- people can use the app before pairing there ARE rows to carry, and deleting
+-- without moving them first would take somebody's to-dos and key dates with
+-- it. Run solo-start.sql after this one, or instead of it.
+
 -- Redeeming a code when you already have a couple of your own.
 --
 -- create_couple_invite() puts you in a couple the moment you generate a code,

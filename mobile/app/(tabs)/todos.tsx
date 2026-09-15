@@ -81,18 +81,23 @@ export default function Todos() {
   // mount -- otherwise changes made elsewhere aren't here until a restart.
   const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
+  // Unpairing mid-session takes the chip away but not the selection, and
+  // "their list" then quietly becomes the shared one -- including for
+  // anything typed into the box underneath it.
+  const effectiveFilter: Filter = filter === "partner" && !partner ? "me" : filter;
+
   const assignedIdForFilter =
-    filter === "me" ? me.id : filter === "partner" ? partner?.id ?? null : null;
+    effectiveFilter === "me" ? me.id : effectiveFilter === "partner" ? (partner?.id ?? null) : null;
 
   const forFilter = todos.filter((t) =>
-    filter === "us" ? t.assigned_to === null : t.assigned_to === assignedIdForFilter
+    effectiveFilter === "us" ? t.assigned_to === null : t.assigned_to === assignedIdForFilter
   );
   const visible = forFilter.filter((t) => !t.completed);
   const done = forFilter.filter((t) => t.completed);
 
   async function addTodo() {
     if (!newTitle.trim() || !profile?.couple_id || !me.id) return;
-    const assignedTo = filter === "us" ? null : assignedIdForFilter;
+    const assignedTo = effectiveFilter === "us" ? null : assignedIdForFilter;
 
     const { error } = await supabase.from("todos").insert({
       couple_id: profile.couple_id,
@@ -180,13 +185,19 @@ export default function Todos() {
         <Text style={styles.title}>To-dos</Text>
 
         <View style={styles.filterRow}>
-          <FilterChip label={me.display_name ?? "Me"} active={filter === "me"} onPress={() => setFilter("me")} />
           <FilterChip
-            label={partner?.display_name ?? "Partner"}
-            active={filter === "partner"}
-            onPress={() => setFilter("partner")}
+            label={me.display_name ?? "Me"}
+            active={effectiveFilter === "me"}
+            onPress={() => setFilter("me")}
           />
-          <FilterChip label="Us" active={filter === "us"} onPress={() => setFilter("us")} />
+          {partner ? (
+            <FilterChip
+              label={partner.display_name ?? "Partner"}
+              active={filter === "partner"}
+              onPress={() => setFilter("partner")}
+            />
+          ) : null}
+          <FilterChip label="Us" active={effectiveFilter === "us"} onPress={() => setFilter("us")} />
         </View>
 
         {/* Four buckets each saying "Nothing here" is a wall of nothing. When
@@ -194,9 +205,9 @@ export default function Todos() {
         {loaded && visible.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>
-              {filter === "us"
+              {effectiveFilter === "us"
                 ? "Nothing shared yet"
-                : filter === "me"
+                : effectiveFilter === "me"
                   ? "Nothing on your list"
                   : `Nothing on ${partner?.display_name ?? "their"}'s list`}
             </Text>

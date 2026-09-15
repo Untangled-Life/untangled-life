@@ -38,6 +38,7 @@ export function HomeHero({
   partnerAvatarUrl,
   myName,
   partnerName,
+  hasPartner,
   uploading,
   onChangeCover,
 }: {
@@ -46,6 +47,14 @@ export function HomeHero({
   partnerAvatarUrl: string | null;
   myName: string | null;
   partnerName: string | null;
+  /**
+   * Whether there is somebody else in this couple at all.
+   *
+   * Passed rather than inferred from the name or the photo: both are null for
+   * a real partner who has not filled them in, and guessing from them dropped
+   * their circle off the screen.
+   */
+  hasPartner: boolean;
   uploading: boolean;
   onChangeCover: () => void;
 }) {
@@ -63,7 +72,9 @@ export function HomeHero({
     month: "long",
   });
 
-  const names = partnerName ? `${myName ?? "You"} & ${partnerName}` : (myName ?? "You");
+  const names = hasPartner
+    ? `${myName ?? "You"} & ${partnerName ?? "them"}`
+    : (myName ?? "You");
 
   return (
     <View style={[styles.hero, { height }]}>
@@ -100,9 +111,11 @@ export function HomeHero({
           </View>
           {/* Overlapped rather than side by side: two circles touching reads
               as a couple, two circles apart reads as a list of users. */}
-          <View style={[styles.faceRing, styles.faceOverlap]}>
-            <Avatar url={partnerAvatarUrl} name={partnerName} size={52} />
-          </View>
+          {hasPartner ? (
+            <View style={[styles.faceRing, styles.faceOverlap]}>
+              <Avatar url={partnerAvatarUrl} name={partnerName} size={52} />
+            </View>
+          ) : null}
         </View>
 
         <Text style={[styles.eyebrow, hasPhoto ? styles.onPhotoMuted : null]}>{today}</Text>

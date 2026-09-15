@@ -57,14 +57,14 @@ const STEPS: {
   {
     key: "calendars",
     title: "Connect your calendar",
-    blurb: "So we can find the time you're both actually free. Nothing is shared until you say so, calendar by calendar.",
+    blurb: "So the app can find the time you are actually free -- and the time you are both free, once somebody joins you. Nothing is shared until you say so, calendar by calendar.",
     route: "/calendars",
     satisfied: (f) => f.calendarAccess && f.calendarsShared > 0,
   },
   {
     key: "hours",
     title: "Add your working hours",
-    blurb: "So free time stops offering your partner the middle of your shift.",
+    blurb: "So free time never offers the middle of a shift you are working.",
     route: "/work-hours",
     satisfied: (f) => f.hasWorkPattern,
   },
@@ -77,8 +77,10 @@ const STEPS: {
   },
   {
     key: "cover",
-    title: "Add a photo of you both",
-    blurb: "The one at the top of your home screen. This one is shared, so your partner sees it too.",
+    // Not "a photo of you both": the walkthrough runs before pairing now, and
+    // there may not be a photo of the two of you yet, or a two of you.
+    title: "Add a cover photo",
+    blurb: "The one across the top of your home screen. It is shared, so whoever joins you sees it too.",
     route: null,
     satisfied: (f) => f.hasCover,
   },

@@ -617,6 +617,7 @@ export default function KeyDates() {
         {detailsFor(anniversaryRow, "Anniversary")}
       </View>
 
+      {partner ? (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>{partnerName}&apos;s Birthday</Text>
@@ -637,6 +638,7 @@ export default function KeyDates() {
         />
         {detailsFor(partnerBirthdayRow, `${partnerName}'s birthday`)}
       </View>
+      ) : null}
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
@@ -647,9 +649,13 @@ export default function KeyDates() {
             </Pressable>
           ) : null}
         </View>
-        <Text style={styles.cardHint}>
-          So {partnerName} gets the reminders for yours too.
-        </Text>
+        {partner ? (
+          <Text style={styles.cardHint}>So {partnerName} gets the reminders for yours too.</Text>
+        ) : (
+          <Text style={styles.cardHint}>
+            So it is already here when somebody else arrives to be reminded.
+          </Text>
+        )}
         <DateField
           value={myBirthdayInput || null}
           placeholder="Pick your birthday"

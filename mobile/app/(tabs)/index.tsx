@@ -527,7 +527,11 @@ export default function Home() {
   // Nothing booked for a fortnight and nothing planned for a fortnight. On
   // Home this only changes the wording of a card that would be there anyway;
   // the same rule drives the push, in supabase/functions/nudge-date.
-  const nudging = shouldNudge(dates, lastPlannedAt);
+  // Nothing to nudge about on your own. "It's been a while since you had a
+  // date" to somebody who signed up yesterday, alone, is the app talking to
+  // itself -- and tapping it lands on a Home screen that is offering to
+  // invite somebody, not to book anything.
+  const nudging = Boolean(partner) && shouldNudge(dates, lastPlannedAt);
 
   // The bell's contents. Built from the same facts Home already has, so the
   // count and the screen behind it can never disagree.
@@ -576,7 +580,9 @@ export default function Home() {
             <Text style={styles.emptyText}>
               {pinned.length > 0
                 ? "Nothing else coming up. The one that matters is pinned above."
-                : `No key dates yet. Add ${partnerName}'s birthday or your anniversary to start a countdown.`}
+                : partner
+                  ? `No key dates yet. Add ${partnerName}'s birthday or your anniversary to start a countdown.`
+                  : "No key dates yet. Add a birthday or an anniversary and it starts counting down."}
             </Text>
           </View>
         ) : (
@@ -646,6 +652,13 @@ export default function Home() {
           // The empty state IS the feature here. A couple with nothing booked
           // is the couple this app exists for, and an empty section that says
           // nothing is a missed moment rather than a tidy one.
+          !partner ? (
+          <Pressable style={press(styles.emptyCard)} onPress={() => router.push("/pair")}>
+            <Text style={styles.emptyText}>
+              Date planning is the half of this that needs two of you. Tap to invite them.
+            </Text>
+          </Pressable>
+        ) : (
           <Pressable style={press(styles.planPrompt)} onPress={planADate}>
             <Text style={styles.planPromptTitle}>
               {nudging
@@ -661,10 +674,11 @@ export default function Home() {
               <Text style={styles.planPromptButtonText}>Plan a date</Text>
             </View>
           </Pressable>
+          )
         )}
       </View>
     ),
-    littleThings: (
+    littleThings: partner ? (
       <View key="littleThings">
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Little things</Text>
@@ -693,7 +707,7 @@ export default function Home() {
           </Text>
         </View>
       </View>
-    ),
+    ) : null,
     freeTogether: (
       <View key="freeTogether">
         <View style={styles.sectionHeader}>
@@ -710,7 +724,14 @@ export default function Home() {
 
         {zoneGap ? <Text style={styles.zoneGap}>{zoneGap}</Text> : null}
 
-        {permission !== PermissionStatus.GRANTED ? (
+        {!partner ? (
+          <Pressable style={press(styles.emptyCard)} onPress={() => router.push("/pair")}>
+            <Text style={styles.emptyText}>
+              This is the gaps you are both free, so it needs their diary as well as yours. Tap to
+              invite them.
+            </Text>
+          </Pressable>
+        ) : permission !== PermissionStatus.GRANTED ? (
           <Pressable style={press(styles.emptyCard)} onPress={requestAccess}>
             <Text style={styles.emptyText}>
               Connect your calendar to see this. Tap to allow it.
@@ -826,6 +847,7 @@ export default function Home() {
           partnerAvatarUrl={partnerAvatarUrl}
           myName={me.display_name}
           partnerName={partner?.display_name ?? null}
+          hasPartner={Boolean(partner)}
           uploading={uploadingCover}
           onChangeCover={changeCover}
         />
@@ -871,6 +893,24 @@ export default function Home() {
           </View>
         </View>
       </View>
+
+      {/* The invitation, where the gate used to be. It sits above everything
+          else because it is the one thing that changes what this app is, and
+          it goes when they arrive. Not dismissible: there is nowhere else it
+          lives, and an offer you can lose by mistake is a wall again. */}
+      {!partner ? (
+        <Pressable style={press(styles.inviteCard)} onPress={() => router.push("/pair")}>
+          <Text style={styles.inviteTitle}>It&apos;s better with both of you</Text>
+          <Text style={styles.inviteBody}>
+            Everything here works on your own, and none of it goes anywhere when they join -- it
+            just stops being only yours. Free together, date planning and the little things need
+            two diaries.
+          </Text>
+          <View style={styles.inviteButton}>
+            <Text style={styles.inviteButtonText}>Invite your partner</Text>
+          </View>
+        </Pressable>
+      ) : null}
 
       {/* A brand-new couple lands here with nothing and no idea what to do
           first. This says so, in order, and disappears as each is done --
@@ -964,6 +1004,24 @@ const createStyles = (t: Theme) =>
     marginTop: -t.space(14),
     marginBottom: t.space(6),
   },
+  // The brand colour rather than the accent the setup card uses: this is the
+  // one thing on the screen that changes what the app is, and the two of them
+  // stacked in the same green read as one long list of chores.
+  inviteCard: {
+    backgroundColor: t.brandSoft,
+    borderRadius: t.radius.lg,
+    padding: t.space(5),
+    marginBottom: t.space(6),
+  },
+  inviteTitle: { ...t.type.title, color: t.brand, marginBottom: t.space(1) },
+  inviteBody: { ...t.type.body, color: t.textSecondary, marginBottom: t.space(4) },
+  inviteButton: {
+    backgroundColor: t.brand,
+    borderRadius: t.radius.pill,
+    paddingVertical: t.space(3),
+    alignItems: "center",
+  },
+  inviteButtonText: { ...t.type.label, color: t.textOnBrand },
   setupCard: {
     backgroundColor: t.accentSoft,
     borderRadius: t.radius.lg,

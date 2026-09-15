@@ -51,6 +51,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (data && !data.couple_id) {
+      // An account from before everybody got a couple at sign-up. Without
+      // one there is nowhere to put a to-do or a key date, so the app would
+      // be a set of screens that all fail to save. Asking for one is cheap
+      // and the function is a no-op for anybody who has one.
+      const { data: made, error: makeError } = await supabase.rpc("ensure_couple");
+
+      if (makeError) {
+        // Offline, or this build is talking to a database where solo-start.sql
+        // has not been run. Either way the profile keeps its null couple_id
+        // and the gate sends them somewhere with a way out rather than
+        // leaving them on a spinner.
+        console.warn("[auth] couldn't set up a couple:", makeError.message);
+      }
+
+      setProfile(made ? { ...data, couple_id: made as string } : data);
+      return;
+    }
+
     if (data) {
       setProfile(data);
     }

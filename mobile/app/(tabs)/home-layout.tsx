@@ -4,6 +4,7 @@ import { press } from "@/components/press";
 import { ScreenHeader } from "@/components/screen";
 import { tapped, warned } from "@/lib/haptics";
 import { useAuth } from "@/contexts/auth";
+import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { supabase } from "@/lib/supabase";
@@ -24,6 +25,9 @@ export default function HomeLayoutSettings() {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
   const { session, profile, refreshProfile } = useAuth();
+  // Two of these sections draw nothing until somebody else is here, and a
+  // switch that visibly does nothing is worse than one that says why.
+  const { partner } = useCoupleMembers();
 
   const [layout, setLayout] = useState<HomeLayout>(() =>
     resolveHomeLayout(profile?.home_sections)
@@ -103,7 +107,11 @@ export default function HomeLayoutSettings() {
                 <Text style={[styles.rowLabel, hidden ? styles.rowLabelOff : null]}>
                   {meta?.label ?? key}
                 </Text>
-                <Text style={styles.rowHint}>{meta?.blurb}</Text>
+                <Text style={styles.rowHint}>
+                  {!partner && (key === "littleThings" || key === "freeTogether")
+                    ? "Waiting for your partner to join"
+                    : meta?.blurb}
+                </Text>
               </View>
 
               <Switch

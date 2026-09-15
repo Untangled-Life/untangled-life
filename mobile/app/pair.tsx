@@ -13,6 +13,7 @@ import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
+import { carryCoverInto } from "@/lib/photos";
 import { useAuth } from "@/contexts/auth";
 
 const PARTNER_POLL_MS = 3000;
@@ -29,6 +30,9 @@ export default function Pair() {
   const [error, setError] = useState<string | null>(null);
   const restoredRef = useRef(false);
 
+  // The couple they end up in, for the cover photo to follow them into.
+  const joinedCoupleRef = useRef<string | null>(null);
+
   const coupleId = profile?.couple_id ?? null;
   const userId = session?.user.id ?? null;
 
@@ -38,22 +42,26 @@ export default function Pair() {
     return data as string;
   }, []);
 
-  // Landing here while already in a couple means we invited someone and they
-  // haven't joined yet -- so show that same code again rather than stranding
-  // them without it.
+  // Coming back to a code you already sent, so it is here rather than lost.
+  //
+  // A READ. It used to call create_couple_invite, which was the same thing
+  // back when having a couple could only mean you had already made a code.
+  // Everybody has a couple from sign-up now, so creating here would hand a
+  // code to somebody who arrived holding their partner's -- and drop them on
+  // a spinner saying "waiting for them to enter it" instead of the box they
+  // came for.
   useEffect(() => {
     if (!coupleId || restoredRef.current || myCode) return;
     restoredRef.current = true;
-    fetchInviteCode()
-      .then((restored) => {
-        setMyCode(restored);
+
+    supabase
+      .rpc("my_pending_invite")
+      .then(({ data }) => {
+        if (!data) return;
+        setMyCode(data as string);
         setWaiting(true);
-      })
-      .catch(() => {
-        // Already paired, or the code couldn't be read -- either way there's
-        // nothing to restore and the normal buttons still work.
       });
-  }, [coupleId, myCode, fetchInviteCode]);
+  }, [coupleId, myCode]);
 
   // While waiting, watch for the partner's profile joining the couple, then
   // go through. Polling rather than realtime: no channel setup, and this
@@ -109,14 +117,55 @@ export default function Pair() {
     if (!code.trim()) return;
     setError(null);
     setLoading(true);
-    const { error: rpcError } = await supabase.rpc("redeem_couple_invite", {
-      invite_code: code.trim().toUpperCase(),
-    });
-    setLoading(false);
+
+    // The cover you set on your own is stored under YOUR couple's id, and
+    // that couple is about to stop existing. carryCoverInto takes the bytes
+    // while the path is still readable, removes the file properly rather
+    // than orphaning it, and puts it back under the couple you have joined
+    // if they have not got one of their own.
+    const { error: rpcError } = await carryCoverInto(
+      coupleId,
+      async () => {
+        const { data } = await supabase
+          .from("couples")
+          .select("cover_path")
+          .eq("id", coupleId ?? "")
+          .maybeSingle();
+        return { coverPath: (data?.cover_path as string | null) ?? null };
+      },
+      async () => {
+        const { error: joinError } = await supabase.rpc("redeem_couple_invite", {
+          invite_code: code.trim().toUpperCase(),
+        });
+
+        if (joinError) return { error: joinError.message };
+
+        // Read here rather than after, because the step that puts the cover
+        // back runs inside this call and needs to know where to put it. The
+        // profile in context is still a render behind at this point.
+        const { data: joinedProfile } = await supabase
+          .from("profiles")
+          .select("couple_id")
+          .eq("id", userId ?? "")
+          .maybeSingle();
+
+        joinedCoupleRef.current = (joinedProfile?.couple_id as string | null) ?? null;
+        return { error: null };
+      },
+      () => joinedCoupleRef.current,
+      async (path) => {
+        const joined = joinedCoupleRef.current;
+        if (joined) await supabase.from("couples").update({ cover_path: path }).eq("id", joined);
+      }
+    );
+
     if (rpcError) {
-      setError(rpcError.message);
+      setLoading(false);
+      setError(rpcError);
       return;
     }
+
+    setLoading(false);
     await refreshProfile();
     router.replace("/");
   }
@@ -136,6 +185,20 @@ export default function Pair() {
 
   return (
     <View style={styles.container}>
+      {/* This used to be a wall with nothing behind it, so there was nowhere
+          to go back to. It is somewhere you choose to come now -- except when
+          the gate sent you because there is no couple to go back to, and the
+          app behind would only send you here again. */}
+      {coupleId ? (
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+          hitSlop={10}
+          style={press(styles.backTap)}
+        >
+          <Text style={styles.back}>&lsaquo; Not now</Text>
+        </Pressable>
+      ) : null}
+
       <Text style={styles.title}>Link up with your partner</Text>
       <Text style={styles.subtitle}>
         One of you creates a code, the other enters it. That pairs your two accounts
@@ -211,6 +274,11 @@ export default function Pair() {
 
       {waiting && error ? <Text style={styles.error}>{error}</Text> : null}
 
+      <Text style={styles.footnote}>
+        Whatever you have already put in is yours and stays yours. When they join, it becomes
+        both of yours.
+      </Text>
+
       <Pressable onPress={() => signOut()} style={press({ marginTop: 24 })}>
         <Text style={styles.link}>Signed in as {session?.user.email}. Sign out</Text>
       </Pressable>
@@ -259,4 +327,12 @@ const createStyles = (t: Theme) =>
   orText: { textAlign: "center", color: t.textMuted, marginVertical: 16 },
   error: { color: t.danger, marginBottom: 8, ...t.type.caption, textAlign: "center" },
   link: { textAlign: "center", color: t.textMuted, ...t.type.caption },
+  backTap: { alignSelf: "flex-start", paddingVertical: t.space(1), marginBottom: t.space(2) },
+  back: { ...t.type.label, color: t.accent },
+  footnote: {
+    ...t.type.caption,
+    color: t.textMuted,
+    textAlign: "center",
+    marginTop: t.space(6),
+  },
   });

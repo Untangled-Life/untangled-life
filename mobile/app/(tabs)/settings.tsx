@@ -44,8 +44,11 @@ export default function Settings() {
               Alert.alert("Couldn't unpair", error);
               return;
             }
-            // The tabs gate sends an unpaired user to /pair on its own once
-            // the profile no longer has a couple_id.
+            // Stays here afterwards, as a solo account. The app works on
+            // your own now, and the profile load hands you a couple of one
+            // on the way back through -- there is no bounce to the pairing
+            // screen any more, and the invitation is on Home when they want
+            // it.
             await refreshProfile();
             succeeded();
           },
@@ -245,13 +248,22 @@ export default function Settings() {
           </View>
         ) : (
           <>
-            <Pressable onPress={confirmUnpair} style={press(styles.row)}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowLabel}>Unpair from {partnerName}</Text>
-                <Text style={styles.rowHint}>Keep your account, start again with a new code</Text>
-              </View>
-              <ChevronRightIcon size={18} color={t.textMuted} />
-            </Pressable>
+            {/* Only when there is somebody to unpair from. Settings used to
+                be unreachable before pairing, so this row could assume one --
+                and on its own it does not merely do nothing: leave_couple()
+                deletes a couple with no members left, which for a solo
+                account is every key date, to-do, wishlist and booked date
+                they have, under a dialog promising their partner keeps it
+                all. */}
+            {partner ? (
+              <Pressable onPress={confirmUnpair} style={press(styles.row)}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowLabel}>Unpair from {partnerName}</Text>
+                  <Text style={styles.rowHint}>Keep your account, start again with a new code</Text>
+                </View>
+                <ChevronRightIcon size={18} color={t.textMuted} />
+              </Pressable>
+            ) : null}
 
             <Pressable onPress={confirmDelete} style={press([styles.row, styles.rowDivider])}>
               <View style={{ flex: 1 }}>

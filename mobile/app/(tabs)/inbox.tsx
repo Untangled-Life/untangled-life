@@ -93,7 +93,7 @@ export default function Inbox() {
   const items = buildInbox({
     outstanding,
     keyDates,
-    nudging: shouldNudge(datePlans, lastPlannedAt),
+    nudging: Boolean(partner) && shouldNudge(datePlans, lastPlannedAt),
     nameFor,
     proposalsForYou: forYou,
     awaitingReview: review,
