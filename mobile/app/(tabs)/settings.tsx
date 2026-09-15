@@ -7,10 +7,8 @@ import { Theme } from "@/theme/tokens";
 import { ChevronRightIcon } from "@/components/icons";
 import { Avatar } from "@/components/avatar";
 import { useAuth } from "@/contexts/auth";
-import { useCouplePhotos } from "@/hooks/useCouplePhotos";
-import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
-import { supabase } from "@/lib/supabase";
-import { succeeded, warned, tapped } from "@/lib/haptics";
+import { useMyAvatar } from "@/hooks/useMyAvatar";
+import { succeeded, warned } from "@/lib/haptics";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { leaveCouple, deleteOwnAccount } from "@/lib/leaving";
 
@@ -18,9 +16,10 @@ export default function Settings() {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
   const { session, profile, refreshProfile } = useAuth();
-  const { myAvatarUrl, reload: reloadPhotos } = useCouplePhotos();
   const { partner } = useCoupleMembers();
-  const [busy, setBusy] = useState(false);
+  // Shared with the Menu, which offers the same thing from the avatar in its
+  // corner. See hooks/useMyAvatar.
+  const { avatarUrl: myAvatarUrl, busy, changePhoto, confirmRemove } = useMyAvatar();
   const [leaving, setLeaving] = useState(false);
 
   const partnerName = partner?.display_name ?? "your partner";
@@ -96,67 +95,6 @@ export default function Settings() {
     );
   }
 
-
-  async function setAvatar(path: string | null) {
-    if (!session?.user.id) return;
-    const previous = profile?.avatar_path ?? null;
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({ avatar_path: path })
-      .eq("id", session.user.id);
-
-    if (error) {
-      // Undo the upload rather than leaving a file nothing points at.
-      if (path) await removePhoto(path);
-      warned();
-      Alert.alert("Couldn't save that", error.message);
-      return;
-    }
-
-    await removePhoto(previous);
-    await refreshProfile();
-    await reloadPhotos();
-    succeeded();
-  }
-
-  async function changePhoto() {
-    if (!session?.user.id || busy) return;
-
-    const { photo, error } = await pickPhoto("avatar");
-    if (error) {
-      warned();
-      Alert.alert("Couldn't use that photo", error);
-      return;
-    }
-    if (!photo) return;
-
-    setBusy(true);
-    const upload = await uploadPhoto("avatar", session.user.id, photo);
-    if (upload.error || !upload.path) {
-      setBusy(false);
-      warned();
-      Alert.alert("Couldn't save that photo", upload.error ?? "Please try again.");
-      return;
-    }
-    await setAvatar(upload.path);
-    setBusy(false);
-  }
-
-  function confirmRemove() {
-    Alert.alert("Remove your photo?", "Your initials will show instead.", [
-      { text: "Keep it", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: async () => {
-          setBusy(true);
-          await setAvatar(null);
-          setBusy(false);
-        },
-      },
-    ]);
-  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

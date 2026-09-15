@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert, Linking } from "react-native";
 import { press } from "@/components/press";
 import { router } from "expo-router";
@@ -17,6 +18,10 @@ import {
 } from "@/components/icons";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { useAuth } from "@/contexts/auth";
+import { useMyAvatar } from "@/hooks/useMyAvatar";
+import { Avatar } from "@/components/avatar";
+import { ActionSheet } from "@/components/action-sheet";
+import { tapped } from "@/lib/haptics";
 
 type IconProps = { size?: number; color?: string };
 
@@ -32,6 +37,8 @@ export default function Menu() {
   const t = useTheme();
   const { partner } = useCoupleMembers();
   const { profile, signOut } = useAuth();
+  const { avatarUrl, busy, changePhoto, confirmRemove } = useMyAvatar();
+  const [photoMenu, setPhotoMenu] = useState(false);
 
   // Nothing here pretends to work. Anything without a real destination says so
   // rather than opening an empty screen -- the outstanding ones are tracked in
@@ -146,11 +153,52 @@ export default function Menu() {
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
+        {/* Your own face, where the menu opens. It is the one place in the
+            app that is about you rather than about the two of you, and a
+            photo you can see is a photo you remember to set -- buried on the
+            Settings screen it stayed empty, and an empty circle beside your
+            partner's face on every event is a worse first impression than
+            any screen here. */}
+        <Pressable
+          onPress={() => {
+            tapped();
+            setPhotoMenu(true);
+          }}
+          hitSlop={8}
+          disabled={busy}
+          accessibilityRole="button"
+          accessibilityLabel={avatarUrl ? "Change your photo" : "Add your photo"}
+          style={press(styles.avatar)}
+        >
+          <Avatar url={avatarUrl} name={profile?.display_name ?? null} size={44} />
+        </Pressable>
+
         <Text style={styles.title}>Menu</Text>
+
         <Pressable onPress={() => router.back()} hitSlop={12} style={press(styles.close)}>
           <CloseIcon size={22} color={t.textSecondary} />
         </Pressable>
       </View>
+
+      <ActionSheet
+        visible={photoMenu}
+        title="Your photo"
+        subtitle={
+          avatarUrl
+            ? "Your partner sees this beside your events."
+            : "Your initials show until there is one."
+        }
+        actions={
+          avatarUrl
+            ? [
+                { label: "Change photo", onPress: changePhoto },
+                { label: "Remove photo", destructive: true, onPress: confirmRemove },
+              ]
+            : [{ label: "Add a photo", onPress: changePhoto }]
+        }
+        onClose={() => setPhotoMenu(false)}
+        onDismissed={() => setPhotoMenu(false)}
+      />
 
       <ScrollView contentContainerStyle={styles.body}>
         {groups.map((group) => (
@@ -201,12 +249,22 @@ const createStyles = (t: Theme) =>
     header: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
+      gap: t.space(3),
       paddingHorizontal: t.space(6),
       paddingTop: t.space(16),
       paddingBottom: t.space(3),
     },
-    title: { ...t.type.display, color: t.textPrimary },
+    // The ring is what keeps a face legible against whatever is behind it,
+    // and it is the same one the hero draws.
+    avatar: {
+      borderRadius: 999,
+      borderWidth: 2.5,
+      borderColor: t.surface,
+      ...t.shadow,
+    },
+    // Takes the middle, so the close button stays hard against the edge
+    // rather than drifting in when the name is short.
+    title: { ...t.type.display, color: t.textPrimary, flex: 1 },
     close: {
       width: 40,
       height: 40,
