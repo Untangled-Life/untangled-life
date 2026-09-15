@@ -143,6 +143,17 @@ export default function Settings() {
         </View>
       </Pressable>
 
+      <Text style={styles.groupTitle}>Security</Text>
+      <Pressable style={press(styles.card)} onPress={() => router.push("/security")}>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Security</Text>
+            <Text style={styles.rowHint}>Two-factor, app lock, and signing out other devices</Text>
+          </View>
+          <ChevronRightIcon size={18} color={t.textMuted} />
+        </View>
+      </Pressable>
+
       {/* Working hours and Calendars used to sit on Home as well. They are
           set up once and then true, and a card repeating "2-week rotation, 10
           shifts" every day forever is furniture. Home is for what changed. */}

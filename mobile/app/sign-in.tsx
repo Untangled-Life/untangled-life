@@ -6,6 +6,7 @@ import { Theme } from "@/theme/tokens";
 import { Link, router } from "expo-router";
 import * as Linking from "expo-linking";
 import { supabase } from "@/lib/supabase";
+import { challengeExisting, needsChallenge } from "@/lib/mfa";
 
 export default function SignIn() {
   const styles = useThemedStyles(createStyles);
@@ -19,6 +20,11 @@ export default function SignIn() {
   // Not an error, so not in the red. Said in its own words below the form.
   const [notice, setNotice] = useState<string | null>(null);
 
+  // The second step, shown only when the account has it on. The password was
+  // right; this is the six digits from their authenticator.
+  const [needsCode, setNeedsCode] = useState(false);
+  const [code, setCode] = useState("");
+
   async function handleSignIn() {
     setError(null);
     // The reset notice is about a different attempt. Left up, it sits in
@@ -30,9 +36,33 @@ export default function SignIn() {
       email: email.trim(),
       password,
     });
-    setLoading(false);
     if (signInError) {
+      setLoading(false);
       setError(signInError.message);
+      return;
+    }
+
+    // Password accepted. If the account has an authenticator, the session is
+    // aal1 until the code is entered, and the database hands back nothing to
+    // an aal1 session, so going through to the app now would show a couple
+    // their own data locked away. Ask here instead.
+    if (await needsChallenge()) {
+      setLoading(false);
+      setNeedsCode(true);
+      return;
+    }
+
+    setLoading(false);
+    router.replace("/");
+  }
+
+  async function handleCode() {
+    setError(null);
+    setLoading(true);
+    const { ok, error: codeError } = await challengeExisting(code);
+    setLoading(false);
+    if (!ok) {
+      setError(codeError ?? "That code didn't work.");
       return;
     }
     router.replace("/");
@@ -87,29 +117,63 @@ export default function SignIn() {
         value={email}
         onChangeText={setEmail}
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor={t.textMuted}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+      {needsCode ? null : (
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor={t.textMuted}
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+      )}
+
+      {needsCode ? (
+        <TextInput
+          style={styles.input}
+          placeholder="6-digit code"
+          placeholderTextColor={t.textMuted}
+          keyboardType="number-pad"
+          autoFocus
+          value={code}
+          onChangeText={setCode}
+          maxLength={6}
+        />
+      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
-      <Pressable style={press(styles.button)} onPress={handleSignIn} disabled={loading}>
-        {loading ? <ActivityIndicator color={t.surface} /> : <Text style={styles.buttonText}>Sign in</Text>}
-      </Pressable>
+      {needsCode ? (
+        <>
+          <Pressable style={press(styles.button)} onPress={handleCode} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color={t.surface} />
+            ) : (
+              <Text style={styles.buttonText}>Verify</Text>
+            )}
+          </Pressable>
+          <Text style={styles.hint}>From your authenticator app.</Text>
+        </>
+      ) : (
+        <>
+          <Pressable style={press(styles.button)} onPress={handleSignIn} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color={t.surface} />
+            ) : (
+              <Text style={styles.buttonText}>Sign in</Text>
+            )}
+          </Pressable>
 
-      <Pressable onPress={handleReset} disabled={loading} hitSlop={8}>
-        <Text style={styles.link}>Forgotten your password?</Text>
-      </Pressable>
+          <Pressable onPress={handleReset} disabled={loading} hitSlop={8}>
+            <Text style={styles.link}>Forgotten your password?</Text>
+          </Pressable>
 
-      <Link href="/sign-up" style={styles.link}>
-        Don&apos;t have an account? Sign up
-      </Link>
+          <Link href="/sign-up" style={styles.link}>
+            Don&apos;t have an account? Sign up
+          </Link>
+        </>
+      )}
     </View>
   );
 }
@@ -148,5 +212,6 @@ const createStyles = (t: Theme) =>
   // Something that worked has no business being the same colour as
   // something that failed, in the same place on the same screen.
   notice: { color: t.accent, marginBottom: 8, ...t.type.caption },
+  hint: { color: t.textMuted, textAlign: "center", marginTop: t.space(3), ...t.type.caption },
   link: { marginTop: 20, textAlign: "center", color: t.accent, ...t.type.body },
   });

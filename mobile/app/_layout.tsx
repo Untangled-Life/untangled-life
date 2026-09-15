@@ -6,10 +6,13 @@ import { useFonts } from "expo-font";
 import { Fraunces_600SemiBold } from "@expo-google-fonts/fraunces/600SemiBold";
 import { Fraunces_700Bold } from "@expo-google-fonts/fraunces/700Bold";
 import { AuthProvider } from "@/contexts/auth";
+import { AppLockProvider, useAppLock } from "@/contexts/appLock";
+import { LockScreen } from "@/components/lock-screen";
 import { ThemeProvider, useTheme } from "@/contexts/theme";
 
 function ThemedShell() {
   const t = useTheme();
+  const { locked } = useAppLock();
 
   // Two weights, imported from their own subpaths rather than from the
   // package root. The root re-exports all eighteen, and Metro bundles what it
@@ -39,6 +42,9 @@ function ThemedShell() {
           contentStyle: { backgroundColor: t.bg },
         }}
       />
+      {/* Over the whole stack, so it covers every screen at once rather than
+          each having to remember it. Rendered last so it is on top. */}
+      {locked ? <LockScreen /> : null}
     </>
   );
 }
@@ -50,7 +56,9 @@ export default function RootLayout() {
     <ThemeProvider>
       <SafeAreaProvider>
         <AuthProvider>
-          <ThemedShell />
+          <AppLockProvider>
+            <ThemedShell />
+          </AppLockProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </ThemeProvider>

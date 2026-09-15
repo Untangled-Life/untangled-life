@@ -37,7 +37,7 @@ export default function Pair() {
   const userId = session?.user.id ?? null;
 
   const fetchInviteCode = useCallback(async () => {
-    const { data, error: rpcError } = await supabase.rpc("create_couple_invite");
+    const { data, error: rpcError } = await supabase.rpc("create_couple_invite_guarded");
     if (rpcError) throw new Error(rpcError.message);
     return data as string;
   }, []);
@@ -134,11 +134,16 @@ export default function Pair() {
         return { coverPath: (data?.cover_path as string | null) ?? null };
       },
       async () => {
-        const { error: joinError } = await supabase.rpc("redeem_couple_invite", {
-          invite_code: code.trim().toUpperCase(),
-        });
+        const { data: reason, error: joinError } = await supabase.rpc(
+          "redeem_couple_invite_guarded",
+          { invite_code: code.trim().toUpperCase() }
+        );
 
+        // The guarded function reports the reason in its RETURN value rather
+        // than by raising, so that a wrong code can still record the attempt
+        // that rate-limits the next one. A transport error is separate.
         if (joinError) return { error: joinError.message };
+        if (reason) return { error: reason as string };
 
         // Read here rather than after, because the step that puts the cover
         // back runs inside this call and needs to know where to put it. The

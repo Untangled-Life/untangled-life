@@ -237,6 +237,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="valued" options={{ href: null }} />
       <Tabs.Screen name="coming-soon" options={{ href: null }} />
       <Tabs.Screen name="roster-import" options={{ href: null }} />
+      <Tabs.Screen name="security" options={{ href: null }} />
     </Tabs>
 
     {/* Last, so it sits over the screen rather than under it. Once here
