@@ -73,7 +73,7 @@ export const SECTIONS: {
   {
     kind: "prep",
     title: "Before you go",
-    blurb: "Passports, jabs, the cat, the thing you always forget to pack.",
+    blurb: "Passports, jabs, the dog, the thing you always forget to pack.",
     add: "Add a reminder",
   },
   {
