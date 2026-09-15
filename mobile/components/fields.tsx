@@ -34,25 +34,39 @@ type DateFieldProps = {
   maximumDate?: Date;
 };
 
-export function DateField({
-  label,
+/**
+ * The picker on its own, with no opinion about what opens it.
+ *
+ * DateField below is the usual way in -- a labelled row you tap. The to-do
+ * bar wants the same picker behind a chip the width of the word "Due", and a
+ * second copy of the iOS sheet, the Android dialog and the theme handling is
+ * how those two quietly stop behaving the same way.
+ */
+export function DatePickerSheet({
   value,
-  onChange,
-  placeholder = "Pick a date",
+  onPick,
+  onClear,
+  onClose,
+  title = "Pick a date",
   minimumDate,
   maximumDate,
-}: DateFieldProps) {
+}: {
+  value: string | null;
+  onPick: (iso: string) => void;
+  /** When given, a way out of having a date at all. */
+  onClear?: () => void;
+  onClose: () => void;
+  title?: string;
+  minimumDate?: Date;
+  maximumDate?: Date;
+}) {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
-  const [open, setOpen] = useState(false);
+
+  // Rendered only while it is open, so the draft starts from the current
+  // value every time it appears and there is no effect keeping two copies of
+  // the same date in step.
   const [draft, setDraft] = useState<Date>(() => fromISODate(value ?? "") ?? new Date());
-
-  const display = value ? toFriendlyDate(value) : "";
-
-  function openPicker() {
-    setDraft(fromISODate(value ?? "") ?? new Date());
-    setOpen(true);
-  }
 
   const picker = (
     <DateTimePicker
@@ -70,8 +84,8 @@ export function DateField({
       maximumDate={maximumDate}
       onChange={(event, selected) => {
         if (Platform.OS === "android") {
-          setOpen(false);
-          if (event.type === "set" && selected) onChange(toISODate(selected));
+          onClose();
+          if (event.type === "set" && selected) onPick(toISODate(selected));
           return;
         }
         if (selected) setDraft(selected);
@@ -79,13 +93,69 @@ export function DateField({
     />
   );
 
+  if (Platform.OS === "android") return picker;
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={press(styles.backdrop)} onPress={onClose} />
+      <View style={styles.sheet}>
+        <View style={styles.sheetBar}>
+          <Pressable onPress={onClose} hitSlop={8}>
+            <Text style={styles.sheetCancel}>Cancel</Text>
+          </Pressable>
+          <Text style={styles.sheetTitle}>{title}</Text>
+          <Pressable
+            onPress={() => {
+              onPick(toISODate(draft));
+              onClose();
+            }}
+            hitSlop={8}
+          >
+            <Text style={styles.sheetDone}>Done</Text>
+          </Pressable>
+        </View>
+        {picker}
+
+        {/* A picker can only ever say "this date". Somewhere that a date is
+            optional needs a way back to none, and the alternative was
+            setting it to today and unsetting that. */}
+        {onClear && value ? (
+          <Pressable
+            style={press(styles.clear)}
+            onPress={() => {
+              onClear();
+              onClose();
+            }}
+          >
+            <Text style={styles.clearText}>Clear the date</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </Modal>
+  );
+}
+
+export function DateField({
+  label,
+  value,
+  onChange,
+  placeholder = "Pick a date",
+  minimumDate,
+  maximumDate,
+}: DateFieldProps) {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+
+  const display = value ? toFriendlyDate(value) : "";
+
   return (
     <View style={styles.wrap}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
 
       <Pressable
         style={({ pressed }) => [styles.field, pressed ? styles.fieldPressed : null]}
-        onPress={openPicker}
+        onPress={() => setOpen(true)}
       >
         <CalendarIcon size={18} color={t.textMuted} />
         <Text style={[styles.value, !display ? styles.placeholder : null]}>
@@ -93,30 +163,15 @@ export function DateField({
         </Text>
       </Pressable>
 
-      {open && Platform.OS === "android" ? picker : null}
-
-      {Platform.OS === "ios" ? (
-        <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-          <Pressable style={press(styles.backdrop)} onPress={() => setOpen(false)} />
-          <View style={styles.sheet}>
-            <View style={styles.sheetBar}>
-              <Pressable onPress={() => setOpen(false)} hitSlop={8}>
-                <Text style={styles.sheetCancel}>Cancel</Text>
-              </Pressable>
-              <Text style={styles.sheetTitle}>{label ?? "Pick a date"}</Text>
-              <Pressable
-                onPress={() => {
-                  onChange(toISODate(draft));
-                  setOpen(false);
-                }}
-                hitSlop={8}
-              >
-                <Text style={styles.sheetDone}>Done</Text>
-              </Pressable>
-            </View>
-            {picker}
-          </View>
-        </Modal>
+      {open ? (
+        <DatePickerSheet
+          value={value}
+          onPick={onChange}
+          onClose={() => setOpen(false)}
+          title={label ?? "Pick a date"}
+          minimumDate={minimumDate}
+          maximumDate={maximumDate}
+        />
       ) : null}
     </View>
   );
@@ -240,4 +295,6 @@ const createStyles = (t: Theme) =>
     sheetTitle: { fontSize: 15, fontWeight: "600", color: t.textPrimary },
     sheetCancel: { fontSize: 15, color: t.textMuted },
     sheetDone: { fontSize: 15, color: t.accent, fontWeight: "700" },
+    clear: { alignItems: "center", paddingVertical: 14 },
+    clearText: { fontSize: 15, color: t.danger, fontWeight: "600" },
   });

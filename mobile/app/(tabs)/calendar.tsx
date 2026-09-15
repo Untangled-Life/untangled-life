@@ -8,10 +8,9 @@ import {
   Pressable,
   ScrollView,
   Alert,
-  Animated,
-  PanResponder,
 } from "react-native";
 import { press } from "@/components/press";
+import { SwipeRow } from "@/components/swipe-row";
 import { succeeded, warned } from "@/lib/haptics";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
@@ -148,9 +147,6 @@ function timeLabel(d: Date): string {
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-const ACTION_WIDTH = 96;
-const OPEN_THRESHOLD = 40;
-
 const ACTION_LABELS: Record<string, string> = {
   cancelPlan: "Cancel",
   deleteKeyDate: "Delete",
@@ -158,16 +154,7 @@ const ACTION_LABELS: Record<string, string> = {
   markDayOff: "Day off",
 };
 
-/**
- * Swipe-to-reveal built on React Native's own Animated + PanResponder.
- *
- * Deliberately not react-native-gesture-handler's Swipeable: that pulls in
- * Reanimated, whose worklets runtime needs a native module matching the one
- * Expo Go ships. Reanimated 4 wants worklets 0.12 while Expo Go SDK 57 has
- * 0.10, so importing it crashes the app at startup. A swipe affordance isn't
- * worth a native dependency and a version matrix.
- */
-function SwipeRow({
+function EntryRow({
   entry,
   avatarUrl,
   avatarName,
@@ -182,38 +169,6 @@ function SwipeRow({
   onAction: (entry: DayEntry) => void;
 }) {
   const styles = useThemedStyles(createStyles);
-
-  const translateX = useRef(new Animated.Value(0)).current;
-  const openRef = useRef(false);
-
-  const settle = (toValue: number) => {
-    openRef.current = toValue !== 0;
-    Animated.spring(translateX, {
-      toValue,
-      useNativeDriver: true,
-      bounciness: 0,
-      speed: 18,
-    }).start();
-  };
-
-  const responder = useRef(
-    PanResponder.create({
-      // Only claim clearly horizontal drags, so the month list still scrolls.
-      onMoveShouldSetPanResponder: (_e, g) =>
-        Math.abs(g.dx) > Math.abs(g.dy) * 1.5 && Math.abs(g.dx) > 6,
-      onPanResponderMove: (_e, g) => {
-        const base = openRef.current ? -ACTION_WIDTH : 0;
-        const next = Math.min(0, Math.max(-ACTION_WIDTH, base + g.dx));
-        translateX.setValue(next);
-      },
-      onPanResponderRelease: (_e, g) => {
-        const base = openRef.current ? -ACTION_WIDTH : 0;
-        const finalX = base + g.dx;
-        settle(finalX < -OPEN_THRESHOLD ? -ACTION_WIDTH : 0);
-      },
-      onPanResponderTerminate: () => settle(openRef.current ? -ACTION_WIDTH : 0),
-    })
-  ).current;
 
   const row = (
     <Pressable
@@ -257,33 +212,17 @@ function SwipeRow({
     </Pressable>
   );
 
-  // Rows with nothing to delete don't swipe at all, rather than swiping to
-  // reveal an action that would fail or silently undo itself.
-  if (!entry.action) return row;
-
-  const label = ACTION_LABELS[entry.action.type] ?? "Delete";
-  const soft = entry.action.type === "markDayOff";
-
   return (
-    <View style={styles.swipeWrap}>
-      <View style={styles.swipeActionLayer}>
-        <Pressable
-          style={press([styles.swipeAction, soft ? styles.swipeActionSoft : null])}
-          onPress={() => {
-            settle(0);
-            onAction(entry);
-          }}
-        >
-          <Text style={[styles.swipeActionText, soft ? styles.swipeActionTextSoft : null]}>
-            {label}
-          </Text>
-        </Pressable>
-      </View>
-
-      <Animated.View style={{ transform: [{ translateX }] }} {...responder.panHandlers}>
-        {row}
-      </Animated.View>
-    </View>
+    <SwipeRow
+      // Rows with nothing to delete do not swipe at all, rather than opening
+      // on an action that would fail or silently undo itself.
+      enabled={Boolean(entry.action)}
+      actionLabel={entry.action ? (ACTION_LABELS[entry.action.type] ?? "Delete") : "Delete"}
+      soft={entry.action?.type === "markDayOff"}
+      onAction={() => onAction(entry)}
+    >
+      {row}
+    </SwipeRow>
   );
 }
 
@@ -1126,7 +1065,7 @@ export default function CalendarScreen() {
         </View>
       ) : (
         selectedEntries.map((e, i) => (
-          <SwipeRow
+          <EntryRow
             // Index keys alone let a row inherit the swipe offset of whatever
             // used to sit at that position once the list shrinks under it.
             // The index stays as the last resort: two identical shifts on one
@@ -1290,26 +1229,6 @@ const createStyles = (t: Theme) =>
   bar_work: { backgroundColor: t.dotWork },
   bar_busy: { backgroundColor: t.dotBusy },
   entryLabel: { ...t.type.heading, color: t.textPrimary },
-  swipeWrap: { position: "relative" },
-  swipeActionLayer: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 8,
-    width: ACTION_WIDTH,
-    flexDirection: "row",
-  },
-  swipeAction: {
-    flex: 1,
-    backgroundColor: t.danger,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: t.radius.md,
-    marginLeft: 8,
-  },
-  swipeActionSoft: { backgroundColor: t.surfaceSunken },
-  swipeActionText: { color: t.textOnBrand, ...t.type.label },
-  swipeActionTextSoft: { color: t.textSecondary },
   footnote: { ...t.type.caption, color: t.textMuted, marginTop: t.space(2) },
   entryDetail: { ...t.type.caption, color: t.textSecondary, marginTop: 2 },
   entryNote: { ...t.type.caption, color: t.textMuted, marginTop: 4 },
