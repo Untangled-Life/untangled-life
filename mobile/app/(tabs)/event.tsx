@@ -70,6 +70,8 @@ export default function EventEditor() {
     title?: string;
     /** How long the idea wants, in minutes. Sets the end time. */
     minutes?: string;
+    /** "1" when the ideas screen sent us, so the date toggle starts on. */
+    isDate?: string;
   }>();
   const editingId = params.id ?? null;
   const busyId = params.busy ?? null;
@@ -111,6 +113,7 @@ export default function EventEditor() {
   const [pushTo, setPushTo] = useState<string[]>([]);
   const [repeatEvery, setRepeatEvery] = useState<RepeatEvery>("none");
   const [repeatUntil, setRepeatUntil] = useState<string | null>(null);
+  const [isDate, setIsDate] = useState(false);
 
   /**
    * An hour after the start -- rolling the DATE forward when that crosses
@@ -151,7 +154,7 @@ export default function EventEditor() {
    * reopens the 10am draft, title and all -- and saves an event at a time
    * nobody chose.
    */
-  const routeKey = `${params.id ?? ""}|${params.busy ?? ""}|${params.date ?? ""}|${params.start ?? ""}|${params.title ?? ""}|${params.minutes ?? ""}`;
+  const routeKey = `${params.id ?? ""}|${params.busy ?? ""}|${params.date ?? ""}|${params.start ?? ""}|${params.title ?? ""}|${params.minutes ?? ""}|${params.isDate ?? ""}`;
   useEffect(() => {
     setMissing(false);
 
@@ -193,6 +196,10 @@ export default function EventEditor() {
     setPushTo([]);
     setRepeatEvery("none");
     setRepeatUntil(null);
+    // Off by default. Most of what goes in a calendar is not a date, and a
+    // section that fills up with dentist appointments stops meaning anything.
+    // On when the ideas screen sent us here, because there it is the point.
+    setIsDate(params.isDate === "1");
     setLoaded(true);
     // routeKey collapses the params this depends on into one value, so the
     // draft is reset exactly when a new event is started.
@@ -273,6 +280,7 @@ export default function EventEditor() {
       setPushTo(ev.push_to ?? []);
       setRepeatEvery(ev.repeat_every ?? "none");
       setRepeatUntil(ev.repeat_until ?? null);
+      setIsDate(ev.is_date ?? false);
       setMissing(false);
     } else {
       setMissing(true);
@@ -392,6 +400,7 @@ export default function EventEditor() {
           pushTo,
           repeatEvery,
           repeatUntil,
+          isDate,
         })
       : await createPlannedEvent({
           coupleId: profile.couple_id,
@@ -405,6 +414,7 @@ export default function EventEditor() {
           pushTo,
           repeatEvery,
           repeatUntil,
+          isDate,
         });
 
     if (error) {
@@ -566,6 +576,27 @@ export default function EventEditor() {
           </Text>
         </View>
       ) : null}
+
+      {/* First, because it is the only question on this screen about what
+          the thing IS rather than when or whose. An event in a phone calendar
+          cannot answer it: this flag lives on our own row. */}
+      {deviceEvent ? null : (
+        <View style={styles.card}>
+          <View style={styles.pushRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>Is this a date?</Text>
+              <Text style={styles.hint}>
+                Dates show on Home under Upcoming dates, and we ask how it went afterwards
+              </Text>
+            </View>
+            <Switch
+              value={isDate}
+              onValueChange={setIsDate}
+              trackColor={{ true: t.brand, false: t.surfaceSunken }}
+            />
+          </View>
+        </View>
+      )}
 
       {deviceEvent ? null : <Text style={styles.groupTitle}>Whose is it?</Text>}
       {deviceEvent ? null : (

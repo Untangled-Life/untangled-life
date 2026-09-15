@@ -18,10 +18,18 @@ export type PlannedEvent = {
   repeat_every: RepeatEvery;
   /** Last day it may fall on, as YYYY-MM-DD. Null means it keeps going. */
   repeat_until: string | null;
+  /**
+   * Whether this is a date rather than an appointment.
+   *
+   * Asked rather than guessed. A title is a poor signal -- "Dinner" is a date
+   * on Saturday and a work thing on Tuesday -- and the cost of guessing wrong
+   * is filing an anniversary under errands.
+   */
+  is_date: boolean;
 };
 
 export const EVENT_COLUMNS =
-  "id, title, start_at, end_at, location, notes, cancelled, created_by, owner_user_id, push_to, repeat_every, repeat_until";
+  "id, title, start_at, end_at, location, notes, cancelled, created_by, owner_user_id, push_to, repeat_every, repeat_until, is_date";
 
 /**
  * Create a plan. This only writes the shared record -- getting it onto the
@@ -43,6 +51,8 @@ export async function createPlannedEvent(input: {
   repeatEvery?: RepeatEvery;
   /** YYYY-MM-DD. */
   repeatUntil?: string | null;
+  /** Whether it belongs under Upcoming dates. Defaults to no. */
+  isDate?: boolean;
 }) {
   return supabase.from("planned_events").insert({
     couple_id: input.coupleId,
@@ -56,6 +66,7 @@ export async function createPlannedEvent(input: {
     push_to: input.pushTo ?? [],
     repeat_every: input.repeatEvery ?? "none",
     repeat_until: input.repeatEvery && input.repeatEvery !== "none" ? (input.repeatUntil ?? null) : null,
+    is_date: input.isDate ?? false,
   });
 }
 
@@ -73,6 +84,7 @@ export async function updatePlannedEvent(
     pushTo?: string[];
     repeatEvery?: RepeatEvery;
     repeatUntil?: string | null;
+    isDate?: boolean;
   }
 ) {
   const row: Record<string, unknown> = {};
@@ -87,6 +99,7 @@ export async function updatePlannedEvent(
   if (patch.notes !== undefined) row.notes = patch.notes;
   if (patch.ownerUserId !== undefined) row.owner_user_id = patch.ownerUserId;
   if (patch.pushTo !== undefined) row.push_to = patch.pushTo;
+  if (patch.isDate !== undefined) row.is_date = patch.isDate;
   if (patch.repeatEvery !== undefined) {
     row.repeat_every = patch.repeatEvery;
     // An end date on something that no longer repeats is a contradiction, and

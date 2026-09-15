@@ -1,6 +1,5 @@
 import { KeyDateRow, daysUntil, displayTitleFor } from "@/lib/keyDates";
 import { OnboardingStep } from "@/lib/onboarding";
-import { UpcomingPlan } from "@/lib/plannedEvents";
 
 /**
  * Everything the app is waiting on you for, in one place.
@@ -33,7 +32,6 @@ export type InboxItem = {
 export function buildInbox(input: {
   outstanding: OnboardingStep[];
   keyDates: KeyDateRow[];
-  plans: UpcomingPlan[];
   nudging: boolean;
   nameFor: (userId: string | null) => string;
   /** Open proposals waiting on THIS person, not the ones they sent. */

@@ -1,3 +1,8 @@
+-- NOTE: answer_date_proposal() is redefined again in supabase/date-flag.sql, which adds the
+-- is_date column and teaches it about it. date-flag.sql must run AFTER this
+-- file, and re-running this one on its own will quietly put the older,
+-- unfiltered version back.
+
 -- Proposing a date, instead of just booking one.
 --
 -- Booking is unilateral by design and stays that way: sometimes you have the

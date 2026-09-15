@@ -1,3 +1,8 @@
+-- NOTE: dates_awaiting_review() is redefined again in supabase/date-flag.sql, which adds the
+-- is_date column and teaches it about it. date-flag.sql must run AFTER this
+-- file, and re-running this one on its own will quietly put the older,
+-- unfiltered version back.
+
 -- How was it?
 --
 -- The only thing in this category nobody else has: a date that has happened

@@ -121,12 +121,24 @@ function buildMessage(
   timeZone: string
 ): { title: string; body: string; data: Record<string, unknown> } | null {
   if (table === "planned_events") {
+    // The app now knows which of these is a date and which is an appointment,
+    // so the push should say so. "You've got a date" about an MOT is the kind
+    // of wrong that makes somebody turn notifications off.
+    const isDate = record.is_date === true;
+
     if (type === "UPDATE") {
       const body = describeChange(record, oldRecord, actorName, timeZone);
       if (!body) return null;
 
       return {
-        title: record.cancelled === true ? "Date cancelled" : "Date changed",
+        title:
+          record.cancelled === true
+            ? isDate
+              ? "Date cancelled"
+              : "Plan cancelled"
+            : isDate
+              ? "Date changed"
+              : "Plan changed",
         // The data payload matters as much as the words: the app syncs on
         // receiving this, so the change lands in the calendar without anyone
         // having to open anything.
@@ -137,8 +149,8 @@ function buildMessage(
 
     if (record.cancelled === true) return null;
     return {
-      title: "You've got a date",
-      body: `${actorName} booked "${record.title}" for ${formatDateTime(String(record.start_at), timeZone)}. It's in your calendar.`,
+      title: isDate ? "You've got a date" : "Something in the diary",
+      body: `${actorName} ${isDate ? "booked" : "added"} "${record.title}" for ${formatDateTime(String(record.start_at), timeZone)}. It's in your calendar.`,
       data: { type: "planned_event", id: record.id, action: "created" },
     };
   }

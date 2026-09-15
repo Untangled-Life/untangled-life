@@ -60,6 +60,8 @@ export default function Inbox() {
       supabase
         .from("planned_events")
         .select("created_at")
+        // Dates only. Same rule as Home and as couples_due_a_nudge().
+        .eq("is_date", true)
         .eq("cancelled", false)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -85,11 +87,13 @@ export default function Inbox() {
 
   const { forYou } = splitProposals(proposals, session?.user.id ?? "");
 
+  // The nudge asks whether you have drifted, so only dates answer it.
+  const datePlans = plans.filter((p) => p.is_date);
+
   const items = buildInbox({
     outstanding,
     keyDates,
-    plans,
-    nudging: shouldNudge(plans, lastPlannedAt),
+    nudging: shouldNudge(datePlans, lastPlannedAt),
     nameFor,
     proposalsForYou: forYou,
     awaitingReview: review,

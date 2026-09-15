@@ -18,6 +18,20 @@ import { Theme } from "@/theme/tokens";
  * because every new couple starts there and it is what a reviewer sees. A
  * dashed grey box saying "no image" would undo the rest of the screen.
  */
+/**
+ * How tall the cover runs at a given screen width.
+ *
+ * Exported because Home has to know where the photo ends: that is the point
+ * the page's own scrim takes over from the shade the hero draws, and a second
+ * copy of this arithmetic would drift the moment either changed.
+ *
+ * Proportional rather than fixed, so it is a band on a small phone and not a
+ * whole screen on a large one.
+ */
+export function heroHeight(width: number): number {
+  return Math.round(Math.min(Math.max(width * 0.72, 240), 320));
+}
+
 export function HomeHero({
   coverUrl,
   myAvatarUrl,
@@ -41,9 +55,7 @@ export function HomeHero({
 
   const hasPhoto = Boolean(coverUrl);
 
-  // Proportional rather than fixed, so it is a band on a small phone and not a
-  // whole screen on a large one.
-  const height = Math.round(Math.min(Math.max(width * 0.72, 240), 320));
+  const height = heroHeight(width);
 
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",

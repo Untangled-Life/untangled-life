@@ -3,16 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/theme";
 
-/**
- * Home fades this in against the scroll, which means the opacity it hands
- * over is an Animated node rather than a number. A plain component cannot be
- * given one: the style it is inside gets handed to the native side as-is, and
- * in development the frozen StyleSheet object it is flattened with throws
- * ("attempted to set the key `__isNative` ... frozen") before the screen ever
- * appears. Built once at module scope, because createAnimatedComponent inside
- * a render makes a new component type every pass and remounts the view.
- */
-const AnimatedGradient = Animated.createAnimatedComponent(LinearGradient);
+
 
 /**
  * A short fade at the top of the screen, under the status bar.
@@ -33,22 +24,51 @@ const AnimatedGradient = Animated.createAnimatedComponent(LinearGradient);
  * away, the names underneath collide with the clock exactly like anywhere
  * else. So there it appears as the photo leaves.
  */
-export function TopScrim({ style }: { style?: StyleProp<ViewStyle> } = {}) {
+export function TopScrim({
+  style,
+  tone = "page",
+}: {
+  style?: Animated.WithAnimatedValue<StyleProp<ViewStyle>>;
+  /**
+   * What is behind it. "page" is the cream wash that every scrolling screen
+   * uses; "photo" is the dark one Home needs while its cover photo is still
+   * under the clock. A light wash over a dark photograph reads as fog across
+   * whoever is in the picture, and white icons on a bright sky are illegible
+   * without something behind them -- so the protection has to match what it
+   * is protecting against, not the page it will eventually sit on.
+   */
+  tone?: "page" | "photo";
+} = {}) {
   const insets = useSafeAreaInsets();
   const t = useTheme();
 
-  // Opaque across the status bar itself, then gone within about a line of
-  // text. Long enough to catch anything scrolling up into it, short enough
-  // that it never reads as a header.
-  const height = insets.top + 14;
+  // Opaque across the status bar itself, then gone. Fourteen pixels past the
+  // inset ended in a visible edge rather than a fade -- over a photograph the
+  // eye finds a straight horizontal line immediately, and what should read as
+  // the page running out read as a bar somebody forgot to style.
+  const height = tone === "photo" ? insets.top + 96 : insets.top + 32;
 
+  // Deep enough for the three buttons that float over the photo, which is
+  // what the dark one is mostly there for. The page's own scrim only ever has
+  // the status bar to cover.
+  const colors: [string, string, string] =
+    tone === "photo"
+      ? ["rgba(12,10,7,0.62)", "rgba(12,10,7,0.3)", "rgba(12,10,7,0)"]
+      : [t.bg, t.bg, withAlpha(t.bg, 0)];
+
+  const locations: [number, number, number] = tone === "photo" ? [0, 0.5, 1] : [0, 0.45, 1];
+
+  // The animation goes on a plain Animated.View wrapping the gradient rather
+  // than on the gradient itself. Animated.createAnimatedComponent around a
+  // third-party component only works if that component forwards its ref to a
+  // native view; expo-linear-gradient does not reliably, so the opacity was
+  // silently dropped and the scrim sat at full strength over the cover photo
+  // from the moment the screen opened. An Animated.View is RN's own and is
+  // always native-drivable.
   return (
-    <AnimatedGradient
-      pointerEvents="none"
-      colors={[t.bg, t.bg, withAlpha(t.bg, 0)]}
-      locations={[0, 0.62, 1]}
-      style={[styles.scrim, { height }, style]}
-    />
+    <Animated.View pointerEvents="none" style={[styles.scrim, { height }, style]}>
+      <LinearGradient colors={colors} locations={locations} style={StyleSheet.absoluteFill} />
+    </Animated.View>
   );
 }
 

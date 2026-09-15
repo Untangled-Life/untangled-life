@@ -17,7 +17,7 @@ export type HomeSection = "pinned" | "keyDates" | "bookedIn" | "freeTogether" | 
 export const HOME_SECTIONS: { key: HomeSection; label: string; blurb: string }[] = [
   { key: "pinned", label: "Pinned countdown", blurb: "The big one at the top" },
   { key: "keyDates", label: "Key dates & countdowns", blurb: "The row you swipe through" },
-  { key: "bookedIn", label: "Dates", blurb: "What's booked, and a nudge when nothing is" },
+  { key: "bookedIn", label: "Upcoming dates", blurb: "The dates you have booked, and a nudge when you have none" },
   { key: "freeTogether", label: "Free together", blurb: "When you're both actually free" },
   { key: "littleThings", label: "Little things", blurb: "In their words, at the bottom" },
 ];

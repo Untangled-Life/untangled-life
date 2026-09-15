@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Animated,
   View,
@@ -16,14 +16,18 @@ import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { BellIcon, CalendarIcon, MenuIcon } from "@/components/icons";
 import { Theme, FONT_DISPLAY_STRONG } from "@/theme/tokens";
-import { Link, router } from "expo-router";
+import { Link, router, useFocusEffect } from "expo-router";
 import * as Calendar from "expo-calendar/legacy";
 import { PermissionStatus } from "expo";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { KeyDateRow, daysUntil, displayTitleFor, countdownLabel } from "@/lib/keyDates";
-import { HomeHero } from "@/components/home-hero";
+import { HomeHero, heroHeight } from "@/components/home-hero";
+import { StatusBar } from "expo-status-bar";
+import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
+import { useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TopScrim } from "@/components/top-scrim";
 import { shouldNudge } from "@/lib/dateNudge";
 import { loadFreeWindows as loadFreeWindowsData } from "@/lib/freeWindows";
@@ -91,7 +95,43 @@ export default function Home() {
   // Drives the top scrim. Home is the one screen where the fade cannot simply
   // be there: the cover photo runs to the top edge on purpose, so the wash has
   // to arrive as the photo leaves rather than sit over it from the start.
-  const scrollY = useRef(new Animated.Value(0)).current;
+  // useState with a lazy initialiser rather than a ref: the value is read
+  // during render, by the two scrims that interpolate off it, and reading a
+  // ref during render is the thing refs are not for. One Animated.Value
+  // either way -- the initialiser runs once.
+  const [scrollY] = useState(() => new Animated.Value(0));
+
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  // Whether Home is the screen in front of you. useFocusEffect rather than
+  // a navigation hook, because expo-router exports this one and the app is
+  // not a direct dependant of react-navigation.
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, [])
+  );
+
+  // The scroll position at which the bottom of the cover photo clears the
+  // status-bar strip. Until then the photo is what is behind the clock, so
+  // the dark scrim holds and the icons stay white; after it there is page
+  // back there, so the cream one holds and the icons go dark. Fading the
+  // cream one in at a fixed 90px put it over the middle of the photograph,
+  // which is the grey fog all of this exists to avoid.
+  const handover = Math.max(heroHeight(width) - (insets.top + 32), 80);
+
+  // The swap itself, kept short so the two are never both half-there for
+  // long: a 50% dark scrim under a 50% cream one is a muddy band, and the
+  // only thing worse than the wrong scrim is a smear of both.
+  const swapFrom = handover - 6;
+  const swapTo = handover + 18;
+
+  // Whether the cover photo has scrolled away. Kept in React state rather
+  // than read off the animated value, because what depends on it is the
+  // colour of the status bar, and that is a prop rather than a style.
+  const [pastHero, setPastHero] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [myPattern, setMyPattern] = useState<WorkPattern | null>(null);
   const [plans, setPlans] = useState<UpcomingPlan[]>([]);
@@ -168,6 +208,10 @@ export default function Home() {
     const { data } = await supabase
       .from("planned_events")
       .select("created_at")
+      // Dates only, because couples_due_a_nudge() counts dates only. With
+      // one side filtered and the other not, booking the car in for a
+      // service silences the card on Home while the push still fires.
+      .eq("is_date", true)
       .eq("cancelled", false)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -275,6 +319,9 @@ export default function Home() {
       // explicit or the feature silently stops reaching either calendar.
       ownerUserId: null,
       pushTo: partnerId ? [session.user.id, partnerId] : [session.user.id],
+      // Booked from "Free together" with a tap on Book it. Nobody reaches
+      // that button to arrange a dentist appointment.
+      isDate: true,
     });
 
     if (error) {
@@ -445,17 +492,22 @@ export default function Home() {
   // change until they go and move something.
   const visible = visibleSections(resolveHomeLayout(profile?.home_sections));
 
+  // Only the ones somebody said were dates. The rest are still on the
+  // calendar and still in the free-time arithmetic -- an appointment is real
+  // time that is taken -- but a section called Upcoming dates that fills up
+  // with the car service and the dentist stops being worth looking at.
+  const dates = plans.filter((p) => p.is_date);
+
   // Nothing booked for a fortnight and nothing planned for a fortnight. On
   // Home this only changes the wording of a card that would be there anyway;
   // the same rule drives the push, in supabase/functions/nudge-date.
-  const nudging = shouldNudge(plans, lastPlannedAt);
+  const nudging = shouldNudge(dates, lastPlannedAt);
 
   // The bell's contents. Built from the same facts Home already has, so the
   // count and the screen behind it can never disagree.
   const inbox = buildInbox({
     outstanding,
     keyDates,
-    plans,
     nudging,
     nameFor,
     proposalsForYou: splitProposals(proposals, session?.user.id ?? "").forYou,
@@ -531,18 +583,18 @@ export default function Home() {
     bookedIn: (
       <View key="bookedIn">
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{plans.length > 0 ? "Booked in" : "Dates"}</Text>
-          {plans.length > 0 ? (
+          <Text style={styles.sectionTitle}>Upcoming dates</Text>
+          {dates.length > 0 ? (
             <Pressable onPress={planADate} hitSlop={8}>
               <Text style={styles.sectionAction}>Plan another</Text>
             </Pressable>
           ) : null}
         </View>
 
-        {plans.length > 0 ? (
+        {dates.length > 0 ? (
           <>
             <View style={{ marginBottom: 24 }}>
-              {plans.map((plan) => (
+              {dates.map((plan) => (
                 <View key={plan.id} style={styles.planRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.planTitle}>{plan.title}</Text>
@@ -721,6 +773,17 @@ export default function Home() {
       scrollEventThrottle={16}
       onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
         useNativeDriver: true,
+        // The two thresholds are deliberately apart. With one, a finger
+        // resting at the crossover flickers the clock between black and
+        // white on every pixel of movement.
+        listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+          const y = e.nativeEvent.contentOffset.y;
+          // Dark icons once the cream is most of the way in, light again
+          // before it starts to go. The gap between the two thresholds is
+          // what stops a finger resting at the crossover from flickering the
+          // clock between black and white on every pixel of movement.
+          setPastHero((was) => (was ? y > swapFrom + 4 : y > swapTo - 6));
+        },
       })}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
@@ -813,10 +876,45 @@ export default function Home() {
     {/* Fully in by the time the hero's own text reaches the status bar, so
         the names never cross the clock. Native-driven, so it does not stutter
         against the scroll it is following. */}
+    {/* Dark icons on a dark photograph are unreadable, and the cover photo
+        runs under the clock on purpose. So while the photo is up the status
+        bar goes light against the dark scrim, and hands back as the photo
+        leaves. Without a photo the hero is a pale wash and the ordinary
+        colour is right.
+
+        Only while Home is the screen in front of you. expo-status-bar sets
+        this imperatively and nothing puts it back on blur, so a Home left
+        showing its photo used to hand white icons to every screen you opened
+        from it -- a cream calendar with an invisible clock. */}
+    {focused ? (
+      <StatusBar style={coverUrl && !pastHero ? "light" : t.scheme === "dark" ? "light" : "dark"} />
+    ) : null}
+
+    {/* Two scrims, one fading out as the other fades in. The dark one is
+        only ever wanted over the photo, so it has no business existing
+        without one. */}
+    {coverUrl ? (
+      <TopScrim
+        tone="photo"
+        style={{
+          opacity: scrollY.interpolate({
+            inputRange: [swapFrom, swapTo],
+            outputRange: [1, 0],
+            extrapolate: "clamp",
+          }),
+        }}
+      />
+    ) : null}
+
     <TopScrim
       style={{
         opacity: scrollY.interpolate({
-          inputRange: [0, 90],
+          // With no photo there is nothing to protect and nothing to spoil,
+          // so it behaves as it does on every other screen: in almost at
+          // once. Waiting for the handover would leave the couple's names
+          // crossing the clock on the empty state, which is the state a new
+          // couple and every reviewer sees first.
+          inputRange: coverUrl ? [swapFrom, swapTo] : [0, 90],
           outputRange: [0, 1],
           extrapolate: "clamp",
         }),

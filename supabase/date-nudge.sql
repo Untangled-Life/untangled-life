@@ -1,3 +1,8 @@
+-- NOTE: couples_due_a_nudge() is redefined again in supabase/date-flag.sql, which adds the
+-- is_date column and teaches it about it. date-flag.sql must run AFTER this
+-- file, and re-running this one on its own will quietly put the older,
+-- unfiltered version back.
+
 -- The "it's been a while" nudge.
 --
 -- Two conditions, and both have to hold: nothing BOOKED in the next fortnight

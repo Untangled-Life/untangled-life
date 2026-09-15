@@ -106,7 +106,12 @@ export default function Plan() {
     const slot = suggestedSlot(windows);
     router.push({
       pathname: "/event",
-      params: { ...slot, title: idea.title, minutes: String(idea.minutes) },
+      // Arriving from the ideas screen, so the toggle starts on. Somebody
+      // who taps Book it under "Cocktails at the place on the corner" is not
+      // arranging a dentist appointment, and a date booked here that never
+      // reached Upcoming dates was the section staying empty at the exact
+      // moment it was used.
+      params: { ...slot, title: idea.title, minutes: String(idea.minutes), isDate: "1" },
     });
   }
 
