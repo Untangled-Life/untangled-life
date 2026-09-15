@@ -67,3 +67,33 @@ describe("daysCovered", () => {
     expect(daysCovered(absurd, at(1), wideOpen).length).toBeLessThanOrEqual(367);
   });
 });
+
+describe("an event that started long before the range", () => {
+  // The walk is capped at a fixed number of steps, so starting it at the
+  // event rather than at the range meant a long trip used every step getting
+  // to the month on screen and had none left for it -- a bar on the grid
+  // over a day list that said there was nothing on.
+  it("still covers the days in range", () => {
+    const from = new Date(2027, 0, 1);
+    const to = new Date(2027, 0, 31, 23, 59, 59);
+
+    const days = daysCovered(
+      { start: new Date(2025, 0, 1), end: new Date(2027, 11, 31) },
+      from,
+      to
+    );
+
+    expect(days).toHaveLength(31);
+    expect(days[0].getDate()).toBe(1);
+    expect(days[30].getDate()).toBe(31);
+  });
+
+  it("does not report days before the range", () => {
+    const from = new Date(2027, 0, 10);
+    const to = new Date(2027, 0, 12, 23, 59, 59);
+
+    const days = daysCovered({ start: new Date(2026, 0, 1), end: new Date(2027, 5, 1) }, from, to);
+
+    expect(days.map((d) => d.getDate())).toEqual([10, 11, 12]);
+  });
+});

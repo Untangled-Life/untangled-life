@@ -32,6 +32,15 @@ import { WorkPattern, WorkShift, expandWorkOccurrences, WorkSource, toDateKey } 
 import { daysCovered, lastCoveredDay } from "@/lib/daySpan";
 import { Chip, MonthEvent, inMonth, packWeek, weeksOfMonth } from "@/lib/monthGrid";
 
+/** Only what the grid needs of a trip. */
+type CalendarTrip = {
+  id: string;
+  title: string;
+  destination: string | null;
+  start_date: string;
+  end_date: string | null;
+};
+
 type BusyRow = {
   id: string;
   user_id: string;
@@ -44,13 +53,17 @@ type BusyRow = {
 };
 
 type DayEntry = {
-  kind: "plan" | "keydate" | "work" | "busy";
+  kind: "plan" | "keydate" | "work" | "busy" | "trip";
   label: string;
   detail: string;
   /** Free text shown under the detail line, e.g. an event's notes. */
   note?: string | null;
   /** Where tapping the row goes, if anywhere. */
-  open?: { kind: "event"; id: string } | { kind: "busy"; id: string } | null;
+  open?:
+    | { kind: "event"; id: string }
+    | { kind: "busy"; id: string }
+    | { kind: "trip"; id: string }
+    | null;
   whose: string | null;
   /**
    * What removing this row actually means. Not every row is a row you can
@@ -175,13 +188,19 @@ function EntryRow({
     <Pressable
       style={styles.entryRow}
       disabled={!entry.open}
-      onPress={() =>
-        entry.open &&
+      onPress={() => {
+        if (!entry.open) return;
+
+        if (entry.open.kind === "trip") {
+          router.push(`/trip?id=${entry.open.id}`);
+          return;
+        }
+
         router.push({
           pathname: "/event",
           params: entry.open.kind === "event" ? { id: entry.open.id } : { busy: entry.open.id },
-        })
-      }
+        });
+      }}
     >
       {/* The bar carries the owner's colour; the row keeps its kind. Tinting
           the background as well made a synced busy block, a work shift and an
@@ -264,6 +283,7 @@ export default function CalendarScreen() {
   const [readFailed, setReadFailed] = useState(false);
 
   const [plans, setPlans] = useState<PlannedEvent[]>([]);
+  const [trips, setTrips] = useState<CalendarTrip[]>([]);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [busy, setBusy] = useState<BusyRow[]>([]);
   const [work, setWork] = useState<{ user_id: string; interval: Interval; source: WorkSource }[]>([]);
@@ -294,7 +314,7 @@ export default function CalendarScreen() {
 
     const { from: rangeStart, to: rangeEnd } = gridRange(month);
 
-    const [planRes, keyRes, busyRes, patternRes, shiftRes] = await Promise.all([
+    const [planRes, keyRes, tripRes, busyRes, patternRes, shiftRes] = await Promise.all([
       supabase
         .from("planned_events")
         // Repeating events come back whatever their start date: a weekly
@@ -308,6 +328,20 @@ export default function CalendarScreen() {
             `or(repeat_until.is.null,repeat_until.gte.${toDateKey(rangeStart)}))`
         ),
       supabase.from("key_dates").select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned, photo_path"),
+      // A week away is the single most useful thing a shared calendar can
+      // show, and until now it only appeared if somebody also entered it as
+      // a key date. Only trips with dates: an idea has nowhere to sit.
+      supabase
+        .from("trips")
+        .select("id, title, destination, start_date, end_date")
+        .lte("start_date", toDateKey(rangeEnd))
+        // And a floor, or this reads every trip the couple has ever taken,
+        // on every focus and every month arrow, forever. A trip with no end
+        // date is one day long as far as the grid is concerned.
+        .or(
+          `end_date.gte.${toDateKey(rangeStart)},` +
+            `and(end_date.is.null,start_date.gte.${toDateKey(rangeStart)})`
+        ),
       supabase
         .from("busy_blocks")
         .select("id, user_id, start_at, end_at, title, location, notes, all_day")
@@ -324,11 +358,19 @@ export default function CalendarScreen() {
     if (seq !== loadSeq.current) return;
 
     setReadFailed(
-      Boolean(planRes.error || keyRes.error || busyRes.error || patternRes.error || shiftRes.error)
+      Boolean(
+        planRes.error ||
+          keyRes.error ||
+          tripRes.error ||
+          busyRes.error ||
+          patternRes.error ||
+          shiftRes.error
+      )
     );
     setLoaded(true);
 
     setPlans((planRes.data as PlannedEvent[]) ?? []);
+    setTrips((tripRes.data as CalendarTrip[]) ?? []);
     setKeyDates((keyRes.data as KeyDateRow[]) ?? []);
     setBusy(
       (busyRes.data ?? []).map((b) => ({
@@ -448,6 +490,42 @@ export default function CalendarScreen() {
       }
     }
 
+    for (const trip of trips) {
+      const last = trip.end_date ?? trip.start_date;
+
+      for (const day of daysCovered(
+        {
+          start: new Date(`${trip.start_date}T00:00:00`),
+          end: new Date(`${last}T23:59:59`),
+        },
+        gridFrom,
+        gridTo
+      )) {
+        const dayKey = toDateKey(day);
+        const first = dayKey === trip.start_date;
+        const lastDay = dayKey === last;
+
+        push(dayKey, {
+          kind: "trip",
+          label: trip.title,
+          detail:
+            trip.start_date === last
+              ? (trip.destination ?? "Away")
+              : first
+                ? `Away${trip.destination ? ` in ${trip.destination}` : ""}`
+                : lastDay
+                  ? "Last day"
+                  : (trip.destination ?? "Away"),
+          whose: null,
+          open: { kind: "trip", id: trip.id },
+          // Deleting a trip from the middle of it, through a swipe on a
+          // calendar row, is not what that gesture looks like it does. It is
+          // deleted from where it lives.
+          action: null,
+        });
+      }
+    }
+
     for (const kd of keyDates) {
       const occurrence = nextOccurrence(kd.date, kd.recurring);
       const nights = tripNights(kd);
@@ -553,7 +631,7 @@ export default function CalendarScreen() {
     }
 
     return map;
-  }, [plans, keyDates, work, busy, gridFrom, gridTo, nameFor, myId]);
+  }, [plans, keyDates, trips, work, busy, gridFrom, gridTo, nameFor, myId]);
 
   /**
    * The same material as entriesByDay, but as spans rather than per-day rows.
@@ -594,6 +672,20 @@ export default function CalendarScreen() {
           whose: p.owner_user_id,
         });
       }
+    }
+
+    // A week away, as one bar across the week rather than as nothing at all.
+    for (const trip of trips) {
+      const last = trip.end_date ?? trip.start_date;
+
+      out.push({
+        id: `trip:${trip.id}`,
+        title: trip.title,
+        start: new Date(`${trip.start_date}T00:00:00`),
+        end: new Date(`${last}T00:00:00`),
+        kind: "trip",
+        whose: null,
+      });
     }
 
     for (const kd of keyDates) {
@@ -648,7 +740,7 @@ export default function CalendarScreen() {
     }
 
     return out;
-  }, [plans, keyDates, work, busy, month, nameFor]);
+  }, [plans, keyDates, trips, work, busy, month, nameFor]);
 
   // Kept as what is HIDDEN rather than what is shown, so a filter nobody has
   // touched is on, and anything added later appears instead of vanishing.
@@ -700,7 +792,9 @@ export default function CalendarScreen() {
       // light mode, which is too thin to read at 10px.
       const tint = tintFor(e.whose);
       if (tint) return { fill: tint.fill, ink: tint.ink };
-      if (e.kind === "keydate") return { fill: t.accentSoft, ink: t.textPrimary };
+      if (e.kind === "keydate" || e.kind === "trip") {
+        return { fill: t.accentSoft, ink: t.textPrimary };
+      }
       return { fill: t.brandSoft, ink: t.textPrimary };
     },
     [tintFor, t]
@@ -720,9 +814,9 @@ export default function CalendarScreen() {
       });
     }
 
-    // Deliberately not a colour: "Us" covers shared plans AND key dates,
-    // which are two colours on the grid, so a single swatch here would be
-    // explaining something untrue. The two people are the only part of this
+    // Deliberately not a colour: "Us" covers shared plans, key dates and
+    // trips, which are two colours on the grid, so a single swatch here
+    // would be explaining something untrue. The two people are the only part of this
     // control that is also a legend, because their colours are the only ones
     // that identify rather than categorise.
     opts.push({ key: "us", label: "Us", fill: t.surfaceSunken, ink: t.textPrimary });
@@ -1240,6 +1334,7 @@ const createStyles = (t: Theme) =>
   bar_keydate: { backgroundColor: t.accent },
   bar_work: { backgroundColor: t.dotWork },
   bar_busy: { backgroundColor: t.dotBusy },
+  bar_trip: { backgroundColor: t.accent },
   entryLabel: { ...t.type.heading, color: t.textPrimary },
   footnote: { ...t.type.caption, color: t.textMuted, marginTop: t.space(2) },
   entryDetail: { ...t.type.caption, color: t.textSecondary, marginTop: 2 },

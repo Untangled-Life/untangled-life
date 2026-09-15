@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/auth";
 import { DateField } from "@/components/fields";
 import { PhotoTile } from "@/components/photo-tile";
 import { ActionSheet, type SheetAction } from "@/components/action-sheet";
+import { SwipeRow } from "@/components/swipe-row";
 import { removePhoto } from "@/lib/photos";
 import { SECTIONS, Trip, TripItem, TripItemKind, byWhen, tripNights, tripWhen } from "@/lib/trips";
 
@@ -330,7 +331,17 @@ export default function TripScreen() {
                 <Text style={styles.sectionBlurb}>{section.blurb}</Text>
               ) : (
                 rows.map((item) => (
-                  <View key={item.id} style={styles.item}>
+                  <SwipeRow
+                    key={item.id}
+                    actionLabel="Remove"
+                    onAction={() =>
+                      Alert.alert(`Remove "${item.title}"?`, "It goes for both of you.", [
+                        { text: "Keep it", style: "cancel" },
+                        { text: "Remove", style: "destructive", onPress: () => deleteItem(item) },
+                      ])
+                    }
+                  >
+                  <View style={styles.item}>
                     <Pressable
                       style={styles.itemHead}
                       onPress={() => {
@@ -372,6 +383,7 @@ export default function TripScreen() {
                       height={item.photo_path ? 200 : 54}
                     />
                   </View>
+                  </SwipeRow>
                 ))
               )}
 
@@ -419,7 +431,7 @@ export default function TripScreen() {
         />
 
         <Text style={styles.footnote}>
-          Tap the circle to mark it booked · tap a line for more · tap a photo to change it
+          Tap the circle to mark it booked · tap a photo to change it · swipe to remove
         </Text>
       </ScrollView>
 

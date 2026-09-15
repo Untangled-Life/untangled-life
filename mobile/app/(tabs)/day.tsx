@@ -55,7 +55,16 @@ type Entry = {
   busyId: string | null;
 };
 
-type AllDayEntry = { key: string; label: string; kind: "keydate" | "busy" };
+type AllDayEntry = {
+  key: string;
+  label: string;
+  kind: "keydate" | "busy" | "trip";
+  /** Where tapping it goes, for the kinds that have somewhere to go. */
+  tripId?: string;
+};
+
+/** Only what a day needs of a trip. */
+type DayTrip = { id: string; title: string; destination: string | null; start_date: string; end_date: string | null };
 
 function startOfDay(d: Date): Date {
   const out = new Date(d);
@@ -102,6 +111,7 @@ export default function DayView() {
   const [readFailed, setReadFailed] = useState(false);
 
   const [events, setEvents] = useState<PlannedEvent[]>([]);
+  const [trips, setTrips] = useState<DayTrip[]>([]);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [busy, setBusy] = useState<
     {
@@ -141,7 +151,7 @@ export default function DayView() {
     const to = new Date(dayEnd);
     to.setDate(to.getDate() + 1);
 
-    const [eventRes, keyRes, busyRes, patternRes, shiftRes] = await Promise.all([
+    const [eventRes, keyRes, tripRes, busyRes, patternRes, shiftRes] = await Promise.all([
       // Repeating events are fetched whatever their start date: a weekly
       // dinner created in January is still on in December, and filtering on
       // start_at would hide it from every day but the first.
@@ -153,6 +163,16 @@ export default function DayView() {
       supabase
         .from("key_dates")
         .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned, photo_path"),
+      // Only the ones that could cover this day. A trip with no start date
+      // is an idea rather than somewhere you are.
+      supabase
+        .from("trips")
+        .select("id, title, destination, start_date, end_date")
+        .lte("start_date", toDateKey(to))
+        .or(
+          `end_date.gte.${toDateKey(from)},` +
+            `and(end_date.is.null,start_date.gte.${toDateKey(from)})`
+        ),
       supabase
         .from("busy_blocks")
         .select("id, user_id, start_at, end_at, title, all_day")
@@ -167,11 +187,19 @@ export default function DayView() {
     ]);
 
     setReadFailed(
-      Boolean(eventRes.error || keyRes.error || busyRes.error || patternRes.error || shiftRes.error)
+      Boolean(
+        eventRes.error ||
+          keyRes.error ||
+          tripRes.error ||
+          busyRes.error ||
+          patternRes.error ||
+          shiftRes.error
+      )
     );
     setLoaded(true);
 
     setEvents((eventRes.data as PlannedEvent[]) ?? []);
+    setTrips((tripRes.data as DayTrip[]) ?? []);
     setKeyDates((keyRes.data as KeyDateRow[]) ?? []);
     setBusy(
       (busyRes.data ?? []).map((b) => ({
@@ -322,8 +350,25 @@ export default function DayView() {
       }
     }
 
+    // Being away is the thing you most want to see when you look at a day,
+    // and until trips existed it only showed up if somebody had also entered
+    // it by hand as a key date.
+    for (const trip of trips) {
+      const last = trip.end_date ?? trip.start_date;
+      const key = toISODate(day);
+
+      if (key < trip.start_date || key > last) continue;
+
+      allDay.push({
+        key: `trip-${trip.id}`,
+        kind: "trip",
+        label: trip.destination ? `${trip.title} · ${trip.destination}` : trip.title,
+        tripId: trip.id,
+      });
+    }
+
     return { timed, allDay };
-  }, [events, busy, work, keyDates, day, nameFor]);
+  }, [events, busy, work, keyDates, trips, day, nameFor]);
 
   const placed = useMemo(
     () => placeOnDay(day, timed, (e) => ({ start: e.start, end: e.end })),
@@ -443,14 +488,19 @@ export default function DayView() {
           <Text style={styles.allDayLabel}>All day</Text>
           <View style={styles.allDayChips}>
             {allDay.map((entry) => (
-              <View
+              <Pressable
                 key={entry.key}
-                style={[styles.allDayChip, entry.kind === "keydate" ? styles.allDayKeyDate : null]}
+                disabled={!entry.tripId}
+                onPress={() => entry.tripId && router.push(`/trip?id=${entry.tripId}`)}
+                style={press([
+                  styles.allDayChip,
+                  entry.kind === "keydate" || entry.kind === "trip" ? styles.allDayKeyDate : null,
+                ])}
               >
                 <Text style={styles.allDayText} numberOfLines={1}>
                   {entry.label}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>

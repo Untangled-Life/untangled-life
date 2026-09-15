@@ -17,6 +17,7 @@ import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { useLocalSearchParams, router } from "expo-router";
 import { PhotoTile } from "@/components/photo-tile";
+import { SwipeRow } from "@/components/swipe-row";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 
@@ -245,27 +246,39 @@ export default function WishlistDetail() {
                 </View>
               </View>
             ) : (
-              <Pressable
+              <SwipeRow
                 key={item.id}
-                style={press(styles.itemRow)}
-                onPress={() => startEdit(item)}
-                onLongPress={() => itemActions(item)}
+                actionLabel="Delete"
+                onAction={() =>
+                  Alert.alert(`Remove "${item.title}"?`, "It goes for both of you.", [
+                    { text: "Keep it", style: "cancel" },
+                    { text: "Remove", style: "destructive", onPress: () => removeItem(item.id) },
+                  ])
+                }
               >
-                <Text style={styles.itemText}>{item.title}</Text>
-                {item.url ? (
-                  <Pressable onPress={() => openLink(item.url as string)} hitSlop={6}>
-                    <Text style={styles.itemLink} numberOfLines={1}>
-                      {item.url}
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </Pressable>
+                <Pressable
+                  style={press(styles.itemRow)}
+                  onPress={() => startEdit(item)}
+                  onLongPress={() => itemActions(item)}
+                >
+                  <Text style={styles.itemText}>{item.title}</Text>
+                  {item.url ? (
+                    <Pressable onPress={() => openLink(item.url as string)} hitSlop={6}>
+                      <Text style={styles.itemLink} numberOfLines={1}>
+                        {item.url}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </Pressable>
+              </SwipeRow>
             )
           )
         )}
 
         {items.length > 0 ? (
-          <Text style={styles.hint}>Tap an item to edit or add a link · hold for more</Text>
+          <Text style={styles.hint}>
+            Tap an item to edit or add a link · swipe to delete · hold for more
+          </Text>
         ) : null}
       </ScrollView>
 

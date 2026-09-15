@@ -38,6 +38,15 @@ export function daysCovered(
   cursor.setHours(0, 0, 0, 0);
   const last = lastCoveredDay(event);
 
+  // Start at the range rather than at the event, when the event began before
+  // it. The guard below is a fixed number of steps, so an event that started
+  // long ago used to spend all of them walking through days nobody asked
+  // about and run out before reaching the ones they did -- which drew a bar
+  // across a month whose day list said there was nothing on.
+  const begin = new Date(from);
+  begin.setHours(0, 0, 0, 0);
+  if (cursor < begin) cursor.setTime(begin.getTime());
+
   // The guard is against a bad row -- an end far in the future -- turning one
   // event into an unbounded loop. A year is far more than any month view needs.
   for (let i = 0; i <= 366 && cursor <= last; i++) {

@@ -13,7 +13,7 @@
  * can lose its rounded corner on the side where it carries on.
  */
 
-export type MonthEventKind = "plan" | "keydate" | "work" | "busy";
+export type MonthEventKind = "plan" | "keydate" | "work" | "busy" | "trip";
 
 export type MonthEvent = {
   id: string;
