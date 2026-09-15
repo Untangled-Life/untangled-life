@@ -57,4 +57,29 @@ describe("the tab bar", () => {
 
     expect(visible.sort()).toEqual(["index", "key-dates", "todos", "wishlists"]);
   });
+
+  // The edge swipe steps back one screen, except on a tab, where there is
+  // nothing behind it and it goes Home instead. It knows which is which from
+  // a list of routes, and a list of routes is a copy of something -- so a
+  // fifth tab added one day would quietly get the wrong gesture.
+  it("keeps the edge swipe's list of tab routes honest", () => {
+    const declared = layout.match(/const TAB_ROUTES = \[([^\]]*)\]/);
+    expect(declared).not.toBeNull();
+
+    const routes = (declared as RegExpMatchArray)[1]
+      .split(",")
+      .map((entry) => entry.trim().replace(/^"|"$/g, ""))
+      .filter(Boolean);
+
+    const visible = screenNames().filter((name) => {
+      const declaration = layout.match(
+        new RegExp(`<Tabs\\.Screen\\s+name="${name}"[\\s\\S]*?/>`)
+      );
+      return declaration ? !declaration[0].includes("href: null") : false;
+    });
+
+    expect(routes.sort()).toEqual(
+      visible.map((name) => (name === "index" ? "/" : `/${name}`)).sort()
+    );
+  });
 });

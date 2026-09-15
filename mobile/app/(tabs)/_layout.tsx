@@ -13,6 +13,13 @@ import { tapped } from "@/lib/haptics";
 import { TopScrim } from "@/components/top-scrim";
 import { EdgeBack } from "@/components/edge-back";
 
+/**
+ * The four screens the tab bar itself goes to. Nothing sits behind these, so
+ * the edge swipe takes them Home rather than stepping back through whichever
+ * tabs somebody happened to visit.
+ */
+const TAB_ROUTES = ["/", "/key-dates", "/todos", "/wishlists"];
+
 export default function TabsLayout() {
   const { session, profile, loading } = useAuth();
   const t = useTheme();
@@ -28,12 +35,23 @@ export default function TabsLayout() {
   // meant to finish, and swiping out of it would only bounce you back.
   const edgeBack = pathname !== "/" && pathname !== "/welcome";
 
-  // navigate rather than push, so swiping out of four screens in a row does
-  // not leave four copies of Home behind the one you are looking at.
-  const goHome = useCallback(() => {
+  // One step, not all the way out.
+  //
+  // A trip opened from Wishlist & Trips should go back to the list, the way
+  // the button in the corner does and the way the same gesture does
+  // everywhere else on the phone. It is only from a tab -- where there is no
+  // screen behind this one, just another tab -- that back has no meaning and
+  // Home is the answer.
+  //
+  // navigate rather than push for that case, so swiping out of four tabs in a
+  // row does not leave four copies of Home stacked up behind the one you are
+  // looking at.
+  const onTab = TAB_ROUTES.includes(pathname);
+  const swipeBack = useCallback(() => {
     tapped();
-    router.navigate("/");
-  }, []);
+    if (!onTab && router.canGoBack()) router.back();
+    else router.navigate("/");
+  }, [onTab]);
   const { partner, loading: membersLoading } = useCoupleMembers();
 
   // Keeps the stored zone matching the phone, here rather than on one screen
@@ -137,7 +155,7 @@ export default function TabsLayout() {
   }
 
   return (
-    <EdgeBack enabled={edgeBack} onTrigger={goHome}>
+    <EdgeBack enabled={edgeBack} onTrigger={swipeBack}>
     <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{

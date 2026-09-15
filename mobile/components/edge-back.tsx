@@ -2,13 +2,15 @@ import { useMemo, type ReactNode } from "react";
 import { PanResponder, View } from "react-native";
 
 /**
- * Swipe in from the left edge to go Home.
+ * Swipe in from the left edge to go back.
  *
- * Every screen in here is one or two taps from Home, and every one of those
- * taps is at the top or the bottom of a phone that has got taller every year.
- * The gesture is the one the whole platform already teaches -- drag in from
- * the bezel -- and it means the way out of a screen is under the thumb that
- * is already holding the phone.
+ * Every screen in here has a way out at the top or the bottom of a phone that
+ * has got taller every year. The gesture is the one the whole platform
+ * already teaches -- drag in from the bezel -- and it means the way out is
+ * under the thumb that is already holding the phone.
+ *
+ * What "back" means is the caller's business: one screen where there is one,
+ * Home from a tab, where there is nothing behind it.
  *
  * A wrapper rather than a strip laid over the left edge. An overlay is the
  * obvious way to do this and the wrong one: it is the topmost view in that
@@ -36,7 +38,7 @@ export function EdgeBack({
   onTrigger,
   children,
 }: {
-  /** Off on the screen it goes to, and anywhere you are not meant to leave. */
+  /** Off on Home, and anywhere you are not meant to leave. */
   enabled: boolean;
   onTrigger: () => void;
   children: ReactNode;
