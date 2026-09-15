@@ -33,7 +33,11 @@ import {
   TripItem,
   TripItemKind,
   byWhen,
+  formatMoney,
+  hasAnyCost,
+  parseMoney,
   tripNights,
+  tripTotal,
   tripWhen,
 } from "@/lib/trips";
 
@@ -80,7 +84,7 @@ export default function TripScreen() {
         .maybeSingle(),
       supabase
         .from("trip_items")
-        .select("id, trip_id, kind, title, detail, at_date, at_time, reference, url, photo_path, booked")
+        .select("id, trip_id, kind, title, detail, at_date, at_time, reference, url, photo_path, booked, cost_cents")
         .eq("trip_id", tripId),
     ]);
 
@@ -354,6 +358,15 @@ export default function TripScreen() {
           {nights === null ? "" : ` · ${nights} night${nights === 1 ? "" : "s"}`}
         </Text>
 
+        {/* The running total, only once something has a price on it. A "$0.00"
+            on a trip nobody has costed yet is noise. */}
+        {hasAnyCost(items) ? (
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>So far</Text>
+            <Text style={styles.totalValue}>{formatMoney(tripTotal(items))}</Text>
+          </View>
+        ) : null}
+
         {SECTIONS.map((section) => {
           const rows = items.filter((item) => item.kind === section.kind).sort(byWhen);
 
@@ -405,6 +418,14 @@ export default function TripScreen() {
                         </Text>
                       </View>
                     </Pressable>
+
+                    {/* A price, when there is one. Patched on blur like the
+                        title, and stored in cents so the total is exact. An
+                        empty box clears it back to no-price. */}
+                    <CostField
+                      cents={item.cost_cents}
+                      onCommit={(cents) => patchItem(item.id, { cost_cents: cents })}
+                    />
 
                     {/* The screenshot. Most of what is in a trip before it is
                         booked only exists as one. */}
@@ -484,6 +505,52 @@ export default function TripScreen() {
   );
 }
 
+/**
+ * The price box for one item.
+ *
+ * Its own component so it can hold what is being typed without the parent
+ * re-rendering every item on each keystroke, and so it commits on blur rather
+ * than on every character -- writing to the database as somebody types "1299"
+ * would save 1, 12, 129 on the way.
+ */
+function CostField({
+  cents,
+  onCommit,
+}: {
+  cents: number | null;
+  onCommit: (cents: number | null) => void;
+}) {
+  const styles = useThemedStyles(createStyles);
+  const t = useTheme();
+  const [text, setText] = useState(cents == null ? "" : (cents / 100).toString());
+
+  // Follow the stored value when it changes underneath us -- the partner
+  // edited it, or a refresh arrived -- but not while this box has the price
+  // being typed into it.
+  const commit = () => {
+    const parsed = parseMoney(text);
+    onCommit(parsed);
+    // Reflect what was actually stored, so "19.999" becomes "20".
+    setText(parsed == null ? "" : (parsed / 100).toString());
+  };
+
+  return (
+    <View style={styles.costRow}>
+      <Text style={styles.costLabel}>Cost</Text>
+      <TextInput
+        style={styles.costInput}
+        value={text}
+        onChangeText={setText}
+        onBlur={commit}
+        placeholder="Add a price"
+        placeholderTextColor={t.textMuted}
+        keyboardType="decimal-pad"
+        returnKeyType="done"
+      />
+    </View>
+  );
+}
+
 const createStyles = (t: Theme) =>
   StyleSheet.create({
     loading: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: t.bg, gap: t.space(4) },
@@ -512,6 +579,26 @@ const createStyles = (t: Theme) =>
     sectionTitle: { ...t.type.title, color: t.textPrimary, marginBottom: t.space(2) },
     sectionBlurb: { ...t.type.caption, color: t.textMuted, marginBottom: t.space(2) },
     item: { ...t.card, padding: t.space(4), marginBottom: t.space(3), gap: t.space(3) },
+    totalRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: t.surfaceSunken,
+      borderRadius: t.radius.md,
+      paddingHorizontal: t.space(4),
+      paddingVertical: t.space(3),
+      marginBottom: t.space(4),
+    },
+    totalLabel: { ...t.type.label, color: t.textSecondary },
+    totalValue: { ...t.type.title, color: t.textPrimary },
+    costRow: { flexDirection: "row", alignItems: "center", gap: t.space(3) },
+    costLabel: { ...t.type.caption, color: t.textMuted, width: 44 },
+    costInput: {
+      flex: 1,
+      ...t.type.body,
+      color: t.textPrimary,
+      paddingVertical: t.space(2),
+    },
     itemHead: { flexDirection: "row", alignItems: "center" },
     // Negative margin so the bigger target does not push the row about.
     pipTap: { padding: t.space(3), margin: -t.space(1) },

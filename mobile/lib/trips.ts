@@ -39,6 +39,8 @@ export type TripItem = {
   url: string | null;
   photo_path: string | null;
   booked: boolean;
+  /** Whole cents, so the sums are exact. Null means no price entered. */
+  cost_cents: number | null;
 };
 
 export const SECTIONS: {
@@ -261,4 +263,42 @@ export function byWhen(a: TripItem, b: TripItem): number {
   if (timeA !== timeB) return timeA.localeCompare(timeB);
 
   return a.title.localeCompare(b.title);
+}
+
+/**
+ * The running total of a trip, in cents.
+ *
+ * Cents rather than dollars, because adding 19.99 and 0.10 as floats is how a
+ * budget ends in 20.089999999. Everything is stored and summed as whole
+ * cents and only turned into money for display.
+ */
+export function tripTotal(items: Pick<TripItem, "cost_cents">[]): number {
+  return items.reduce((sum, item) => sum + (item.cost_cents ?? 0), 0);
+}
+
+/** Whether anything has a price on it at all, so the total can stay hidden until it means something. */
+export function hasAnyCost(items: Pick<TripItem, "cost_cents">[]): boolean {
+  return items.some((item) => item.cost_cents != null);
+}
+
+/** Cents to "$1,299.00". No currency guessing: the app is Australian and shows dollars. */
+export function formatMoney(cents: number): string {
+  const dollars = cents / 100;
+  return `$${dollars.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * A typed price to cents, or null when it is not a number.
+ *
+ * Lenient about how people actually type money: a leading dollar sign,
+ * thousands commas, and any number of decimal places, of which only the first
+ * two count. "$1,299.9" is 129990 cents. Rounded, not truncated, so 0.1 + ...
+ * does not quietly lose a cent.
+ */
+export function parseMoney(input: string): number | null {
+  const cleaned = input.replace(/[$,\s]/g, "");
+  if (cleaned === "") return null;
+  const value = Number(cleaned);
+  if (!Number.isFinite(value) || value < 0) return null;
+  return Math.round(value * 100);
 }

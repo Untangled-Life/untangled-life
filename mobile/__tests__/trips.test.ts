@@ -6,7 +6,11 @@ import {
   isPast,
   nextBookedTrip,
   tripCountdown,
+  formatMoney,
+  hasAnyCost,
+  parseMoney,
   tripHomecoming,
+  tripTotal,
   tripNights,
   tripWhen,
   type Trip,
@@ -24,6 +28,7 @@ const item = (over: Partial<TripItem> & { id: string }): TripItem => ({
   url: null,
   photo_path: null,
   booked: false,
+  cost_cents: null,
   ...over,
 });
 
@@ -230,5 +235,39 @@ describe("tripHomecoming", () => {
     expect(tripHomecoming({ end_date: null }, new Date("2026-04-10T09:00:00"))).toBe(
       "No date home yet"
     );
+  });
+});
+
+describe("trip budget", () => {
+  const items = (costs: (number | null)[]) => costs.map((c) => ({ cost_cents: c }));
+
+  it("sums in cents, exactly", () => {
+    // The float trap: 19.99 + 0.10 as dollars is 20.089999999.
+    expect(tripTotal(items([1999, 10]))).toBe(2009);
+  });
+
+  it("treats a missing price as nothing, not zero-dollars-entered", () => {
+    expect(tripTotal(items([5000, null, 2500]))).toBe(7500);
+    expect(hasAnyCost(items([null, null]))).toBe(false);
+    expect(hasAnyCost(items([null, 1]))).toBe(true);
+  });
+
+  it("formats Australian dollars with cents", () => {
+    expect(formatMoney(0)).toBe("$0.00");
+    expect(formatMoney(129900)).toBe("$1,299.00");
+    expect(formatMoney(2009)).toBe("$20.09");
+  });
+
+  it("parses money the way people type it", () => {
+    expect(parseMoney("1299")).toBe(129900);
+    expect(parseMoney("$1,299.90")).toBe(129990);
+    expect(parseMoney("19.99")).toBe(1999);
+    expect(parseMoney("")).toBeNull();
+    expect(parseMoney("free")).toBeNull();
+    expect(parseMoney("-5")).toBeNull();
+  });
+
+  it("rounds to the nearest cent rather than dropping fractions", () => {
+    expect(parseMoney("0.125")).toBe(13);
   });
 });
