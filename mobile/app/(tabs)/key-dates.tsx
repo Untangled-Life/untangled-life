@@ -9,6 +9,8 @@ import { DateField } from "@/components/fields";
 import { toFriendlyDate, fromISODate } from "@/lib/dates";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
+import { PhotoTile } from "@/components/photo-tile";
+import { removePhoto } from "@/lib/photos";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import {
   KeyDateRow,
@@ -90,16 +92,20 @@ function ReminderSummary({
  */
 function DetailsPanel({
   row,
+  coupleId,
   onToggle,
   onSaveNotes,
   onTogglePin,
   onSetEndDate,
+  onSetPhoto,
 }: {
   row: KeyDateRow;
+  coupleId: string | null;
   onToggle: (row: KeyDateRow, offset: number) => void;
   onSaveNotes: (row: KeyDateRow, notes: string) => void;
   onTogglePin: (row: KeyDateRow) => void;
   onSetEndDate: (row: KeyDateRow, endDate: string | null) => void;
+  onSetPhoto: (row: KeyDateRow, path: string | null) => Promise<boolean>;
 }) {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
@@ -108,6 +114,20 @@ function DetailsPanel({
 
   return (
     <View style={styles.details}>
+      {/* A face for it. A countdown to "Birthday" is a number; a countdown
+          under a photograph of the person is the reason anybody opens this. */}
+      <Text style={styles.detailsLabel}>Photo</Text>
+      <View style={{ marginBottom: 16 }}>
+        <PhotoTile
+          path={row.photo_path}
+          kind="date"
+          ownerId={coupleId}
+          onChange={(path) => onSetPhoto(row, path)}
+          label="Add a photo for this one"
+          height={180}
+        />
+      </View>
+
       <Text style={styles.detailsLabel}>
         {row.reminders_on === false ? "Remind me (currently off)" : "Remind me"}
       </Text>
@@ -231,7 +251,7 @@ export default function KeyDates() {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("key_dates")
-      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned")
+      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned, photo_path")
       .order("date", { ascending: true });
 
     if (data) {
@@ -363,6 +383,8 @@ export default function KeyDates() {
         style: "destructive",
         onPress: async () => {
           setError(null);
+          const photo = existing.photo_path;
+
           const { error: clearError } = await supabase
             .from("key_dates")
             .delete()
@@ -373,6 +395,8 @@ export default function KeyDates() {
             Alert.alert("Couldn't clear that", clearError.message);
             return;
           }
+
+          await removePhoto(photo);
 
           // The inputs are driven by `dates`, but load() only refills them
           // from rows that exist -- a cleared one leaves the old value sitting
@@ -449,6 +473,32 @@ export default function KeyDates() {
       return;
     }
     load();
+  }
+
+  async function setPhoto(row: KeyDateRow, path: string | null): Promise<boolean> {
+    const before = row.photo_path;
+    setDates((prev) => prev.map((d) => (d.id === row.id ? { ...d, photo_path: path } : d)));
+
+    // .select, so an update that matched no row -- deleted on the other
+    // phone -- reports as the failure it is. The photo tile deletes the old
+    // file on the strength of this answer.
+    const { data, error: photoError } = await supabase
+      .from("key_dates")
+      .update({ photo_path: path })
+      .eq("id", row.id)
+      .select("id");
+
+    if (photoError || (data?.length ?? 0) === 0) {
+      warned();
+      setDates((prev) => prev.map((d) => (d.id === row.id ? { ...d, photo_path: before } : d)));
+      Alert.alert(
+        "Couldn't save that photo",
+        photoError?.message ?? "That day isn't there any more."
+      );
+      return false;
+    }
+
+    return true;
   }
 
   async function togglePin(row: KeyDateRow) {
@@ -532,6 +582,7 @@ export default function KeyDates() {
   }
 
   async function removeMisc(id: string) {
+    const photo = dates.find((d) => d.id === id)?.photo_path ?? null;
     // Removed from the list first so it feels instant; if the delete fails the
     // reload below puts it back, which would otherwise look like a ghost.
     setDates((prev) => prev.filter((d) => d.id !== id));
@@ -539,7 +590,11 @@ export default function KeyDates() {
     if (deleteError) {
       warned();
       Alert.alert("Couldn't remove that", deleteError.message);
+      load();
+      return;
     }
+
+    await removePhoto(photo);
     load();
   }
 
@@ -574,10 +629,12 @@ export default function KeyDates() {
         {open ? (
           <DetailsPanel
             row={row}
+            coupleId={profile?.couple_id ?? null}
             onToggle={toggleReminder}
             onSaveNotes={saveNotes}
             onTogglePin={togglePin}
             onSetEndDate={setEndDate}
+            onSetPhoto={setPhoto}
           />
         ) : null}
       </>
@@ -589,7 +646,7 @@ export default function KeyDates() {
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
       } contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Key Dates</Text>
+      <Text style={styles.title}>Unforgettable Days</Text>
       <Text style={styles.subtitle}>
         Reminders land at 9am, 2 weeks, 1 week and 3 days before by default. Change that per date
         under Reminders &amp; notes. Dates save as soon as you pick them.
@@ -699,10 +756,12 @@ export default function KeyDates() {
               <ReminderSummary row={d} title={d.title} onToggle={toggleRemindersOn} />
               <DetailsPanel
                 row={d}
+                coupleId={profile?.couple_id ?? null}
                 onToggle={toggleReminder}
                 onSaveNotes={saveNotes}
                 onTogglePin={togglePin}
                 onSetEndDate={setEndDate}
+                onSetPhoto={setPhoto}
               />
               <View style={styles.miscEditorActions}>
                 <Pressable

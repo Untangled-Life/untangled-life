@@ -151,7 +151,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="key-dates"
         options={{
-          title: "Key Dates",
+          title: "Days",
           tabBarIcon: ({ color }) => <BellIcon size={24} color={color} />,
         }}
       />
@@ -175,6 +175,7 @@ export default function TabsLayout() {
           becomes a tab the moment it exists unless it is listed below.
           __tests__/tabs.test.ts fails if one is ever missed. */}
       <Tabs.Screen name="calendar" options={{ href: null }} />
+      <Tabs.Screen name="trip" options={{ href: null }} />
       <Tabs.Screen name="calendars" options={{ href: null }} />
       <Tabs.Screen name="free-time" options={{ href: null }} />
       <Tabs.Screen name="home-layout" options={{ href: null }} />

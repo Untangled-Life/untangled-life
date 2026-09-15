@@ -28,6 +28,9 @@ import { StatusBar } from "expo-status-bar";
 import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
 import { useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { signedUrls } from "@/lib/photos";
 import { TopScrim } from "@/components/top-scrim";
 import { shouldNudge } from "@/lib/dateNudge";
 import { loadFreeWindows as loadFreeWindowsData } from "@/lib/freeWindows";
@@ -77,6 +80,10 @@ export default function Home() {
   const { coverUrl, coverPath, myAvatarUrl, partnerAvatarUrl, reload: reloadPhotos } =
     useCouplePhotos();
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
+
+  // Signed URLs for the photographs on the days, keyed by path. Signed in one
+  // request for the whole screen rather than one per card.
+  const [datePhotos, setDatePhotos] = useState<Record<string, string>>({});
   const [freeWindows, setFreeWindows] = useState<Interval[]>([]);
 
   // "Both calendars look packed" is the wrong thing to say to a couple whose
@@ -166,9 +173,13 @@ export default function Home() {
   const loadKeyDates = useCallback(async () => {
     const { data } = await supabase
       .from("key_dates")
-      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned")
+      .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned, photo_path")
       .order("date", { ascending: true });
-    if (data) setKeyDates(data as KeyDateRow[]);
+    if (data) {
+      const rows = data as KeyDateRow[];
+      setKeyDates(rows);
+      setDatePhotos(await signedUrls(rows.map((row) => row.photo_path)));
+    }
   }, []);
 
   const loadPlans = useCallback(async () => {
@@ -488,7 +499,7 @@ export default function Home() {
       : null,
     keyDates.length === 0
       ? {
-          label: "Add your key dates",
+          label: "Add the days that matter",
           why: "Anniversary and birthdays, with reminders in good time",
           onPress: () => router.push("/key-dates"),
         }
@@ -551,25 +562,59 @@ export default function Home() {
   const sectionBlocks: Record<HomeSection, React.ReactNode> = {
     pinned: (
       <View key="pinned">
-        {pinned.map((kd) => (
-          <Link key={kd.id} href="/key-dates" asChild>
-            <Pressable style={press(styles.hero)}>
-              <Text style={styles.heroCountdown}>{countdownLabel(kd)}</Text>
-              <Text style={styles.heroTitle}>{displayTitleFor(kd, nameFor)}</Text>
-              {kd.notes ? (
-                <Text style={styles.heroNote} numberOfLines={2}>
-                  {kd.notes}
-                </Text>
-              ) : null}
-            </Pressable>
-          </Link>
-        ))}
+        {pinned.map((kd) => {
+          const photo = kd.photo_path ? datePhotos[kd.photo_path] : null;
+
+          return (
+            <Link key={kd.id} href="/key-dates" asChild>
+              <Pressable style={press([styles.hero, photo ? styles.heroWithPhoto : null])}>
+                {/* Her face on her birthday, the two of you on the
+                    anniversary. A countdown over a photograph is the thing
+                    people open the app to look at; a countdown on a coloured
+                    rectangle is a number. */}
+                {photo ? (
+                  <>
+                    <Image
+                      source={{ uri: photo }}
+                      alt={displayTitleFor(kd, nameFor)}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                      transition={250}
+                    />
+                    <LinearGradient
+                      colors={["rgba(12,10,7,0.15)", "rgba(12,10,7,0.72)"]}
+                      locations={[0.35, 1]}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  </>
+                ) : null}
+
+                <View style={photo ? styles.heroOnPhoto : null}>
+                  <Text style={[styles.heroCountdown, photo ? styles.onPhoto : null]}>
+                    {countdownLabel(kd)}
+                  </Text>
+                  <Text style={[styles.heroTitle, photo ? styles.onPhoto : null]}>
+                    {displayTitleFor(kd, nameFor)}
+                  </Text>
+                  {kd.notes ? (
+                    <Text
+                      style={[styles.heroNote, photo ? styles.onPhotoMuted : null]}
+                      numberOfLines={2}
+                    >
+                      {kd.notes}
+                    </Text>
+                  ) : null}
+                </View>
+              </Pressable>
+            </Link>
+          );
+        })}
       </View>
     ),
     keyDates: (
       <View key="keyDates">
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Key dates &amp; countdowns</Text>
+          <Text style={styles.sectionTitle}>Unforgettable days</Text>
           <Link href="/key-dates" style={styles.sectionAction}>
             Manage
           </Link>
@@ -581,8 +626,8 @@ export default function Home() {
               {pinned.length > 0
                 ? "Nothing else coming up. The one that matters is pinned above."
                 : partner
-                  ? `No key dates yet. Add ${partnerName}'s birthday or your anniversary to start a countdown.`
-                  : "No key dates yet. Add a birthday or an anniversary and it starts counting down."}
+                  ? `Nothing in here yet. Add ${partnerName}'s birthday or your anniversary and it starts counting down.`
+                  : "Nothing in here yet. Add a birthday or an anniversary and it starts counting down."}
             </Text>
           </View>
         ) : (
@@ -591,6 +636,15 @@ export default function Home() {
               const days = daysUntil(kd.date, kd.recurring);
               return (
                 <View key={kd.id} style={styles.keyDateCard}>
+                  {kd.photo_path && datePhotos[kd.photo_path] ? (
+                    <Image
+                      source={{ uri: datePhotos[kd.photo_path] }}
+                      alt={displayTitleFor(kd, nameFor)}
+                      style={styles.keyDateThumb}
+                      contentFit="cover"
+                      transition={200}
+                    />
+                  ) : null}
                   <Text style={styles.keyDateDays}>
                     {days === 0 ? "Today" : days === 1 ? "1 day" : `${days} days`}
                   </Text>
@@ -1115,6 +1169,18 @@ const createStyles = (t: Theme) =>
     borderRadius: t.radius.lg,
     padding: t.space(5),
     marginBottom: t.space(4),
+  },
+  // Taller with a picture in it, and clipped so the photograph takes the
+  // card's own corners.
+  heroWithPhoto: { overflow: "hidden", minHeight: 200, justifyContent: "flex-end" },
+  heroOnPhoto: {},
+  onPhoto: { color: "#FFFFFF" },
+  onPhotoMuted: { color: "rgba(255,255,255,0.82)" },
+  keyDateThumb: {
+    width: "100%",
+    height: 72,
+    borderRadius: t.radius.md,
+    marginBottom: t.space(2),
   },
   heroCountdown: { ...t.type.hero, color: t.brand },
   heroTitle: { ...t.type.title, color: t.textPrimary, marginTop: 2 },

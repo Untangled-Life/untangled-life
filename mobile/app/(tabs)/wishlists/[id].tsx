@@ -16,6 +16,7 @@ import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { useLocalSearchParams, router } from "expo-router";
+import { PhotoTile } from "@/components/photo-tile";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
 
@@ -26,6 +27,11 @@ export default function WishlistDetail() {
   const t = useTheme();
 
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
+
+  // The list's own picture, read here rather than passed through the link:
+  // a path in a URL is a path that goes stale the moment somebody changes it
+  // on the other phone.
+  const [coverPath, setCoverPath] = useState<string | null>(null);
   const { profile } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
   const [title, setTitle] = useState("");
@@ -45,6 +51,13 @@ export default function WishlistDetail() {
       setLoaded(true);
       return;
     }
+
+    supabase
+      .from("wishlists")
+      .select("cover_path")
+      .eq("id", id)
+      .maybeSingle()
+      .then(({ data }) => setCoverPath((data?.cover_path as string | null) ?? null));
     const { data, error } = await supabase
       .from("wishlist_items")
       .select("id, title, url")
@@ -154,6 +167,45 @@ export default function WishlistDetail() {
           <Text style={styles.back}>{"‹ Wishlists"}</Text>
         </Pressable>
         <Text style={styles.title}>{name ?? "Wishlist"}</Text>
+
+        {/* A picture for the list. "Camping gear" tells you less at a glance
+            than a photograph of the tent, and half of what ends up on one of
+            these is something somebody saw rather than something they can
+            name. */}
+        <View style={{ marginBottom: 16 }}>
+          <PhotoTile
+            path={coverPath}
+            kind="wishlist"
+            ownerId={profile?.couple_id ?? null}
+            onChange={async (path) => {
+              const before = coverPath;
+              setCoverPath(path);
+
+              // .select, so an update that matched no row is a failure
+              // rather than a quiet success -- the tile deletes the old file
+              // on the strength of this.
+              const { data, error } = await supabase
+                .from("wishlists")
+                .update({ cover_path: path })
+                .eq("id", id)
+                .select("id");
+
+              if (error || (data?.length ?? 0) === 0) {
+                warned();
+                setCoverPath(before);
+                Alert.alert(
+                  "Couldn't save that photo",
+                  error?.message ?? "That list isn't there any more."
+                );
+                return false;
+              }
+
+              return true;
+            }}
+            label="Add a photo for this list"
+            height={140}
+          />
+        </View>
 
         {loaded && items.length === 0 ? (
           <View style={styles.emptyCard}>

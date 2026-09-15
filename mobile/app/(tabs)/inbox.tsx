@@ -55,7 +55,7 @@ export default function Inbox() {
     const [keyRes, upcoming, lastRes] = await Promise.all([
       supabase
         .from("key_dates")
-        .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned"),
+        .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned, photo_path"),
       loadUpcomingPlans(),
       supabase
         .from("planned_events")

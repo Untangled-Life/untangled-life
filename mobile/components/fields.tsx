@@ -66,7 +66,18 @@ export function DatePickerSheet({
   // Rendered only while it is open, so the draft starts from the current
   // value every time it appears and there is no effect keeping two copies of
   // the same date in step.
-  const [draft, setDraft] = useState<Date>(() => fromISODate(value ?? "") ?? new Date());
+  //
+  // Clamped, because on iOS the wheel is only a display: Done sends the
+  // DRAFT, and a draft that was never spun is whatever it started as. An
+  // empty From field on a trip that already has a To would otherwise start
+  // at today, and one tap of Done would send a range the database refuses --
+  // with the name of a check constraint as the explanation.
+  const [draft, setDraft] = useState<Date>(() => {
+    const seed = fromISODate(value ?? "") ?? new Date();
+    if (maximumDate && seed > maximumDate) return maximumDate;
+    if (minimumDate && seed < minimumDate) return minimumDate;
+    return seed;
+  });
 
   const picker = (
     <DateTimePicker

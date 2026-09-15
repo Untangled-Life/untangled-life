@@ -17,6 +17,37 @@ const SIGNED_URL_TTL_SECONDS = 60 * 60;
 const AVATAR_SIZE = 512;
 const COVER_WIDTH = 1400;
 
+/**
+ * What a photo is of, which decides the folder it lives in, the shape the
+ * picker crops to, and who is allowed to read it.
+ *
+ * Everything except an avatar belongs to the couple, so everything except an
+ * avatar is stored under the couple's id -- which is what the storage
+ * policies check. A screenshot of a booking confirmation is not cropped at
+ * all: the whole point of it is the small print.
+ */
+export type PhotoKind = "avatar" | "cover" | "wishlist" | "trip" | "date" | "document";
+
+const FOLDERS: Record<PhotoKind, string> = {
+  avatar: "avatars",
+  cover: "covers",
+  wishlist: "wishlists",
+  trip: "trips",
+  date: "dates",
+  // A boarding pass and a hotel confirmation are the same folder as the trip
+  // they belong to; only the handling differs.
+  document: "trips",
+};
+
+const ASPECTS: Partial<Record<PhotoKind, [number, number]>> = {
+  avatar: [1, 1],
+  cover: [16, 9],
+  wishlist: [3, 2],
+  trip: [16, 9],
+  // A face, usually.
+  date: [4, 5],
+};
+
 export type PickedPhoto = { uri: string; width: number; height: number };
 
 /**
@@ -28,7 +59,7 @@ export type PickedPhoto = { uri: string; width: number; height: number };
  * taken in.
  */
 export async function pickPhoto(
-  kind: "avatar" | "cover"
+  kind: PhotoKind
 ): Promise<{ photo: PickedPhoto | null; error: string | null }> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
@@ -39,10 +70,14 @@ export async function pickPhoto(
     };
   }
 
+  const aspect = ASPECTS[kind];
+
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
-    allowsEditing: true,
-    aspect: kind === "avatar" ? [1, 1] : [16, 9],
+    // A screenshot cropped to a nice shape is a screenshot with the booking
+    // reference cut off it.
+    allowsEditing: Boolean(aspect),
+    aspect,
     quality: 1,
   });
 
@@ -52,9 +87,16 @@ export async function pickPhoto(
 
   try {
     const context = ImageManipulator.manipulate(asset.uri);
-    context.resize(
-      kind === "avatar" ? { width: AVATAR_SIZE, height: AVATAR_SIZE } : { width: COVER_WIDTH }
-    );
+
+    if (kind === "avatar") {
+      context.resize({ width: AVATAR_SIZE, height: AVATAR_SIZE });
+    } else if (asset.width > COVER_WIDTH) {
+      context.resize({ width: COVER_WIDTH });
+    }
+    // Otherwise left alone. A phone screenshot is about 1170 wide, and
+    // scaling it UP to 1400 before a lossy re-encode makes the upload bigger
+    // and the booking reference on it softer -- which is the one thing a
+    // screenshot is kept for.
     const rendered = await context.renderAsync();
     const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.82 });
 
@@ -71,11 +113,12 @@ export async function pickPhoto(
  * somewhere the partner can't read.
  */
 export async function uploadPhoto(
-  kind: "avatar" | "cover",
+  kind: PhotoKind,
+  /** The user id for an avatar; the couple id for everything else. */
   ownerId: string,
   photo: PickedPhoto
 ): Promise<{ path: string | null; error: string | null }> {
-  const folder = kind === "avatar" ? "avatars" : "covers";
+  const folder = FOLDERS[kind];
 
   // A new filename every time, rather than overwriting a fixed one. Storage
   // and every image cache in between key on the URL, so reusing the name shows
@@ -127,6 +170,13 @@ export async function removePhoto(path: string | null): Promise<void> {
   await supabase.storage.from(BUCKET).remove([path]);
 }
 
+/** The same for several at once, which is what deleting a trip needs. */
+export async function removePhotos(paths: (string | null)[]): Promise<void> {
+  const real = [...new Set(paths.filter((p): p is string => Boolean(p)))];
+  if (real.length === 0) return;
+  await supabase.storage.from(BUCKET).remove(real);
+}
+
 /**
  * Move the cover you had on your own to the couple you have just joined.
  *
@@ -167,8 +217,15 @@ export async function carryCoverInto(
     }
   }
 
-  // Removed through the Storage API rather than left to the SQL, which only
-  // takes the metadata row and leaves the file itself on the server forever.
+  const { error } = await join();
+  if (error) return { error };
+
+  // Only now. Removing it first meant a code that turned out to be invalid,
+  // already used, or simply offline took the person's cover photo with it
+  // while the row still pointed at the file.
+  //
+  // Through the Storage API rather than left to the SQL, which only takes
+  // the metadata row and leaves the file itself on the server forever.
   if (oldPath) {
     try {
       await supabase.storage.from(BUCKET).remove([oldPath]);
@@ -176,9 +233,6 @@ export async function carryCoverInto(
       // Nothing to do about it, and not a reason to stop.
     }
   }
-
-  const { error } = await join();
-  if (error) return { error };
 
   const joined = newCoupleId();
   if (!carried || !joined) return { error: null };

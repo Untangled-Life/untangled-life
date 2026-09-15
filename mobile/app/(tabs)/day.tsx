@@ -152,7 +152,7 @@ export default function DayView() {
         .or(`and(end_at.gte.${from.toISOString()},start_at.lte.${to.toISOString()}),repeat_every.neq.none`),
       supabase
         .from("key_dates")
-        .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned"),
+        .select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned, photo_path"),
       supabase
         .from("busy_blocks")
         .select("id, user_id, start_at, end_at, title, all_day")

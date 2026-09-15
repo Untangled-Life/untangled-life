@@ -16,6 +16,12 @@ export type KeyDateRow = {
   end_date: string | null;
   /** Show it large at the top of Home. */
   pinned: boolean;
+  /**
+   * A face for it: her on her birthday, the two of you on the anniversary,
+   * the place you are going on the trip. dates/<couple_id>/... in the photos
+   * bucket.
+   */
+  photo_path: string | null;
 };
 
 export function isTrip(kd: Pick<KeyDateRow, "end_date">): boolean {

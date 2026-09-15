@@ -22,6 +22,7 @@ import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { usePartnerColors } from "@/hooks/usePartnerColors";
 import { shadeFor } from "@/lib/palette";
+import { removePhoto } from "@/lib/photos";
 import { Avatar } from "@/components/avatar";
 import { Interval } from "@/lib/freeTime";
 import { KeyDateRow, displayTitleFor, nextOccurrence, tripNights } from "@/lib/keyDates";
@@ -306,7 +307,7 @@ export default function CalendarScreen() {
             `and(repeat_every.neq.none,start_at.lte.${rangeEnd.toISOString()},` +
             `or(repeat_until.is.null,repeat_until.gte.${toDateKey(rangeStart)}))`
         ),
-      supabase.from("key_dates").select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned"),
+      supabase.from("key_dates").select("id, title, date, recurring, kind, subject_user_id, reminder_days, reminders_on, notes, end_date, pinned, photo_path"),
       supabase
         .from("busy_blocks")
         .select("id, user_id, start_at, end_at, title, location, notes, all_day")
@@ -761,7 +762,18 @@ export default function CalendarScreen() {
         .update({ cancelled: true })
         .eq("id", action.id));
     } else if (action.type === "deleteKeyDate") {
+      // The photograph on it has to go through the Storage API: deleting the
+      // row leaves the file on the server, and every policy that could reach
+      // it checks a couple id that will never point at it again.
+      const { data: row } = await supabase
+        .from("key_dates")
+        .select("photo_path")
+        .eq("id", action.id)
+        .maybeSingle();
+
       ({ error } = await supabase.from("key_dates").delete().eq("id", action.id));
+
+      if (!error) await removePhoto((row?.photo_path as string | null) ?? null);
     } else if (action.type === "deleteShift") {
       ({ error } = await supabase.from("work_shifts").delete().eq("id", action.id));
     } else if (action.type === "markDayOff") {

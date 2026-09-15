@@ -23,6 +23,7 @@ const row = (over: Partial<KeyDateRow> = {}): KeyDateRow => ({
   notes: null,
   end_date: null,
   pinned: false,
+  photo_path: null,
   ...over,
 });
 
