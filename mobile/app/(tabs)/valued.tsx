@@ -249,6 +249,14 @@ export default function Valued() {
         </Text>
       </Pressable>
 
+      {/* Said once, under the button, because the button now goes quiet when
+          there is nothing to do and a disabled control can read as a door
+          that has closed. These are answers about a person, and people
+          change. */}
+      <Text style={styles.changeNote}>
+        Answers can be changed or updated whenever you like.
+      </Text>
+
       {theirs ? (
         <View style={styles.theirs}>
           <Text style={styles.groupTitle}>What {partnerName} said</Text>
@@ -356,5 +364,9 @@ const createStyles = (t: Theme) =>
     theirAnswer: { marginTop: t.space(4) },
     theirPrompt: { ...t.type.eyebrow, color: t.textMuted },
     theirText: { ...t.type.body, color: t.textPrimary, marginTop: t.space(1) },
-    footnote: { ...t.type.caption, color: t.textMuted, marginTop: t.space(8) },
+    changeNote: { ...t.type.caption, color: t.textMuted, marginTop: t.space(3), textAlign: "center" },
+    // A size up from the note above it, and a size up from what it used to
+    // be. It is about the two of you rather than about the form, so it
+    // should not read as small print sitting under the small print.
+    footnote: { ...t.type.body, color: t.textSecondary, marginTop: t.space(8) },
   });
