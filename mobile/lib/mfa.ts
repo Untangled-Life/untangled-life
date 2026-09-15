@@ -126,3 +126,24 @@ export async function clearUnverified(): Promise<void> {
     await supabase.auth.mfa.unenroll({ factorId: factor.id }).catch(() => {});
   }
 }
+
+/**
+ * Recovery codes: the way back in when the authenticator is gone.
+ *
+ * Generated at enrolment and shown once. Redeeming one removes the factor, so
+ * the account is usable again at the password's level, and the person is told
+ * to set two-factor up afresh. The server holds only hashes; see
+ * supabase/mfa-recovery.sql.
+ */
+export async function generateRecoveryCodes(): Promise<{ codes: string[]; error: string | null }> {
+  const { data, error } = await supabase.rpc("generate_mfa_recovery_codes");
+  if (error) return { codes: [], error: error.message };
+  return { codes: (data as string[] | null) ?? [], error: null };
+}
+
+export async function redeemRecoveryCode(code: string): Promise<{ ok: boolean; error: string | null }> {
+  const { data, error } = await supabase.rpc("redeem_mfa_recovery_code", { code });
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: "That recovery code is not valid, or has already been used." };
+  return { ok: true, error: null };
+}

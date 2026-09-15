@@ -12,7 +12,7 @@ import { ThemeProvider, useTheme } from "@/contexts/theme";
 
 function ThemedShell() {
   const t = useTheme();
-  const { locked } = useAppLock();
+  const { covered } = useAppLock();
 
   // Two weights, imported from their own subpaths rather than from the
   // package root. The root re-exports all eighteen, and Metro bundles what it
@@ -43,8 +43,11 @@ function ThemedShell() {
         }}
       />
       {/* Over the whole stack, so it covers every screen at once rather than
-          each having to remember it. Rendered last so it is on top. */}
-      {locked ? <LockScreen /> : null}
+          each having to remember it. Rendered last so it is on top. Driven by
+          `covered`, which is also true before the setting is read and while
+          the app is inactive, so nothing flashes on a cold start and the
+          app-switcher snapshot shows this rather than the diary. */}
+      {covered ? <LockScreen /> : null}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -524,10 +524,21 @@ function CostField({
   const t = useTheme();
   const [text, setText] = useState(cents == null ? "" : (cents / 100).toString());
 
-  // Follow the stored value when it changes underneath us -- the partner
-  // edited it, or a refresh arrived -- but not while this box has the price
-  // being typed into it.
+  // Whether the box has the cursor, so an update arriving underneath does not
+  // rewrite what somebody is halfway through typing.
+  const editing = useRef(false);
+
+  // Follow the stored value when it changes: the partner edited it, or a
+  // refresh brought a new one. Skipped while editing, so it never fights the
+  // finger. Without this the box showed the price it loaded with forever,
+  // and disagreed with the total, which reads the row directly.
+  useEffect(() => {
+    if (editing.current) return;
+    setText(cents == null ? "" : (cents / 100).toString());
+  }, [cents]);
+
   const commit = () => {
+    editing.current = false;
     const parsed = parseMoney(text);
     onCommit(parsed);
     // Reflect what was actually stored, so "19.999" becomes "20".
@@ -541,6 +552,9 @@ function CostField({
         style={styles.costInput}
         value={text}
         onChangeText={setText}
+        onFocus={() => {
+          editing.current = true;
+        }}
         onBlur={commit}
         placeholder="Add a price"
         placeholderTextColor={t.textMuted}

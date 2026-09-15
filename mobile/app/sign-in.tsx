@@ -6,7 +6,7 @@ import { Theme } from "@/theme/tokens";
 import { Link, router } from "expo-router";
 import * as Linking from "expo-linking";
 import { supabase } from "@/lib/supabase";
-import { challengeExisting, needsChallenge } from "@/lib/mfa";
+import { challengeExisting, needsChallenge, redeemRecoveryCode } from "@/lib/mfa";
 
 export default function SignIn() {
   const styles = useThemedStyles(createStyles);
@@ -24,6 +24,10 @@ export default function SignIn() {
   // right; this is the six digits from their authenticator.
   const [needsCode, setNeedsCode] = useState(false);
   const [code, setCode] = useState("");
+  // The escape hatch: a lost authenticator, answered with a recovery code
+  // instead. Redeeming one removes two-factor, so this is also where somebody
+  // recovers a phone they can no longer get the six digits from.
+  const [usingRecovery, setUsingRecovery] = useState(false);
 
   async function handleSignIn() {
     setError(null);
@@ -63,6 +67,20 @@ export default function SignIn() {
     setLoading(false);
     if (!ok) {
       setError(codeError ?? "That code didn't work.");
+      return;
+    }
+    router.replace("/");
+  }
+
+  async function handleRecovery() {
+    setError(null);
+    setLoading(true);
+    // The session is already signed in at the password's level; redeeming the
+    // code takes the factor off, so the app is reachable straight after.
+    const { ok, error: recoveryError } = await redeemRecoveryCode(code);
+    setLoading(false);
+    if (!ok) {
+      setError(recoveryError ?? "That recovery code didn't work.");
       return;
     }
     router.replace("/");
@@ -131,13 +149,14 @@ export default function SignIn() {
       {needsCode ? (
         <TextInput
           style={styles.input}
-          placeholder="6-digit code"
+          placeholder={usingRecovery ? "Recovery code" : "6-digit code"}
           placeholderTextColor={t.textMuted}
-          keyboardType="number-pad"
+          keyboardType={usingRecovery ? "default" : "number-pad"}
+          autoCapitalize="characters"
           autoFocus
           value={code}
           onChangeText={setCode}
-          maxLength={6}
+          maxLength={usingRecovery ? 9 : 6}
         />
       ) : null}
 
@@ -146,14 +165,31 @@ export default function SignIn() {
 
       {needsCode ? (
         <>
-          <Pressable style={press(styles.button)} onPress={handleCode} disabled={loading}>
+          <Pressable
+            style={press(styles.button)}
+            onPress={usingRecovery ? handleRecovery : handleCode}
+            disabled={loading}
+          >
             {loading ? (
               <ActivityIndicator color={t.surface} />
             ) : (
-              <Text style={styles.buttonText}>Verify</Text>
+              <Text style={styles.buttonText}>{usingRecovery ? "Use recovery code" : "Verify"}</Text>
             )}
           </Pressable>
-          <Text style={styles.hint}>From your authenticator app.</Text>
+          <Pressable
+            onPress={() => {
+              setUsingRecovery((v) => !v);
+              setCode("");
+              setError(null);
+            }}
+            hitSlop={8}
+          >
+            <Text style={styles.link}>
+              {usingRecovery
+                ? "Back to your authenticator code"
+                : "Lost your authenticator? Use a recovery code"}
+            </Text>
+          </Pressable>
         </>
       ) : (
         <>

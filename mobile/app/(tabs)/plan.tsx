@@ -154,14 +154,20 @@ export default function Plan() {
     tapped();
 
     const wasSaved = saved.includes(idea.id);
-    setSaved((s) => (wasSaved ? s.filter((id) => id !== idea.id) : [idea.id, ...s]));
+    // Functional updates, and a dedupe on insert, so two quick taps cannot
+    // leave the same id in the list twice and render two cards with one key.
+    setSaved((s) =>
+      wasSaved ? s.filter((id) => id !== idea.id) : s.includes(idea.id) ? s : [idea.id, ...s]
+    );
 
     const { error } = wasSaved
       ? await unsaveIdea(profile.couple_id, idea.id)
       : await saveIdea(profile.couple_id, session.user.id, idea.id);
 
     if (error) {
-      setSaved((s) => (wasSaved ? [idea.id, ...s] : s.filter((id) => id !== idea.id)));
+      setSaved((s) =>
+        wasSaved ? (s.includes(idea.id) ? s : [idea.id, ...s]) : s.filter((id) => id !== idea.id)
+      );
       warned();
       Alert.alert(wasSaved ? "Couldn't remove that" : "Couldn't save that", error.message);
     }
@@ -324,7 +330,18 @@ export default function Plan() {
           </Text>
         </Pressable>
       ) : panel === "pick" ? (
-        <View style={styles.tiles}>
+        <View>
+          <Pressable
+            onPress={() => {
+              tapped();
+              setPanel("closed");
+            }}
+            hitSlop={8}
+            style={styles.pickBack}
+          >
+            <Text style={styles.sectionAction}>&lsaquo; Back</Text>
+          </Pressable>
+          <View style={styles.tiles}>
           {CATEGORIES.map((c) => (
             <Pressable
               key={c.key}
@@ -339,6 +356,7 @@ export default function Plan() {
               <Text style={styles.tileBlurb}>{c.blurb}</Text>
             </Pressable>
           ))}
+          </View>
         </View>
       ) : (
         <View style={styles.section}>
@@ -346,15 +364,26 @@ export default function Plan() {
             <Text style={styles.sectionTitle}>
               {CATEGORIES.find((c) => c.key === category)?.label}
             </Text>
-            <Pressable
-              onPress={() => {
-                tapped();
-                setPanel("pick");
-              }}
-              hitSlop={8}
-            >
-              <Text style={styles.sectionAction}>Change</Text>
-            </Pressable>
+            <View style={styles.listHeaderActions}>
+              <Pressable
+                onPress={() => {
+                  tapped();
+                  setPanel("pick");
+                }}
+                hitSlop={8}
+              >
+                <Text style={styles.sectionAction}>Change</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  tapped();
+                  setPanel("closed");
+                }}
+                hitSlop={8}
+              >
+                <Text style={styles.sectionAction}>Close</Text>
+              </Pressable>
+            </View>
           </View>
 
           {/* Their own words, at the top of the list they are sorting. A
@@ -514,6 +543,8 @@ const createStyles = (t: Theme) =>
     tileBlurb: { ...t.type.caption, color: t.textSecondary, marginTop: t.space(1) },
     section: { marginBottom: t.space(5), gap: t.space(3) },
     listHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
+    listHeaderActions: { flexDirection: "row", gap: t.space(4) },
+    pickBack: { paddingVertical: t.space(2), marginBottom: t.space(2) },
     sectionTitle: { ...t.type.title, color: t.textPrimary },
     sectionAction: { ...t.type.label, color: t.accent, paddingBottom: 2 },
     words: {

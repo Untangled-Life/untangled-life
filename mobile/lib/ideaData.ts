@@ -56,9 +56,15 @@ export async function loadSavedIdeas(): Promise<string[]> {
 }
 
 export async function saveIdea(coupleId: string, userId: string, ideaId: string) {
+  // ignoreDuplicates, so re-saving something the partner already saved is a
+  // no-op rather than an UPDATE -- the table grants insert and delete, not
+  // update, on purpose, because a save has nothing to change.
   return supabase
     .from("date_idea_saves")
-    .upsert({ couple_id: coupleId, idea_id: ideaId, saved_by: userId }, { onConflict: "couple_id,idea_id" });
+    .upsert(
+      { couple_id: coupleId, idea_id: ideaId, saved_by: userId },
+      { onConflict: "couple_id,idea_id", ignoreDuplicates: true }
+    );
 }
 
 export async function unsaveIdea(coupleId: string, ideaId: string) {

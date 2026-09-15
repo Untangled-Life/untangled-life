@@ -15,7 +15,16 @@ import { authenticate, isLockEnabled } from "@/lib/appLock";
  */
 
 type LockState = {
+  /** Whether to hold the biometric lock screen (with its Unlock button). */
   locked: boolean;
+  /**
+   * Whether to cover the app at all. Wider than `locked`: also true before
+   * the setting has been read (so nothing flashes on a cold start) and while
+   * the app is merely inactive with the lock on (so the app-switcher snapshot
+   * shows the cover, not the couple's diary). The cover in this second case
+   * carries no Unlock button, because there is nothing to unlock yet.
+   */
+  covered: boolean;
   /** Try the biometric prompt now. The lock screen's one button. */
   unlock: () => Promise<void>;
   /** Re-read the setting after it is changed in Settings. */
@@ -28,6 +37,10 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   const [enabled, setEnabled] = useState(false);
   const [locked, setLocked] = useState(false);
   const [ready, setReady] = useState(false);
+  // Whether the app is the foreground app. Anything but `active` covers it
+  // when the lock is on, which is what keeps the OS app-switcher snapshot
+  // from showing the diary.
+  const [foreground, setForeground] = useState(true);
 
   // Whether a prompt is already up, so overlapping AppState events and taps
   // do not stack three Face ID sheets.
@@ -63,6 +76,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     if (!enabled) return;
 
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+      setForeground(state === "active");
       if (state === "background") {
         setLocked(true);
       } else if (state === "active") {
@@ -84,8 +98,13 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     if (ready && enabled && locked && !authing.current) void unlock();
   }, [ready, enabled, locked, unlock]);
 
+  const locking = enabled && locked;
+  // Held until the setting is known, so a cold start never paints the app
+  // behind the lock for a frame; plus the inactive-cover case above.
+  const covered = !ready || locking || (enabled && !foreground);
+
   return (
-    <AppLockContext.Provider value={{ locked: enabled && locked, unlock, refresh }}>
+    <AppLockContext.Provider value={{ locked: locking, covered, unlock, refresh }}>
       {children}
     </AppLockContext.Provider>
   );

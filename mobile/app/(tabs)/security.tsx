@@ -17,7 +17,14 @@ import { QRCode } from "@/components/qr-code";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { succeeded, tapped, warned } from "@/lib/haptics";
 import { supabase } from "@/lib/supabase";
-import { beginEnrolment, disableTotp, submitCode, verifiedFactors, type Enrolment } from "@/lib/mfa";
+import {
+  beginEnrolment,
+  disableTotp,
+  generateRecoveryCodes,
+  submitCode,
+  verifiedFactors,
+  type Enrolment,
+} from "@/lib/mfa";
 import { isLockEnabled, lockCapability, setLockEnabled, type LockCapability } from "@/lib/appLock";
 import { useAppLock } from "@/contexts/appLock";
 import { Theme } from "@/theme/tokens";
@@ -45,6 +52,10 @@ export default function Security() {
 
   const [lockCap, setLockCap] = useState<LockCapability | null>(null);
   const [lockOn, setLockOn] = useState(false);
+
+  // The eight codes, held only long enough to be written down. Shown once,
+  // right after two-factor goes on, and never fetched again.
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
 
   const reload = useCallback(async () => {
     const [factors, cap, on] = await Promise.all([
@@ -89,10 +100,38 @@ export default function Security() {
     setEnrolment(null);
     setCode("");
     await reload();
-    Alert.alert(
-      "Two-factor is on",
-      "You'll enter a code from your authenticator each time you sign in on a new device."
-    );
+
+    // Straight to the recovery codes, because two-factor without a way back
+    // in is a locked account waiting to happen. If minting them fails the
+    // account is still fine -- they can be made again from here -- so this
+    // does not block turning it on.
+    const { codes, error: codeError } = await generateRecoveryCodes();
+    if (codeError || codes.length === 0) {
+      Alert.alert(
+        "Two-factor is on",
+        "Set up your recovery codes from this screen so you're never locked out."
+      );
+      return;
+    }
+    setRecoveryCodes(codes);
+  }
+
+  async function regenerateCodes() {
+    tapped();
+    const { codes, error } = await generateRecoveryCodes();
+    if (error || codes.length === 0) {
+      warned();
+      Alert.alert("Couldn't make new codes", error ?? "Please try again.");
+      return;
+    }
+    setRecoveryCodes(codes);
+  }
+
+  async function copyCodes() {
+    if (!recoveryCodes) return;
+    await Clipboard.setStringAsync(recoveryCodes.join("\n"));
+    tapped();
+    Alert.alert("Copied", "Keep them somewhere safe, not on this phone alone.");
   }
 
   function confirmDisableTotp() {
@@ -176,6 +215,31 @@ export default function Security() {
       {/* ---- Two-factor ---- */}
       <Text style={styles.groupTitle}>Two-factor</Text>
 
+      {recoveryCodes ? (
+        <View style={styles.card}>
+          <Text style={styles.rowLabel}>Your recovery codes</Text>
+          <Text style={styles.rowHint}>
+            Write these down or save them somewhere that isn&apos;t this phone. Each one gets you
+            back in once if you lose your authenticator. This is the only time they&apos;re shown.
+          </Text>
+          <View style={styles.codeGrid}>
+            {recoveryCodes.map((c) => (
+              <Text key={c} style={styles.recoveryCode}>
+                {c}
+              </Text>
+            ))}
+          </View>
+          <View style={styles.buttonRow}>
+            <Pressable style={press(styles.primary)} onPress={() => setRecoveryCodes(null)}>
+              <Text style={styles.primaryText}>I&apos;ve saved them</Text>
+            </Pressable>
+            <Pressable style={press(styles.secondary)} onPress={copyCodes}>
+              <Text style={styles.secondaryText}>Copy</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
       {enrolment ? (
         <View style={styles.card}>
           <Text style={styles.rowLabel}>Scan this with your authenticator</Text>
@@ -226,6 +290,9 @@ export default function Security() {
               <Text style={styles.rowHint}>You enter a code when you sign in on a new device.</Text>
             </View>
           </View>
+          <Pressable onPress={regenerateCodes} hitSlop={8}>
+            <Text style={styles.action}>Make new recovery codes</Text>
+          </Pressable>
           <Pressable onPress={confirmDisableTotp} hitSlop={8}>
             <Text style={[styles.action, styles.actionDanger]}>Turn off</Text>
           </Pressable>
@@ -321,6 +388,24 @@ const createStyles = (t: Theme) =>
     action: { ...t.type.label, color: t.accent },
     actionDanger: { color: t.danger },
     qrWrap: { alignItems: "center", marginVertical: t.space(3) },
+    codeGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: t.space(2),
+      marginVertical: t.space(2),
+    },
+    recoveryCode: {
+      ...t.type.body,
+      color: t.textPrimary,
+      backgroundColor: t.surfaceSunken,
+      borderRadius: t.radius.sm,
+      paddingHorizontal: t.space(3),
+      paddingVertical: t.space(2),
+      letterSpacing: 1,
+      // Two per row on a narrow phone.
+      flexBasis: "45%",
+      textAlign: "center",
+    },
     input: {
       backgroundColor: t.surfaceSunken,
       borderRadius: t.radius.md,

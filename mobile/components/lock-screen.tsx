@@ -14,16 +14,24 @@ import { Theme } from "@/theme/tokens";
  */
 export function LockScreen() {
   const styles = useThemedStyles(createStyles);
-  const { unlock } = useAppLock();
+  const { locked, unlock } = useAppLock();
 
   return (
     <View style={styles.screen}>
       <HeartIcon size={40} color={styles.mark.color} />
       <Text style={styles.title}>Untangled Life</Text>
-      <Text style={styles.body}>Locked. Unlock with Face ID or your passcode.</Text>
-      <Pressable style={press(styles.button)} onPress={unlock} accessibilityRole="button">
-        <Text style={styles.buttonText}>Unlock</Text>
-      </Pressable>
+      {/* The button appears only once there is something to unlock. While the
+          app is merely inactive, or the setting is still loading, this is a
+          plain cover with nothing to press -- there is no prompt to answer
+          yet. */}
+      {locked ? (
+        <>
+          <Text style={styles.body}>Locked. Unlock with Face ID or your passcode.</Text>
+          <Pressable style={press(styles.button)} onPress={unlock} accessibilityRole="button">
+            <Text style={styles.buttonText}>Unlock</Text>
+          </Pressable>
+        </>
+      ) : null}
     </View>
   );
 }

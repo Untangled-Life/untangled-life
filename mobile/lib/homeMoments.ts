@@ -13,6 +13,15 @@
  * for the network: Home already has what they need.
  */
 
+/** An ISO timestamp to its LOCAL YYYY-MM-DD, so a memory lands on the day the couple lived it. */
+function localDayOf(iso: string): string {
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /** A date, as YYYY-MM-DD, with the year ignored: same month and day as today. */
 function isSameDayOfYear(dateStr: string, now: Date): boolean {
   const [, m, d] = dateStr.split("-").map((n) => parseInt(n, 10));
@@ -74,7 +83,11 @@ export function onThisDay(
   }
 
   for (const date of loved) {
-    const day = date.last_at.slice(0, 10);
+    // The LOCAL calendar day the date happened, not the UTC slice. A dinner
+    // at 8pm on the 15th in Sydney is stored as the 16th in UTC, and slicing
+    // the timestamp would fire this memory a day early and link to the wrong
+    // day.
+    const day = localDayOf(date.last_at);
     if (!isSameDayOfYear(day, now)) continue;
     const years = yearsSince(day, now);
     if (years < 1) continue;
