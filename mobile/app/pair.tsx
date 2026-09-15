@@ -11,7 +11,8 @@ import {
 import { press } from "@/components/press";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import * as Linking from "expo-linking";
 import { supabase } from "@/lib/supabase";
 import { carryCoverInto } from "@/lib/photos";
 import { useAuth } from "@/contexts/auth";
@@ -23,7 +24,11 @@ export default function Pair() {
   const t = useTheme();
 
   const { session, profile, refreshProfile, signOut } = useAuth();
-  const [code, setCode] = useState("");
+  // A code carried in by the invite link the other phone shared. Prefilled
+  // rather than auto-redeemed: the person still taps to join, so a link
+  // opened by accident does not pair two strangers.
+  const { code: linkedCode } = useLocalSearchParams<{ code?: string }>();
+  const [code, setCode] = useState(typeof linkedCode === "string" ? linkedCode.toUpperCase() : "");
   const [myCode, setMyCode] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -178,8 +183,13 @@ export default function Pair() {
   async function shareCode() {
     if (!myCode) return;
     try {
+      // A tappable link, with the code spelled out underneath for anybody
+      // whose messaging app strips it or who is reading it on the same phone
+      // they will type it into. The scheme is the app's own, so it opens
+      // straight onto this screen with the code filled in.
+      const link = Linking.createURL("/pair", { queryParams: { code: myCode } });
       await Share.share({
-        message: `Join me on Untangled Life. My invite code is ${myCode}.`,
+        message: `Join me on Untangled Life: ${link}\n\nOr enter the code ${myCode} by hand.`,
       });
     } catch {
       // The person dismissed the sheet, or the platform refused it. Either
