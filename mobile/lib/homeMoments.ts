@@ -15,6 +15,9 @@
 
 /** An ISO timestamp to its LOCAL YYYY-MM-DD, so a memory lands on the day the couple lived it. */
 function localDayOf(iso: string): string {
+  // A bare date carries no time to localise, so take it as written rather
+  // than letting new Date() read it as UTC midnight and shift it a day west.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   const d = new Date(iso);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");

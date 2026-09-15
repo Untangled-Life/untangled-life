@@ -78,11 +78,16 @@ export default function SignIn() {
     // The session is already signed in at the password's level; redeeming the
     // code takes the factor off, so the app is reachable straight after.
     const { ok, error: recoveryError } = await redeemRecoveryCode(code);
-    setLoading(false);
     if (!ok) {
+      setLoading(false);
       setError(recoveryError ?? "That recovery code didn't work.");
       return;
     }
+    // The factor is gone server-side, but the client still holds the session
+    // it signed in with, whose cached assurance level remembers a factor.
+    // Refresh it so nothing downstream still believes a code is owed.
+    await supabase.auth.refreshSession();
+    setLoading(false);
     router.replace("/");
   }
 
