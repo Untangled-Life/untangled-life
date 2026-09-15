@@ -37,6 +37,7 @@ import { loadFreeWindows as loadFreeWindowsData } from "@/lib/freeWindows";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { buildInbox } from "@/lib/inbox";
 import { ValuedAnswers, fallbackLine, partnerPrompt } from "@/lib/valued";
+import { loadPartnerValued } from "@/lib/ideaData";
 import { daySeed } from "@/lib/dateIdeas";
 import { loadOpenProposals, splitProposals, DateProposal } from "@/lib/dateProposals";
 import { AwaitingReview } from "@/lib/dateHistory";
@@ -219,26 +220,10 @@ export default function Home() {
     // thing a badge must never do.
     setAwaitingReview(await nextAwaitingReview());
 
-    // Only ever comes back when they have shared it. The policy does the
-    // gating, so there is nothing to check here beyond which row is theirs.
-    // Scoped to the couple and limited rather than maybeSingle(). A couple
-    // row is reused when somebody unpairs and repairs, so a leftover answer
-    // from an ex used to make this match two rows -- and maybeSingle() errors
-    // on two, which this code would have swallowed into a permanently blank
-    // card. leaving.sql now deletes those rows; this is the belt.
-    const { data: valued } = profile?.couple_id
-      ? await supabase
-          .from("valued_answers")
-          .select(
-            "user_id, couple_id, ranking, feels_valued, little_things, hard_week, shared, updated_at"
-          )
-          .eq("couple_id", profile.couple_id)
-          .neq("user_id", session?.user.id ?? "")
-          .order("updated_at", { ascending: false })
-          .limit(1)
-      : { data: null };
-
-    setPartnerValued(((valued as ValuedAnswers[] | null) ?? [])[0] ?? null);
+    // Only ever comes back when they have shared it; the policy does the
+    // gating. Shared with the planner, which sorts its ideas around the
+    // same answer. See lib/ideaData.ts for why it is scoped and limited.
+    setPartnerValued(await loadPartnerValued(profile?.couple_id ?? null, session?.user.id ?? null));
     setPlans(await loadUpcomingPlans());
 
     // When anything was last put in the diary, which is a different question

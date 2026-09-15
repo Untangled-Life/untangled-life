@@ -167,3 +167,13 @@ export function ChevronRightIcon(p: IconProps) {
     </Base>
   );
 }
+
+/** A bookmark. Filled when the thing is saved, so the state is legible at a glance. */
+export function BookmarkIcon(p: IconProps & { filled?: boolean }) {
+  const { filled, ...rest } = p;
+  return (
+    <Base {...rest}>
+      <Path d="M7 4h10v16l-5-3.5L7 20V4Z" fill={filled ? (rest.color as string) ?? "#14140F" : "none"} />
+    </Base>
+  );
+}

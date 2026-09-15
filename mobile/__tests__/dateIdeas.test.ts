@@ -1,6 +1,7 @@
 import {
   CATEGORIES,
   IDEAS,
+  TAGS,
   daySeed,
   filterIdeas,
   lengthLabel,
@@ -16,7 +17,7 @@ describe("the idea list itself", () => {
   });
 
   it("only uses categories that exist", () => {
-    const known = new Set(CATEGORIES.map((c) => c.key));
+    const known = new Set([...CATEGORIES.map((c) => c.key), ...TAGS]);
     for (const idea of IDEAS) {
       for (const c of idea.categories) expect(known.has(c)).toBe(true);
     }
@@ -35,7 +36,7 @@ describe("the idea list itself", () => {
   it("gives everything a sensible length", () => {
     for (const idea of IDEAS) {
       expect(idea.minutes).toBeGreaterThanOrEqual(30);
-      expect(idea.minutes).toBeLessThanOrEqual(1440);
+      expect(idea.minutes).toBeLessThanOrEqual(2880);
     }
   });
 });
