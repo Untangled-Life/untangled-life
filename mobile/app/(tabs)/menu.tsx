@@ -16,6 +16,7 @@ import {
   ChevronRightIcon,
 } from "@/components/icons";
 import { useCoupleMembers } from "@/hooks/useCoupleMembers";
+import { useAuth } from "@/contexts/auth";
 
 type IconProps = { size?: number; color?: string };
 
@@ -30,6 +31,7 @@ export default function Menu() {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
   const { partner } = useCoupleMembers();
+  const { profile, signOut } = useAuth();
 
   // Nothing here pretends to work. Anything without a real destination says so
   // rather than opening an empty screen -- the outstanding ones are tracked in
@@ -177,6 +179,16 @@ export default function Menu() {
           </View>
         ))}
 
+        {/* Last, under everything, in the one place people go looking for
+            it. It used to sit at the foot of Home, which is a screen you
+            scroll for the countdowns -- so the thing you press once a year by
+            accident was at the end of the thing you open every day. */}
+        <Pressable style={press(styles.signOut)} onPress={() => signOut()}>
+          <Text style={styles.signOutText}>
+            Signed in as {profile?.display_name ?? "you"}. Sign out
+          </Text>
+        </Pressable>
+
         <Text style={styles.version}>Untangled Life · early build</Text>
       </ScrollView>
     </View>
@@ -237,10 +249,16 @@ const createStyles = (t: Theme) =>
     },
     rowLabel: { ...t.type.heading, color: t.textPrimary },
     rowHint: { ...t.type.caption, color: t.textMuted, marginTop: 1 },
+    signOut: {
+      marginTop: t.space(8),
+      paddingVertical: t.space(3),
+      alignItems: "center",
+    },
+    signOutText: { ...t.type.caption, color: t.textMuted },
     version: {
       textAlign: "center",
       color: t.textMuted,
       ...t.type.caption,
-      marginTop: t.space(8),
+      marginTop: t.space(4),
     },
   });

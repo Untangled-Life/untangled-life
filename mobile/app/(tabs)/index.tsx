@@ -79,7 +79,7 @@ export default function Home() {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
 
-  const { session, profile, signOut } = useAuth();
+  const { session, profile } = useAuth();
   const { outstanding, load: loadOnboarding } = useOnboarding();
   const { me, partner } = useCoupleMembers();
   const [permission, setPermission] = useState<PermissionStatus | null>(null);
@@ -1134,10 +1134,6 @@ export default function Home() {
       ) : null}
 
       {visible.map((key) => sectionBlocks[key])}
-
-      <Pressable onPress={() => signOut()} style={press({ marginTop: 32 })}>
-        <Text style={styles.link}>Signed in as {profile?.display_name ?? "you"}. Sign out</Text>
-      </Pressable>
     </Animated.ScrollView>
 
     {/* Fully in by the time the hero's own text reaches the status bar, so
@@ -1444,5 +1440,4 @@ const createStyles = (t: Theme) =>
     marginBottom: t.space(6),
   },
   littleText: { ...t.type.body, color: t.textPrimary },
-  link: { textAlign: "center", color: t.textMuted, ...t.type.caption },
   });
