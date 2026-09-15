@@ -15,9 +15,11 @@ export default function SignUp() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function handleSignUp() {
     setError(null);
+    setNotice(null);
     if (!name.trim() || !email.trim() || password.length < 8) {
       setError("Name, email and an 8+ character password are all required.");
       return;
@@ -41,7 +43,11 @@ export default function SignUp() {
     setLoading(false);
 
     if (!data.session) {
-      setError("Check your email to confirm your account, then sign in.");
+      // The account was created. Saying so in the red, in the same place the
+      // password complaints appear, reads as "that failed" -- and somebody
+      // who believes their sign-up failed tries again with the same address
+      // and gets a real error the second time.
+      setNotice("Account created. Check your email to confirm it, then sign in.");
       return;
     }
 
@@ -78,6 +84,7 @@ export default function SignUp() {
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
       <Pressable style={press(styles.button)} onPress={handleSignUp} disabled={loading}>
         {loading ? <ActivityIndicator color={t.surface} /> : <Text style={styles.buttonText}>Sign up</Text>}
@@ -121,5 +128,6 @@ const createStyles = (t: Theme) =>
   },
   buttonText: { color: t.textOnBrand, ...t.type.heading },
   error: { color: t.danger, marginBottom: 8, ...t.type.caption },
+  notice: { color: t.accent, marginBottom: 8, ...t.type.caption },
   link: { marginTop: 20, textAlign: "center", color: t.accent, ...t.type.body },
   });

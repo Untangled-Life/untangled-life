@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  Share,
+} from "react-native";
 import { press } from "@/components/press";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
@@ -51,7 +59,7 @@ export default function Pair() {
   // go through. Polling rather than realtime: no channel setup, and this
   // screen is short-lived.
   useEffect(() => {
-    if (!waiting || !coupleId || !userId) return;
+    if (!coupleId || !userId) return;
 
     let cancelled = false;
 
@@ -78,7 +86,7 @@ export default function Pair() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [waiting, coupleId, userId, refreshProfile]);
+  }, [coupleId, userId, refreshProfile]);
 
   async function handleCreateInvite() {
     setError(null);
@@ -113,6 +121,19 @@ export default function Pair() {
     router.replace("/");
   }
 
+  async function shareCode() {
+    if (!myCode) return;
+    try {
+      await Share.share({
+        message: `Join me on Untangled Life. My invite code is ${myCode}.`,
+      });
+    } catch {
+      // The person dismissed the sheet, or the platform refused it. Either
+      // way the code is still on screen to read out, so there is nothing
+      // useful to say about it.
+    }
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Link up with your partner</Text>
@@ -125,8 +146,17 @@ export default function Pair() {
         <>
           <View style={styles.codeBox}>
             <Text style={styles.codeLabel}>Send this to your partner</Text>
-            <Text style={styles.code}>{myCode}</Text>
+            <Text style={styles.code} selectable>
+              {myCode}
+            </Text>
           </View>
+
+          {/* It said "send this to your partner" above six characters that
+              could not be copied, shared or even selected. The only way to
+              get it to the other phone was to read it out. */}
+          <Pressable style={press(styles.buttonSecondary)} onPress={shareCode} hitSlop={8}>
+            <Text style={styles.buttonSecondaryText}>Send the code</Text>
+          </Pressable>
 
           <View style={styles.waitingRow}>
             <ActivityIndicator color={t.accent} />
@@ -134,6 +164,17 @@ export default function Pair() {
               Waiting for them to enter it. This screen moves on by itself.
             </Text>
           </View>
+
+          {/* Tapping Create when you meant to enter theirs replaced this
+              whole screen, and nothing ever set waiting back to false -- so
+              the only way out was to sign out of the app. */}
+          {/* Either code works from here: this phone keeps watching for
+              them to use the one above, and entering theirs retires the one
+              you sent (redeem_couple_invite deletes the couple it left
+              behind, and the code goes with it). */}
+          <Pressable onPress={() => setWaiting(false)} hitSlop={8}>
+            <Text style={styles.link}>Enter their code instead</Text>
+          </Pressable>
         </>
       ) : (
         <>

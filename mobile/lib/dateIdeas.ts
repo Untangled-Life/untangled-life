@@ -156,3 +156,20 @@ export function spreadOptions(windows: Interval[], count = MAX_OPTIONS): Interva
     .sort((a, b) => a.start.getTime() - b.start.getTime())
     .slice(0, count);
 }
+
+/**
+ * How long an idea takes, in words.
+ *
+ * `Math.round(minutes / 60)` gave "About 1 hours" on the three sixty-minute
+ * ideas, called ninety minutes two hours, and described a night away -- 1440
+ * minutes -- as "most of a day".
+ */
+export function lengthLabel(minutes: number): string {
+  if (minutes >= 1440) return "Overnight";
+  if (minutes >= 480) return "Most of a day";
+  if (minutes >= 75 && minutes < 105) return "About an hour and a half";
+  if (minutes < 75) return "About an hour";
+
+  const hours = Math.round(minutes / 60);
+  return `About ${hours} hours`;
+}

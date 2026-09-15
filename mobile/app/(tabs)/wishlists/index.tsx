@@ -33,11 +33,21 @@ export default function Wishlists() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
 
+  // An empty list and a list nobody has read yet look identical, and the
+  // one that gets shown on every cold open is the wrong one: somebody with
+  // eleven of these should never be told they have none.
+  const [loaded, setLoaded] = useState(false);
+
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("wishlists")
       .select("id, name, wishlist_items(count)")
       .order("created_at", { ascending: true });
+
+    // A read that failed is not a list with nothing in it. Marking it loaded
+    // would put "you have none of these" in front of somebody who has
+    // eleven, which is the sentence this flag was added to prevent.
+    if (error) return;
 
     if (data) {
       setWishlists(
@@ -48,6 +58,8 @@ export default function Wishlists() {
         }))
       );
     }
+
+    setLoaded(true);
   }, []);
 
   // Refreshes whenever this screen comes back into view, not just on
@@ -63,11 +75,16 @@ export default function Wishlists() {
       name: name.trim(),
     });
     setSaving(false);
-    if (!error) {
-      setName("");
-      setModalVisible(false);
-      load();
+
+    if (error) {
+      warned();
+      Alert.alert("Couldn't create that", error.message);
+      return;
     }
+
+    setName("");
+    setModalVisible(false);
+    load();
   }
 
   async function renameWishlist() {
@@ -139,7 +156,7 @@ export default function Wishlists() {
         </Pressable>
       </View>
 
-      {wishlists.length === 0 ? (
+      {loaded && wishlists.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyText}>
             No wishlists yet. Start one for gift ideas, date ideas, or travel.

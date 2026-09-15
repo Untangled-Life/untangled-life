@@ -114,6 +114,7 @@ export default function EventEditor() {
   const [repeatEvery, setRepeatEvery] = useState<RepeatEvery>("none");
   const [repeatUntil, setRepeatUntil] = useState<string | null>(null);
   const [isDate, setIsDate] = useState(false);
+  const [savedRepeat, setSavedRepeat] = useState<RepeatEvery>("none");
 
   /**
    * An hour after the start -- rolling the DATE forward when that crosses
@@ -196,6 +197,7 @@ export default function EventEditor() {
     setPushTo([]);
     setRepeatEvery("none");
     setRepeatUntil(null);
+    setSavedRepeat("none");
     // Off by default. Most of what goes in a calendar is not a date, and a
     // section that fills up with dentist appointments stops meaning anything.
     // On when the ideas screen sent us here, because there it is the point.
@@ -279,6 +281,10 @@ export default function EventEditor() {
       setOwner(ev.owner_user_id);
       setPushTo(ev.push_to ?? []);
       setRepeatEvery(ev.repeat_every ?? "none");
+      // What the SAVED row repeats by, which is what delete acts on. The
+      // picker is a draft until you save it, so reading the warning off it
+      // would promise a single deletion while removing a whole series.
+      setSavedRepeat(ev.repeat_every ?? "none");
       setRepeatUntil(ev.repeat_until ?? null);
       setIsDate(ev.is_date ?? false);
       setMissing(false);
@@ -475,7 +481,14 @@ export default function EventEditor() {
   function confirmDelete() {
     if (!editingId) return;
 
-    Alert.alert(`Delete "${title}"?`, "It comes off both your phone calendars too.", [
+    const repeats = savedRepeat !== "none";
+
+    Alert.alert(
+      repeats ? `Delete every "${title}"?` : `Delete "${title}"?`,
+      repeats
+        ? `"${title}" repeats. Every occurrence will be deleted, not just this one, and they all come off both your phone calendars.`
+        : "It comes off both your phone calendars too.",
+      [
       { text: "Keep it", style: "cancel" },
       {
         text: "Delete",
@@ -496,7 +509,8 @@ export default function EventEditor() {
           router.back();
         },
       },
-    ]);
+      ]
+    );
   }
 
   function nameFor(userId: string): string {

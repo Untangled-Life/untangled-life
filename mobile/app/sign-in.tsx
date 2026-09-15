@@ -4,6 +4,7 @@ import { press } from "@/components/press";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
 import { Link, router } from "expo-router";
+import * as Linking from "expo-linking";
 import { supabase } from "@/lib/supabase";
 
 export default function SignIn() {
@@ -15,8 +16,15 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Not an error, so not in the red. Said in its own words below the form.
+  const [notice, setNotice] = useState<string | null>(null);
+
   async function handleSignIn() {
     setError(null);
+    // The reset notice is about a different attempt. Left up, it sits in
+    // green directly above a red failure, on the one screen where those two
+    // colours have just been given separate jobs.
+    setNotice(null);
     setLoading(true);
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
@@ -28,6 +36,37 @@ export default function SignIn() {
       return;
     }
     router.replace("/");
+  }
+
+  /**
+   * A forgotten password was a locked account with no way back in, and the
+   * couple's whole shared diary behind it. Reuses the email field, because
+   * asking for it twice on the screen where they have just typed it is the
+   * kind of thing that makes people give up.
+   *
+   * The wording never says whether the address is registered: that would
+   * turn this into a way of finding out who has an account.
+   */
+  async function handleReset() {
+    const address = email.trim();
+
+    if (!address) {
+      setNotice(null);
+      setError("Put your email address in first, and I'll send you a reset link.");
+      return;
+    }
+
+    setError(null);
+    setNotice(null);
+    setLoading(true);
+    // Back into the app, not to the project's web Site URL. Without this the
+    // link opens a page that has nothing to do with the phone the person is
+    // holding, and the password can never actually be changed.
+    await supabase.auth.resetPasswordForEmail(address, {
+      redirectTo: Linking.createURL("/reset-password"),
+    });
+    setLoading(false);
+    setNotice(`If there's an account for ${address}, a reset link is on its way.`);
   }
 
   return (
@@ -58,9 +97,14 @@ export default function SignIn() {
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
       <Pressable style={press(styles.button)} onPress={handleSignIn} disabled={loading}>
         {loading ? <ActivityIndicator color={t.surface} /> : <Text style={styles.buttonText}>Sign in</Text>}
+      </Pressable>
+
+      <Pressable onPress={handleReset} disabled={loading} hitSlop={8}>
+        <Text style={styles.link}>Forgotten your password?</Text>
       </Pressable>
 
       <Link href="/sign-up" style={styles.link}>
@@ -101,5 +145,8 @@ const createStyles = (t: Theme) =>
   },
   buttonText: { color: t.textOnBrand, ...t.type.heading },
   error: { color: t.danger, marginBottom: 8, ...t.type.caption },
+  // Something that worked has no business being the same colour as
+  // something that failed, in the same place on the same screen.
+  notice: { color: t.accent, marginBottom: 8, ...t.type.caption },
   link: { marginTop: 20, textAlign: "center", color: t.accent, ...t.type.body },
   });

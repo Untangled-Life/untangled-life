@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Linking,
 } from "react-native";
 import * as Calendar from "expo-calendar/legacy";
 import { router } from "expo-router";
@@ -46,15 +47,26 @@ export default function Calendars() {
     if (!session?.user.id) return;
     const result = await Calendar.getCalendarPermissionsAsync();
     setPermission(result.status);
+    // The same answer the request gives, read on the way in -- otherwise a
+    // previously-denied phone gets one dead tap on "Allow calendar access"
+    // before the button admits it has to be Settings.
+    setCanAskAgain(result.canAskAgain !== false);
     setCalendars(result.status === "granted" ? await listCalendars(session.user.id) : []);
     setLoaded(true);
   }, [session?.user.id]);
 
   const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
+  const [canAskAgain, setCanAskAgain] = useState(true);
+
   async function requestAccess() {
     const result = await Calendar.requestCalendarPermissionsAsync();
     setPermission(result.status);
+    // Once iOS has recorded a denial it answers this without showing
+    // anything, so the button was dead for good: a prominent brand-coloured
+    // control under "Calendar access is off" that did nothing, forever. The
+    // only way back is the Settings app, so take them there.
+    setCanAskAgain(result.canAskAgain !== false);
     if (result.status === "granted") load();
   }
 
@@ -65,7 +77,11 @@ export default function Calendars() {
     // the second just inserted. The control would end up saying "Full detail"
     // over an empty table, with nothing to reconcile it.
     if (busyId !== null) return;
-    if (!session?.user.id || next === calendar.shareLevel) return;
+    if (!session?.user.id) return;
+    // An undecided calendar is already "off" as far as the stored level
+    // goes, so this guard swallowed the tap that would have recorded the
+    // choice -- leaving it undecided however many times you pressed Off.
+    if (next === calendar.shareLevel && !calendar.undecided) return;
     tapped();
     setBusyId(calendar.id);
 
@@ -81,7 +97,16 @@ export default function Calendars() {
     if (error) {
       warned();
       setCalendars((cs) =>
-        cs.map((c) => (c.id === calendar.id ? { ...c, shareLevel: previous } : c))
+        cs.map((c) =>
+          // undecided has to go back too. Without it a failed write left the
+          // row saying "off, decided", which the guard above then treats as
+          // nothing to do -- so the control was dead for that calendar until
+          // the app restarted, which is the exact bug undecided exists to
+          // prevent, reintroduced in the failure branch.
+          c.id === calendar.id
+            ? { ...c, shareLevel: previous, undecided: calendar.undecided }
+            : c
+        )
       );
       Alert.alert("Couldn't save that", error);
       setBusyId(null);
@@ -131,9 +156,20 @@ export default function Calendars() {
             Your phone has to let the app see your calendars before you can choose between them.
             Nothing is read or uploaded until you set a calendar to share below.
           </Text>
-          <Pressable style={press(styles.button)} onPress={requestAccess}>
-            <Text style={styles.buttonText}>Allow calendar access</Text>
+          <Pressable
+            style={press(styles.button)}
+            onPress={canAskAgain ? requestAccess : () => Linking.openSettings()}
+          >
+            <Text style={styles.buttonText}>
+              {canAskAgain ? "Allow calendar access" : "Open Settings"}
+            </Text>
           </Pressable>
+          {canAskAgain ? null : (
+            <Text style={styles.emptyText}>
+              Your phone remembers that this was turned down, so it will not ask again. Calendars
+              can be switched back on from Settings.
+            </Text>
+          )}
         </View>
       ) : !loaded ? (
         <ActivityIndicator style={{ marginTop: t.space(8) }} />
@@ -160,7 +196,12 @@ export default function Calendars() {
 
                 <View style={styles.segmented}>
                   {SHARE_LEVELS.map((level) => {
-                    const active = c.shareLevel === level.key;
+                    // Nothing is highlighted until somebody has chosen. Off
+                    // came up already selected on a brand-new calendar, so
+                    // the screen showed a decision that had not been made --
+                    // and tapping Off, the thing it appeared to already be,
+                    // did nothing at all.
+                    const active = !c.undecided && c.shareLevel === level.key;
                     return (
                       <Pressable
                         key={level.key}
@@ -180,7 +221,9 @@ export default function Calendars() {
                 </View>
 
                 <Text style={styles.rowHint}>
-                  {SHARE_LEVELS.find((l) => l.key === c.shareLevel)?.blurb}
+                  {c.undecided
+                    ? "Not chosen yet. Nothing from it leaves your phone until you pick one."
+                    : SHARE_LEVELS.find((l) => l.key === c.shareLevel)?.blurb}
                 </Text>
               </View>
             ))}

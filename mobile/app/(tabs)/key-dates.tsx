@@ -370,7 +370,7 @@ export default function KeyDates() {
 
           if (clearError) {
             warned();
-            setError(clearError.message);
+            Alert.alert("Couldn't clear that", clearError.message);
             return;
           }
 
@@ -402,7 +402,7 @@ export default function KeyDates() {
 
     if (saveError) {
       warned();
-      setError(saveError.message);
+      Alert.alert("Couldn't change that", saveError.message);
     }
     // load() reschedules every reminder from scratch, which is what makes
     // switching off take effect now rather than at the next app open.
@@ -429,7 +429,7 @@ export default function KeyDates() {
 
     if (saveError) {
       warned();
-      setError(saveError.message);
+      Alert.alert("Couldn't change that", saveError.message);
     }
     load();
   }
@@ -445,7 +445,7 @@ export default function KeyDates() {
 
     if (saveError) {
       warned();
-      setError(saveError.message);
+      Alert.alert("Couldn't save those notes", saveError.message);
       return;
     }
     load();
@@ -462,7 +462,7 @@ export default function KeyDates() {
 
     if (pinError) {
       warned();
-      setError(pinError.message);
+      Alert.alert("Couldn't change that", pinError.message);
     }
     load();
   }
@@ -479,7 +479,7 @@ export default function KeyDates() {
 
     if (tripError) {
       warned();
-      setError(tripError.message);
+      Alert.alert("Couldn't save that", tripError.message);
       return;
     }
     succeeded();
@@ -495,7 +495,10 @@ export default function KeyDates() {
   async function saveEdit(row: KeyDateRow, patch: { title?: string; date?: string }) {
     const title = (patch.title ?? row.title).trim();
     if (!title) {
-      setError("It needs a name.");
+      warned();
+      // Said where the editing is happening. The banner this used to set
+      // lives at the top of a list that can be several screens long.
+      Alert.alert("It needs a name", "Give this one a name before saving it.");
       return;
     }
 
@@ -506,7 +509,7 @@ export default function KeyDates() {
 
     if (updateError) {
       warned();
-      setError(updateError.message);
+      Alert.alert("Couldn't save that", updateError.message);
       return;
     }
 
@@ -533,7 +536,10 @@ export default function KeyDates() {
     // reload below puts it back, which would otherwise look like a ghost.
     setDates((prev) => prev.filter((d) => d.id !== id));
     const { error: deleteError } = await supabase.from("key_dates").delete().eq("id", id);
-    if (deleteError) setError(deleteError.message);
+    if (deleteError) {
+      warned();
+      Alert.alert("Couldn't remove that", deleteError.message);
+    }
     load();
   }
 

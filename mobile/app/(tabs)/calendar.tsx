@@ -311,6 +311,18 @@ export default function CalendarScreen() {
 
   const loadSeq = useRef(0);
 
+  /**
+   * Whether anything has been read yet, and whether the read worked.
+   *
+   * An empty day, a day nobody has looked up yet and a day whose queries
+   * failed all render as no rows, and the screen used to say the same
+   * reassuring thing about all three. Telling a couple they are free when
+   * the truth is that the app could not find out is the single worst thing
+   * a shared calendar can do.
+   */
+  const [loaded, setLoaded] = useState(false);
+  const [readFailed, setReadFailed] = useState(false);
+
   const [plans, setPlans] = useState<PlannedEvent[]>([]);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [busy, setBusy] = useState<BusyRow[]>([]);
@@ -370,6 +382,11 @@ export default function CalendarScreen() {
     ]);
 
     if (seq !== loadSeq.current) return;
+
+    setReadFailed(
+      Boolean(planRes.error || keyRes.error || busyRes.error || patternRes.error || shiftRes.error)
+    );
+    setLoaded(true);
 
     setPlans((planRes.data as PlannedEvent[]) ?? []);
     setKeyDates((keyRes.data as KeyDateRow[]) ?? []);
@@ -846,9 +863,15 @@ export default function CalendarScreen() {
           ? `"${entry.label}" and its reminders will be removed for both of you.`
           : "This day will be marked off, and your working hours won't count against free time.";
 
-    Alert.alert("Are you sure?", message, [
-      { text: "Keep it", style: "cancel" },
-      { text: "Remove", style: "destructive", onPress: () => performAction(entry) },
+    const markingOff = entry.action?.type === "markDayOff";
+
+    Alert.alert(markingOff ? "Mark this day off?" : "Are you sure?", message, [
+      { text: markingOff ? "Leave it" : "Keep it", style: "cancel" },
+      {
+        text: markingOff ? "Mark it off" : "Remove",
+        style: markingOff ? "default" : "destructive",
+        onPress: () => performAction(entry),
+      },
     ]);
   }
 
@@ -1014,11 +1037,26 @@ export default function CalendarScreen() {
                   long bar still has to say there is more to see. */}
               {hasOverflow ? (
                 <View style={styles.lane}>
-                  {overflow.map((n, i) => (
-                    <View key={i} style={styles.overflowCell}>
-                      {n > 0 ? <Text style={styles.overflowText}>+{n} more</Text> : null}
-                    </View>
-                  ))}
+                  {overflow.map((n, i) =>
+                    n > 0 ? (
+                      // The one label on the grid that promises there is more
+                      // to see, and it was a bare Text outside the day cell's
+                      // own Pressable, so tapping it did nothing. It selects
+                      // the day; the list underneath already shows everything.
+                      <Pressable
+                        key={i}
+                        style={press(styles.overflowCell)}
+                        onPress={() => setSelected(toDateKey(days[i]))}
+                        hitSlop={4}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${n} more on ${days[i].toLocaleDateString(undefined, { day: "numeric", month: "long" })}`}
+                      >
+                        <Text style={styles.overflowText}>+{n} more</Text>
+                      </Pressable>
+                    ) : (
+                      <View key={i} style={styles.overflowCell} />
+                    )
+                  )}
                 </View>
               ) : null}
             </View>
@@ -1072,11 +1110,15 @@ export default function CalendarScreen() {
       {selectedEntries.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyText}>
-            {filteredOut > 0
-              ? `${filteredOut} thing${filteredOut === 1 ? "" : "s"} on, hidden by your filters.`
-              : "Nothing on. That's a good sign."}
+            {!loaded
+              ? "Checking both your calendars..."
+              : readFailed
+                ? "Couldn't read your calendars just now, so this day may not be the whole story. Pull down to try again."
+                : filteredOut > 0
+                  ? `${filteredOut} thing${filteredOut === 1 ? "" : "s"} on, hidden by your filters.`
+                  : "Nothing on. That's a good sign."}
           </Text>
-          {filteredOut > 0 ? (
+          {loaded && !readFailed && filteredOut > 0 ? (
             <Pressable onPress={() => setHidden([])} hitSlop={8} style={press(styles.emptyTap)}>
               <Text style={styles.emptyAction}>Show everything</Text>
             </Pressable>

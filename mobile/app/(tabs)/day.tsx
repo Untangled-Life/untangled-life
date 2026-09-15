@@ -93,6 +93,14 @@ export default function DayView() {
     if (fromRoute) setDay(startOfDay(fromRoute));
   }, [routeDate]);
 
+  /**
+   * An hour grid with nothing drawn on it is a completely convincing picture
+   * of a free day, and it is exactly what this screen shows while it is
+   * still reading -- or when the read failed. Neither is a free day.
+   */
+  const [loaded, setLoaded] = useState(false);
+  const [readFailed, setReadFailed] = useState(false);
+
   const [events, setEvents] = useState<PlannedEvent[]>([]);
   const [keyDates, setKeyDates] = useState<KeyDateRow[]>([]);
   const [busy, setBusy] = useState<
@@ -157,6 +165,11 @@ export default function DayView() {
         .gte("date", toDateKey(from))
         .lte("date", toDateKey(to)),
     ]);
+
+    setReadFailed(
+      Boolean(eventRes.error || keyRes.error || busyRes.error || patternRes.error || shiftRes.error)
+    );
+    setLoaded(true);
 
     setEvents((eventRes.data as PlannedEvent[]) ?? []);
     setKeyDates((keyRes.data as KeyDateRow[]) ?? []);
@@ -415,6 +428,16 @@ export default function DayView() {
         </View>
       </View>
 
+      {!loaded || readFailed ? (
+        <View style={styles.readBanner}>
+          <Text style={styles.readBannerText}>
+            {readFailed
+              ? "Couldn't read your calendars just now, so this day may not be the whole story."
+              : "Checking both your calendars..."}
+          </Text>
+        </View>
+      ) : null}
+
       {allDay.length > 0 ? (
         <View style={styles.allDayBand}>
           <Text style={styles.allDayLabel}>All day</Text>
@@ -610,6 +633,15 @@ const createStyles = (t: Theme) =>
       justifyContent: "center",
     },
     dayArrow: { fontSize: 22, lineHeight: 26, color: t.accent },
+    readBanner: {
+      marginHorizontal: t.space(5),
+      marginBottom: t.space(3),
+      paddingVertical: t.space(3),
+      paddingHorizontal: t.space(4),
+      borderRadius: t.radius.md,
+      backgroundColor: t.surfaceSunken,
+    },
+    readBannerText: { ...t.type.caption, color: t.textSecondary },
     allDayBand: {
       paddingHorizontal: t.space(5),
       paddingBottom: t.space(3),

@@ -61,13 +61,39 @@ export default function FreeTimeSettings() {
 
   const [prefs, setPrefs] = useState<FreeTimePrefs>(DEFAULT_FREE_TIME_PREFS);
 
+  /**
+   * Whether these are the couple's settings or just the defaults standing in.
+   *
+   * Every save writes all three columns, so a tap before the read comes back
+   * would take the two settings it was not about from the defaults and write
+   * them over whatever the couple had chosen. A screen that quietly resets
+   * settings you did not touch is worse than a screen that is briefly
+   * unresponsive.
+   */
+  const [loaded, setLoaded] = useState(false);
+
+  // Inert is right when the read failed -- writing defaults over their real
+  // settings is the thing to avoid -- but inert with no explanation is a
+  // screen that looks broken.
+  const [readFailed, setReadFailed] = useState(false);
+
   const load = useCallback(async () => {
     if (!profile?.couple_id) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("couples")
       .select("day_start_hour, day_end_hour, min_free_minutes")
       .eq("id", profile.couple_id)
       .maybeSingle();
+
+    // A read that failed is not a couple with no preferences. Leaving
+    // loaded false keeps the controls out of action rather than offering the
+    // defaults as though they were the stored answer.
+    if (error) {
+      setReadFailed(true);
+      return;
+    }
+
+    setReadFailed(false);
 
     if (data) {
       setPrefs({
@@ -77,12 +103,14 @@ export default function FreeTimeSettings() {
           (data.min_free_minutes as number) ?? DEFAULT_FREE_TIME_PREFS.minFreeMinutes,
       });
     }
+
+    setLoaded(true);
   }, [profile?.couple_id]);
 
   const { refreshing, onRefresh } = useRefreshOnFocus(load);
 
   async function save(next: FreeTimePrefs) {
-    if (!profile?.couple_id) return;
+    if (!profile?.couple_id || !loaded) return;
 
     tapped();
     const previous = prefs;
@@ -124,7 +152,7 @@ export default function FreeTimeSettings() {
 
       <View style={styles.card}>
         <Text style={styles.label}>Your day starts</Text>
-        <HourRow value={prefs.dayStartHour} onPick={(h) => save({ ...prefs, dayStartHour: h })} />
+        <HourRow value={loaded ? prefs.dayStartHour : -1} onPick={(h) => save({ ...prefs, dayStartHour: h })} />
         <Text style={styles.hint}>
           Nothing before this is offered, however empty the calendar looks.
         </Text>
@@ -132,7 +160,7 @@ export default function FreeTimeSettings() {
 
       <View style={styles.card}>
         <Text style={styles.label}>And ends</Text>
-        <HourRow value={prefs.dayEndHour} onPick={(h) => save({ ...prefs, dayEndHour: h })} />
+        <HourRow value={loaded ? prefs.dayEndHour : -1} onPick={(h) => save({ ...prefs, dayEndHour: h })} />
         <Text style={styles.hint}>
           Pick Midnight to run right through to the end of the day. If it lands on or before the
           start, the day is taken as running overnight: 10pm to 6am is tonight into tomorrow
@@ -144,7 +172,7 @@ export default function FreeTimeSettings() {
         <Text style={styles.label}>Shortest window worth offering</Text>
         <View style={styles.chips}>
           {MINIMUMS.map((minutes) => {
-            const on = minutes === prefs.minFreeMinutes;
+            const on = loaded && minutes === prefs.minFreeMinutes;
             return (
               <Pressable
                 key={minutes}
@@ -167,8 +195,11 @@ export default function FreeTimeSettings() {
       </View>
 
       <Text style={styles.summary}>
-        Right now: {hourLabel(prefs.dayStartHour)} to {hourLabel(prefs.dayEndHour)}, at least{" "}
-        {minutesLabel(prefs.minFreeMinutes)} free.
+        {loaded
+          ? `Right now: ${hourLabel(prefs.dayStartHour)} to ${hourLabel(prefs.dayEndHour)}, at least ${minutesLabel(prefs.minFreeMinutes)} free.`
+          : readFailed
+            ? "Couldn't read your settings just now, so these are left alone rather than guessed at. Pull down to try again."
+            : "Reading your settings..."}
       </Text>
     </ScrollView>
   );

@@ -82,6 +82,11 @@ export default function Welcome() {
   // when they get to Home.
   const settled = active === null;
 
+  // Where you are in the list, not how many you have finished. Skipping is
+  // deliberately not recorded as done, so two "Skip for now" taps left the
+  // third card sitting under a heading that still said "Step 1 of 5".
+  const stepNumber = active ? steps.findIndex((s) => s.key === active.key) + 1 : progress.total;
+
   async function leave() {
     // Only navigate if it actually stuck. onboarded_at is what stops the
     // layout redirecting here, so leaving on a failed write puts somebody on
@@ -177,7 +182,7 @@ export default function Welcome() {
           ? "All set"
           : settled
             ? "Ready when you are"
-            : `Step ${progress.done + 1} of ${progress.total}`}
+            : `Step ${stepNumber} of ${progress.total}`}
       </Text>
       <Text style={styles.title}>
         {complete ? "You're all set" : `You're paired with ${partnerName}`}

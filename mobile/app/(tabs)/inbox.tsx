@@ -215,6 +215,10 @@ export default function Inbox() {
                   <Text style={styles.itemTitle}>{item.title}</Text>
                   <Text style={styles.itemDetail}>{item.detail}</Text>
 
+                  <Text style={styles.optionsHint}>
+                    Tap a time to book it for both of you.
+                  </Text>
+
                   <View style={styles.options}>
                     {(proposalById.get(item.proposalId ?? "")?.options ?? []).map((o, index) => (
                       <Pressable
@@ -318,7 +322,8 @@ const createStyles = (t: Theme) =>
       paddingHorizontal: t.space(4),
     },
     optionText: { ...t.type.label, color: t.brand },
-    decline: { ...t.type.label, color: t.textMuted, marginTop: t.space(3) },
+    optionsHint: { ...t.type.caption, color: t.textMuted, marginTop: t.space(2) },
+  decline: { ...t.type.label, color: t.textMuted, marginTop: t.space(3) },
     itemTitle: { ...t.type.heading, color: t.textPrimary },
     itemDetail: { ...t.type.caption, color: t.textSecondary, marginTop: 2 },
 

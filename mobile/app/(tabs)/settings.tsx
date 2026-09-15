@@ -264,10 +264,7 @@ export default function Settings() {
         )}
       </View>
 
-      <Text style={styles.footnote}>
-        More will land here before launch. See the pre-launch checklist in the repo for what&apos;s
-        still outstanding.
-      </Text>
+      <Text style={styles.footnote}>More settings are on the way.</Text>
     </ScrollView>
   );
 }

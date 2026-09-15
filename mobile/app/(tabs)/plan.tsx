@@ -9,7 +9,7 @@ import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { useThemedStyles } from "@/contexts/theme";
 import { succeeded, tapped, warned } from "@/lib/haptics";
 import { Interval, formatWindow } from "@/lib/freeTime";
-import { CATEGORIES, DateIdea, IdeaCategory, IDEAS, filterIdeas, spreadOptions } from "@/lib/dateIdeas";
+import { CATEGORIES, DateIdea, IDEAS, IdeaCategory, filterIdeas, lengthLabel, spreadOptions } from "@/lib/dateIdeas";
 import { createProposal } from "@/lib/dateProposals";
 import { loadFreeWindows } from "@/lib/freeWindows";
 import { LovedDate, howLongAgo } from "@/lib/dateHistory";
@@ -45,6 +45,9 @@ export default function Plan() {
   const [loved, setLoved] = useState<LovedDate[]>([]);
 
   const partnerName = partner?.display_name ?? "your partner";
+  // "your partner" is a sentence fragment, and taking its first word gave a
+  // button reading "Ask your".
+  const partnerFirstName = partner?.display_name?.split(" ")[0] ?? "them";
 
   // The same two zones Home uses, so a window offered here is a window shown
   // there. Defaulting to this device rather than UTC: the profile that has not
@@ -133,7 +136,7 @@ export default function Plan() {
       warned();
       Alert.alert(
         "No gap long enough",
-        `${idea.title} wants about ${Math.round(idea.minutes / 60)} hours and there isn't a window that long in the next week. Book it anyway and pick your own time, or try a shorter one.`
+        `${idea.title} wants ${lengthLabel(idea.minutes).replace(/^About /, "about ").toLowerCase()} and there isn't a window that long in the next week. Book it anyway and pick your own time, or try a shorter one.`
       );
       return;
     }
@@ -217,7 +220,11 @@ export default function Plan() {
                 tapped();
                 router.push({
                   pathname: "/event",
-                  params: { ...suggestedSlot(windows), title: l.title },
+                  // The one suggestion this app has earned, and without
+                  // this it booked as an appointment: never in Upcoming
+                  // dates, never asked about, and no help against the
+                  // fortnight nudge. Same flag Book it sets above.
+                  params: { ...suggestedSlot(windows), title: l.title, isDate: "1" },
                 });
               }}
             >
@@ -240,9 +247,7 @@ export default function Plan() {
               <Text style={styles.ideaTitle}>{idea.title}</Text>
               <Text style={styles.ideaBlurb}>{idea.blurb}</Text>
               <Text style={styles.ideaMeta}>
-                {idea.minutes >= 480
-                  ? "Most of a day"
-                  : `About ${Math.round(idea.minutes / 60)} hours`}
+                {lengthLabel(idea.minutes)}
                 {idea.cost === "free" ? " · Free" : idea.cost === "low" ? " · Cheap" : ""}
               </Text>
 
@@ -256,7 +261,7 @@ export default function Plan() {
                   disabled={busy === idea.id}
                 >
                   <Text style={styles.secondaryText}>
-                    {busy === idea.id ? "Sending..." : `Ask ${partnerName.split(" ")[0]}`}
+                    {busy === idea.id ? "Sending..." : `Ask ${partnerFirstName}`}
                   </Text>
                 </Pressable>
               </View>

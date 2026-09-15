@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -48,6 +48,14 @@ export default function Valued() {
   const [text, setText] = useState<Record<string, string>>({});
   const [shared, setShared] = useState(false);
 
+  /**
+   * Whether the boxes hold anything that is not saved yet.
+   *
+   * A ref as well as the derived value below, because `load` is a useCallback
+   * and depending on the derived one would rebuild it on every keystroke.
+   */
+  const dirtyRef = useRef(false);
+
   const partnerName = partner?.display_name ?? "your partner";
 
   const userId = session?.user.id ?? null;
@@ -72,7 +80,9 @@ export default function Valued() {
     setMine(own);
     setTheirs(other);
 
-    if (own) {
+    // What the partner said is always worth refreshing. What YOU said is only
+    // safe to overwrite when there is nothing unsaved to lose.
+    if (own && !dirtyRef.current) {
       setRanking(own.ranking ?? []);
       setShared(own.shared);
       setText({
@@ -153,6 +163,30 @@ export default function Valued() {
   // the two agree -- which is the only one of the three that is a statement
   // rather than an instruction, so it does not behave like a button.
   const saveLabel = saving ? "Saving..." : !mine ? "Save" : dirty ? "Update" : "Saved";
+
+  /**
+   * Whether there are words on screen that would be lost.
+   *
+   * Not the same question as `dirty`. With nothing stored yet `dirty` is
+   * true so that the button reads Save and works -- but a blank form has
+   * nothing to lose, and guarding the load with `dirty` would mean somebody
+   * who already answered these came back to empty boxes, which is the bug
+   * this guard exists to prevent, in reverse.
+   */
+  const hasUnsaved = mine
+    ? dirty
+    : ranking.length > 0 ||
+      Boolean(text.feels_valued?.trim()) ||
+      Boolean(text.little_things?.trim()) ||
+      Boolean(text.hard_week?.trim());
+
+  // Kept in a ref for load(), which runs on every focus and must not paint
+  // over unsaved words. Assigned in an effect rather than during render,
+  // because a render can be thrown away and this has to match what ended up
+  // on screen.
+  useEffect(() => {
+    dirtyRef.current = hasUnsaved;
+  }, [hasUnsaved]);
 
   if (!loaded) {
     return (

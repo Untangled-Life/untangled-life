@@ -58,12 +58,23 @@ export default function Todos() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
 
+  // An empty list and a list nobody has read yet look identical, and the
+  // one that gets shown on every cold open is the wrong one: somebody with
+  // eleven of these should never be told they have none.
+  const [loaded, setLoaded] = useState(false);
+
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("todos")
       .select("id, title, assigned_to, due_date, completed")
       .order("created_at", { ascending: true });
+    // A read that failed is not a list with nothing in it. Marking it loaded
+    // would put "you have none of these" in front of somebody who has
+    // eleven, which is the sentence this flag was added to prevent.
+    if (error) return;
+
     if (data) setTodos(data as Todo[]);
+    setLoaded(true);
   }, []);
 
   // Refreshes whenever this screen comes back into view, not just on
@@ -91,10 +102,14 @@ export default function Todos() {
       due_date: null,
     });
 
-    if (!error) {
-      setNewTitle("");
-      load();
+    if (error) {
+      warned();
+      Alert.alert("Couldn't add that", error.message);
+      return;
     }
+
+    setNewTitle("");
+    load();
   }
 
   // Ticking used to be one-way and the item vanished, so a mis-tap lost it
@@ -176,7 +191,7 @@ export default function Todos() {
 
         {/* Four buckets each saying "Nothing here" is a wall of nothing. When
             the list is genuinely empty, say so once. */}
-        {visible.length === 0 ? (
+        {loaded && visible.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>
               {filter === "us"

@@ -33,14 +33,30 @@ export default function WishlistDetail() {
   const [draftTitle, setDraftTitle] = useState("");
   const [draftUrl, setDraftUrl] = useState("");
 
+  // An empty list and a list nobody has read yet look identical, and the
+  // one that gets shown on every cold open is the wrong one: somebody with
+  // eleven of these should never be told they have none.
+  const [loaded, setLoaded] = useState(false);
+
   const load = useCallback(async () => {
-    if (!id) return;
-    const { data } = await supabase
+    // Nothing to read, so nothing to wait for. Returning without this left
+    // the screen showing neither items nor the empty card.
+    if (!id) {
+      setLoaded(true);
+      return;
+    }
+    const { data, error } = await supabase
       .from("wishlist_items")
       .select("id, title, url")
       .eq("wishlist_id", id)
       .order("created_at", { ascending: true });
+    // A read that failed is not a list with nothing in it. Marking it loaded
+    // would put "you have none of these" in front of somebody who has
+    // eleven, which is the sentence this flag was added to prevent.
+    if (error) return;
+
     if (data) setItems(data as Item[]);
+    setLoaded(true);
   }, [id]);
 
   // Refreshes whenever this screen comes back into view, not just on
@@ -55,10 +71,14 @@ export default function WishlistDetail() {
       added_by: profile.id,
       title: title.trim(),
     });
-    if (!error) {
-      setTitle("");
-      load();
+    if (error) {
+      warned();
+      Alert.alert("Couldn't add that", error.message);
+      return;
     }
+
+    setTitle("");
+    load();
   }
 
   async function removeItem(itemId: string) {
@@ -135,7 +155,7 @@ export default function WishlistDetail() {
         </Pressable>
         <Text style={styles.title}>{name ?? "Wishlist"}</Text>
 
-        {items.length === 0 ? (
+        {loaded && items.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>No items yet.</Text>
           </View>

@@ -11,6 +11,7 @@ import { toFriendlyDate, toDisplayTime, fromISODate, isValidTimeString } from "@
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth";
+import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import {
   WorkMode,
   WorkPattern,
@@ -32,6 +33,12 @@ export default function WorkHours() {
   const t = useTheme();
 
   const { session, profile } = useAuth();
+  const { partner } = useCoupleMembers();
+
+  // Their actual name. The sentence used to be gated on whether YOU had a
+  // display name, to decide how to refer to THEM, so it always said "Your
+  // partner" however well the app knew who they were.
+  const partnerName = partner?.display_name ?? "Your partner";
   const [mode, setMode] = useState<WorkMode>("weekly");
   const [cycleWeeks, setCycleWeeks] = useState(2);
   const [anchorDate, setAnchorDate] = useState(toDateKey(new Date()));
@@ -197,8 +204,7 @@ export default function WorkHours() {
       <Text style={styles.title}>Your working hours</Text>
       <Text style={styles.subtitle}>
         Work counts as busy, so &quot;free together&quot; stops suggesting times you&apos;re on
-        shift. {profile?.display_name ? "Your partner" : "They"} sees when you&apos;re working,
-        never what you&apos;re doing.
+        shift. {partnerName} sees when you&apos;re working, never what you&apos;re doing.
       </Text>
 
       <Pressable style={press(styles.importCard)} onPress={() => router.push("/roster-import")}>
@@ -352,6 +358,10 @@ export default function WorkHours() {
             ? "A shift the pattern doesn't cover, or a day off it wrongly thinks you're working."
             : "Add each shift against its date."}
         </Text>
+
+        {oneOffs.length > 0 ? (
+          <Text style={styles.hint}>Long-press one to remove it.</Text>
+        ) : null}
 
         {oneOffs.map((o) => (
           <Pressable key={o.id} style={press(styles.shiftRow)} onLongPress={() => removeOneOff(o.id)}>

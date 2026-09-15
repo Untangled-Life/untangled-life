@@ -1,4 +1,12 @@
-import { CATEGORIES, IDEAS, daySeed, filterIdeas, pickIdea, spreadOptions } from "@/lib/dateIdeas";
+import {
+  CATEGORIES,
+  IDEAS,
+  daySeed,
+  filterIdeas,
+  lengthLabel,
+  pickIdea,
+  spreadOptions,
+} from "@/lib/dateIdeas";
 
 
 describe("the idea list itself", () => {
@@ -126,5 +134,34 @@ describe("spreadOptions", () => {
     const chosen = spreadOptions(windows);
     const times = chosen.map((c) => c.start.getTime());
     expect([...times].sort((a, b) => a - b)).toEqual(times);
+  });
+});
+
+describe("lengthLabel", () => {
+  // "About 1 hours" was on three of the ideas, and a night away was
+  // described as "most of a day".
+  it("never says 1 hours", () => {
+    expect(lengthLabel(60)).toBe("About an hour");
+    expect(lengthLabel(45)).toBe("About an hour");
+  });
+
+  it("has a word for ninety minutes", () => {
+    expect(lengthLabel(90)).toBe("About an hour and a half");
+  });
+
+  it("rounds the rest to hours", () => {
+    expect(lengthLabel(120)).toBe("About 2 hours");
+    expect(lengthLabel(150)).toBe("About 3 hours");
+  });
+
+  it("knows a night away is not an afternoon", () => {
+    expect(lengthLabel(480)).toBe("Most of a day");
+    expect(lengthLabel(1440)).toBe("Overnight");
+  });
+
+  it("says something sensible about every idea we ship", () => {
+    for (const idea of IDEAS) {
+      expect(lengthLabel(idea.minutes)).not.toMatch(/\b1 hours\b/);
+    }
   });
 });

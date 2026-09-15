@@ -258,6 +258,17 @@ export default function Home() {
    * reloads whenever it comes back into view rather than only on mount, and
    * re-reads the phone's calendar when permission allows.
    */
+  /**
+   * Whether the first pass has finished.
+   *
+   * Every input to the setup list starts empty -- no work pattern, no key
+   * dates, no connected calendars -- so on a cold start Home told a couple
+   * who finished setting up weeks ago that they had three things left to do,
+   * then took it back a second later. It is the first thing on the screen
+   * and it was wrong for everybody who had done it.
+   */
+  const [firstLoadDone, setFirstLoadDone] = useState(false);
+
   const refreshAll = useCallback(async () => {
     const permissionResult = await Calendar.getCalendarPermissionsAsync();
     setPermission(permissionResult.status);
@@ -269,10 +280,17 @@ export default function Home() {
 
     await Promise.all([loadKeyDates(), loadPlans()]);
 
-    if (permissionResult.status === PermissionStatus.GRANTED) {
-      await syncAndLoad();
-    } else {
-      await loadFreeWindows();
+    try {
+      if (permissionResult.status === PermissionStatus.GRANTED) {
+        await syncAndLoad();
+      } else {
+        await loadFreeWindows();
+      }
+    } finally {
+      // In a finally, because useRefreshOnFocus swallows rejections: one
+      // throw from a calendar sync and the setup card -- the only guidance a
+      // new couple gets -- would never appear again this session.
+      setFirstLoadDone(true);
     }
   }, [loadKeyDates, loadPlans, loadFreeWindows, syncAndLoad, session?.user.id]);
 
@@ -389,7 +407,15 @@ export default function Home() {
         text: "Cancel plan",
         style: "destructive",
         onPress: async () => {
-          await cancelPlannedEvent(plan.id);
+          const { error } = await cancelPlannedEvent(plan.id, session?.user.id);
+
+          if (error) {
+            warned();
+            Alert.alert("Couldn't cancel that", error.message);
+            return;
+          }
+
+          succeeded();
           await syncAndLoad();
         },
       },
@@ -821,7 +847,11 @@ export default function Home() {
                 style={press(styles.iconButton)}
                 hitSlop={8}
                 accessibilityLabel={
-                  inbox.length > 0 ? `${inbox.length} things waiting on you` : "Nothing waiting"
+                  inbox.length === 0
+                    ? "Nothing waiting"
+                    : inbox.length === 1
+                      ? "One thing waiting on you"
+                      : `${inbox.length} things waiting on you`
                 }
               >
                 <BellIcon size={22} color={coverUrl ? "#FFFFFF" : t.textPrimary} />
@@ -845,7 +875,7 @@ export default function Home() {
       {/* A brand-new couple lands here with nothing and no idea what to do
           first. This says so, in order, and disappears as each is done --
           rather than leaving three empty sections to interpret. */}
-      {setupSteps.length > 0 ? (
+      {firstLoadDone && setupSteps.length > 0 ? (
         <View style={styles.setupCard}>
           <Text style={styles.setupTitle}>Finish setting up</Text>
           <Text style={styles.setupBody}>
