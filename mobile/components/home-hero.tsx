@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Pressable, useWindowDimensions } from "react-native";
+import { Animated, StyleSheet, Text, View, Pressable, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Avatar } from "@/components/avatar";
@@ -41,6 +41,7 @@ export function HomeHero({
   hasPartner,
   uploading,
   onChangeCover,
+  scrollY,
 }: {
   coverUrl: string | null;
   myAvatarUrl: string | null;
@@ -57,6 +58,16 @@ export function HomeHero({
   hasPartner: boolean;
   uploading: boolean;
   onChangeCover: () => void;
+  /**
+   * The page's scroll position, if the screen wants the photo to stretch.
+   *
+   * Pulling down at the top of a list is the one gesture people do without
+   * meaning to do anything, and answering it with a band of empty page above
+   * the photograph makes the screen look like it ends there. Growing the
+   * picture into the gap is what every photo-led app does, and it costs a
+   * transform.
+   */
+  scrollY?: Animated.Value;
 }) {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
@@ -72,37 +83,74 @@ export function HomeHero({
     month: "long",
   });
 
+  // Anchored at the top and grown downwards from the bottom edge it already
+  // has: scale about the centre and then lift by half of what the scale
+  // added, which leaves the bottom of the photo exactly where the page
+  // expects it and the top pinned to the top of the screen at any pull.
+  //
+  // Both halves are linear in the scroll position, so extending past the
+  // range rather than clamping it stays exactly right however hard it is
+  // pulled. Clamped on the other side, because scrolling UP is the page
+  // leaving and the photo should go with it.
+  const stretch = scrollY
+    ? {
+        transform: [
+          {
+            translateY: scrollY.interpolate({
+              inputRange: [-height, 0],
+              outputRange: [-height / 2, 0],
+              extrapolateRight: "clamp" as const,
+            }),
+          },
+          {
+            scale: scrollY.interpolate({
+              inputRange: [-height, 0],
+              outputRange: [2, 1],
+              extrapolateRight: "clamp" as const,
+            }),
+          },
+        ],
+      }
+    : null;
+
   const names = hasPartner
     ? `${myName ?? "You"} & ${partnerName ?? "them"}`
     : (myName ?? "You");
 
   return (
     <View style={[styles.hero, { height }]}>
-      {hasPhoto ? (
-        <>
-          <Image
-            source={{ uri: coverUrl as string }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            transition={250}
-          />
-          {/* A scrim rather than a flat overlay: the names have to stay
-              readable over a bright sky or a dark room, and dimming the whole
-              picture to guarantee that would waste the picture. */}
+      {/* The picture and its shade, in their own layer. The clipping and the
+          rounded bottom corners live here rather than on the hero, because
+          the hero must NOT clip -- the whole point is the photo drawing above
+          its own top edge into the gap a pull opens up. The corners are part
+          of this layer, so they stretch with it. */}
+      <Animated.View style={[styles.backdrop, stretch]}>
+        {hasPhoto ? (
+          <>
+            <Image
+              source={{ uri: coverUrl as string }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={250}
+            />
+            {/* A scrim rather than a flat overlay: the names have to stay
+                readable over a bright sky or a dark room, and dimming the whole
+                picture to guarantee that would waste the picture. */}
+            <LinearGradient
+              colors={["rgba(12,10,7,0)", "rgba(12,10,7,0.25)", "rgba(12,10,7,0.78)"]}
+              locations={[0.35, 0.62, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+          </>
+        ) : (
           <LinearGradient
-            colors={["rgba(12,10,7,0)", "rgba(12,10,7,0.25)", "rgba(12,10,7,0.78)"]}
-            locations={[0.35, 0.62, 1]}
+            colors={[t.brandSoft, t.surface]}
+            start={{ x: 0.1, y: 0 }}
+            end={{ x: 0.9, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
-        </>
-      ) : (
-        <LinearGradient
-          colors={[t.brandSoft, t.surface]}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-      )}
+        )}
+      </Animated.View>
 
       <View style={styles.content}>
         <View style={styles.faces}>
@@ -153,11 +201,16 @@ export function HomeHero({
 
 const createStyles = (t: Theme) =>
   StyleSheet.create({
-    hero: {
+    hero: { justifyContent: "flex-end" },
+    backdrop: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       borderBottomLeftRadius: t.radius.xl,
       borderBottomRightRadius: t.radius.xl,
       overflow: "hidden",
-      justifyContent: "flex-end",
       backgroundColor: t.surface,
     },
     content: { padding: t.space(6), gap: t.space(1) },

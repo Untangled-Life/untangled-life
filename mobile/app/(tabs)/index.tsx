@@ -1086,6 +1086,7 @@ export default function Home() {
           hasPartner={Boolean(partner)}
           uploading={uploadingCover}
           onChangeCover={changeCover}
+          scrollY={scrollY}
         />
 
       </View>
