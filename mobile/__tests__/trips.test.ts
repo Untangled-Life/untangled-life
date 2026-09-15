@@ -4,8 +4,12 @@ import {
   byStartDate,
   byWhen,
   isPast,
+  nextBookedTrip,
+  tripCountdown,
+  tripHomecoming,
   tripNights,
   tripWhen,
+  type Trip,
   type TripItem,
 } from "@/lib/trips";
 
@@ -128,5 +132,103 @@ describe("sorting", () => {
     ];
 
     expect([...items].sort(byWhen).map((i) => i.id)).toEqual(["d", "b", "a", "e", "c"]);
+  });
+});
+
+describe("nextBookedTrip", () => {
+  const now = new Date("2027-05-10T09:00:00");
+  const trip = (over: Partial<Trip> & { id: string }): Trip => ({
+    title: "Somewhere",
+    destination: null,
+    start_date: null,
+    end_date: null,
+    notes: null,
+    cover_path: null,
+    booked: false,
+    ...over,
+  });
+
+  it("ignores anything that is only an idea", () => {
+    expect(
+      nextBookedTrip([trip({ id: "a", start_date: "2027-06-01", booked: false })], now)
+    ).toBeNull();
+  });
+
+  it("ignores a booked trip with no dates", () => {
+    expect(nextBookedTrip([trip({ id: "a", booked: true })], now)).toBeNull();
+  });
+
+  it("takes the soonest of several", () => {
+    const picked = nextBookedTrip(
+      [
+        trip({ id: "later", start_date: "2027-09-01", booked: true }),
+        trip({ id: "sooner", start_date: "2027-06-01", booked: true }),
+      ],
+      now
+    );
+
+    expect(picked?.id).toBe("sooner");
+  });
+
+  // Being on one is the best case for showing it, not a reason to hide it.
+  it("keeps a trip you are in the middle of", () => {
+    const picked = nextBookedTrip(
+      [trip({ id: "now", start_date: "2027-05-08", end_date: "2027-05-20", booked: true })],
+      now
+    );
+
+    expect(picked?.id).toBe("now");
+  });
+
+  it("drops one that has finished", () => {
+    expect(
+      nextBookedTrip(
+        [trip({ id: "gone", start_date: "2027-04-01", end_date: "2027-04-10", booked: true })],
+        now
+      )
+    ).toBeNull();
+  });
+});
+
+describe("tripCountdown", () => {
+  const now = new Date("2027-05-10T09:00:00");
+
+  it("counts the days", () => {
+    expect(tripCountdown({ start_date: "2027-06-13", end_date: null }, now)).toBe("In 34 days");
+  });
+
+  it("has words for the near ones", () => {
+    expect(tripCountdown({ start_date: "2027-05-11", end_date: null }, now)).toBe("Tomorrow");
+    expect(tripCountdown({ start_date: "2027-05-10", end_date: null }, now)).toBe("Today");
+  });
+
+  // "-3 days" about a holiday somebody is on is the app not paying attention.
+  it("stops counting once you are on it", () => {
+    expect(tripCountdown({ start_date: "2027-05-07", end_date: "2027-05-20" }, now)).toBe(
+      "You're away"
+    );
+  });
+
+  // The suite runs in America/New_York, where 8 March 2026 is 23 hours long.
+  it("is right across a daylight-saving boundary", () => {
+    expect(
+      tripCountdown({ start_date: "2026-03-09", end_date: null }, new Date("2026-03-07T09:00:00"))
+    ).toBe("In 2 days");
+  });
+});
+
+describe("tripHomecoming", () => {
+  const away = { end_date: "2026-04-14" };
+
+  it("counts down to the flight home", () => {
+    expect(tripHomecoming(away, new Date("2026-04-10T09:00:00"))).toBe("Home in 4 days");
+    expect(tripHomecoming(away, new Date("2026-04-13T23:00:00"))).toBe("Home tomorrow");
+    expect(tripHomecoming(away, new Date("2026-04-14T06:00:00"))).toBe("Home today");
+  });
+
+  it("says nothing it cannot know when there is no end date", () => {
+    expect(tripHomecoming({ end_date: null }, new Date("2026-04-10T09:00:00"))).toBe(
+      "No date home yet"
+    );
   });
 });

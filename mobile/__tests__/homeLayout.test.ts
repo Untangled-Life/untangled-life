@@ -56,6 +56,43 @@ describe("resolveHomeLayout", () => {
     expect(resolved.order).not.toContain("somethingWeRemoved" as HomeSection);
   });
 
+  // The case that broke everyone who had ever touched the arrange screen
+  // before a new section shipped: their stored list cannot mention it, and
+  // it has to turn up visible, in the right place, rather than at the end or
+  // not at all.
+  it("slots a newly shipped section into its default position, visible", () => {
+    const resolved = resolveHomeLayout([
+      "pinned",
+      "keyDates",
+      "bookedIn",
+      "freeTogether",
+      "littleThings",
+    ]);
+
+    expect(resolved.order).toEqual([
+      "pinned",
+      "keyDates",
+      "bookedIn",
+      "freeTogether",
+      "nextTrip",
+      "littleThings",
+    ]);
+    expect(resolved.hidden.has("nextTrip")).toBe(false);
+  });
+
+  // The same thing for somebody who has rearranged. Anchoring off the first
+  // stored section that sorts later put a new section above their pinned
+  // countdown, purely because they had moved The Little Things to the top.
+  it("slots it below its neighbours even when the order has been rearranged", () => {
+    expect(
+      resolveHomeLayout(["littleThings", "pinned", "keyDates", "bookedIn", "freeTogether"]).order
+    ).toEqual(["littleThings", "pinned", "keyDates", "bookedIn", "freeTogether", "nextTrip"]);
+
+    expect(
+      resolveHomeLayout(["freeTogether", "littleThings", "pinned", "keyDates", "bookedIn"]).order
+    ).toEqual(["freeTogether", "nextTrip", "littleThings", "pinned", "keyDates", "bookedIn"]);
+  });
+
   it("drops duplicates rather than rendering a section twice", () => {
     const resolved = resolveHomeLayout(["pinned", "pinned"]);
     expect(resolved.order.filter((k) => k === "pinned")).toHaveLength(1);
@@ -65,7 +102,7 @@ describe("resolveHomeLayout", () => {
   // has to be exact: what you saved is what you get back.
   it("round-trips a complete arrangement unchanged", () => {
     const original = layout(
-      ["freeTogether", "pinned", "keyDates", "bookedIn", "littleThings"],
+      ["freeTogether", "pinned", "keyDates", "bookedIn", "nextTrip", "littleThings"],
       ["pinned", "bookedIn"]
     );
     const full = resolveHomeLayout(serializeHomeLayout(original));

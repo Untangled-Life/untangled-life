@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Animated,
   View,
@@ -51,6 +51,14 @@ import { repeatLabel } from "@/lib/recurrence";
 import { dualTimeText, zoneGapSentence } from "@/components/dual-time";
 import { HomeSection, resolveHomeLayout, visibleSections } from "@/lib/homeLayout";
 import {
+  Trip,
+  daysUntilTrip,
+  nextBookedTrip,
+  tripCountdown,
+  tripHomecoming,
+  tripWhen,
+} from "@/lib/trips";
+import {
   Interval,
   formatWindow,
 } from "@/lib/freeTime";
@@ -85,6 +93,12 @@ export default function Home() {
   // request for the whole screen rather than one per card.
   const [datePhotos, setDatePhotos] = useState<Record<string, string>>({});
   const [freeWindows, setFreeWindows] = useState<Interval[]>([]);
+
+  // Only the booked ones. An idea somebody typed into Travel at midnight is
+  // not a thing to count down to, and Home putting a countdown against it
+  // would make the flag on the trip screen mean nothing.
+  const [bookedTrips, setBookedTrips] = useState<Trip[]>([]);
+  const [tripCovers, setTripCovers] = useState<Record<string, string>>({});
 
   // "Both calendars look packed" is the wrong thing to say to a couple whose
   // waking hours simply do not meet. Nothing they delete will help, and being
@@ -180,6 +194,21 @@ export default function Home() {
       setKeyDates(rows);
       setDatePhotos(await signedUrls(rows.map((row) => row.photo_path)));
     }
+  }, []);
+
+  const loadTrips = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("trips")
+      .select("id, title, destination, start_date, end_date, notes, cover_path, booked")
+      .eq("booked", true)
+      .order("start_date", { ascending: true });
+
+    // A read that failed is not "you have no trips". Leaving the last good
+    // answer on screen beats replacing a countdown with nothing because the
+    // train went through a tunnel.
+    if (error || !data) return;
+
+    setBookedTrips(data as Trip[]);
   }, []);
 
   const loadPlans = useCallback(async () => {
@@ -289,7 +318,7 @@ export default function Home() {
       setConnectedCount(all.filter((c) => c.shareLevel !== "off").length);
     }
 
-    await Promise.all([loadKeyDates(), loadPlans()]);
+    await Promise.all([loadKeyDates(), loadPlans(), loadTrips()]);
 
     try {
       if (permissionResult.status === PermissionStatus.GRANTED) {
@@ -303,7 +332,7 @@ export default function Home() {
       // new couple gets -- would never appear again this session.
       setFirstLoadDone(true);
     }
-  }, [loadKeyDates, loadPlans, loadFreeWindows, syncAndLoad, session?.user.id]);
+  }, [loadKeyDates, loadPlans, loadTrips, loadFreeWindows, syncAndLoad, session?.user.id]);
 
   const { refreshing, onRefresh } = useRefreshOnFocus(refreshAll);
 
@@ -555,6 +584,103 @@ export default function Home() {
     awaitingReview,
   });
 
+  // Worked out on every render rather than memoised on the rows. It is a
+  // filter and a sort over a handful of trips, and keying it to the rows
+  // would freeze WHICH trip is next at the last time the list changed -- so a
+  // trip that ended overnight would still be on screen in the morning.
+  const nextTrip = nextBookedTrip(bookedTrips);
+  const tripCover = nextTrip?.cover_path ? (tripCovers[nextTrip.cover_path] ?? null) : null;
+
+  // Signed for whichever trip is actually on screen, rather than for whichever
+  // one was next when the rows were last read. One trip ending overnight moves
+  // the card to the next one, and signing at load time would have left that one
+  // with no photograph at all.
+  const tripCoverPath = nextTrip?.cover_path ?? null;
+  useEffect(() => {
+    if (!tripCoverPath) return;
+
+    let alive = true;
+    signedUrls([tripCoverPath]).then((urls) => {
+      if (alive) setTripCovers((prev) => ({ ...prev, ...urls }));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [tripCoverPath]);
+  // Being on one is not a countdown. The heading and the big line both change,
+  // because "Next trip / You're away" is the app telling you where you are.
+  const away = nextTrip ? (daysUntilTrip(nextTrip) ?? 0) < 0 : false;
+
+  // Dark icons on a dark photograph are unreadable; white ones on the cream
+  // page are invisible. The bar no longer scrolls away from either, so it has
+  // to answer to what is behind it right now.
+  const onPhoto = Boolean(coverUrl) && !pastHero;
+
+  // Fixed, and over everything -- including the scrims, which is why it is
+  // rendered last rather than inside the page. Softened rather than hidden
+  // once the hero has gone: the way back to the calendar should not be a
+  // scroll to the top, but it should not shout over what you came down to
+  // read either.
+  const topBar = (
+    <Animated.View
+      style={[
+        styles.topBar,
+        {
+          opacity: scrollY.interpolate({
+            // The same window the scrims use. Starting at zero had it most of
+            // the way faded while still sitting on the photograph, which is
+            // exactly where white glyphs need all the contrast they have.
+            inputRange: [swapFrom, swapTo],
+            outputRange: [1, 0.82],
+            extrapolate: "clamp",
+          }),
+        },
+      ]}
+      pointerEvents="box-none"
+    >
+          <View style={styles.topBarRow} pointerEvents="box-none">
+            <Link href="/menu" asChild>
+              <Pressable style={press([styles.iconButton, onPhoto ? null : styles.iconButtonOnPage])} hitSlop={8} accessibilityLabel="Menu">
+                <MenuIcon size={22} color={onPhoto ? "#FFFFFF" : t.textPrimary} />
+              </Pressable>
+            </Link>
+
+            <View style={styles.topBarRight}>
+              {/* The bell holds anything skipped during setup, a key date
+                  inside its own reminder window, and the fortnight nudge. Each
+                  of those used to be a card on this screen arguing for the same
+                  space, and a skipped step had nowhere to live at all. */}
+              <Link href="/inbox" asChild>
+                <Pressable
+                  style={press([styles.iconButton, onPhoto ? null : styles.iconButtonOnPage])}
+                  hitSlop={8}
+                  accessibilityLabel={
+                    inbox.length === 0
+                      ? "Nothing waiting"
+                      : inbox.length === 1
+                        ? "One thing waiting on you"
+                        : `${inbox.length} things waiting on you`
+                  }
+                >
+                  <BellIcon size={22} color={onPhoto ? "#FFFFFF" : t.textPrimary} />
+                  <InboxBadge count={inbox.length} />
+                </Pressable>
+              </Link>
+
+              <Link href="/calendar" asChild>
+                <Pressable
+                  style={press([styles.iconButton, onPhoto ? null : styles.iconButtonOnPage])}
+                  hitSlop={8}
+                  accessibilityLabel="Shared calendar"
+                >
+                  <CalendarIcon size={22} color={onPhoto ? "#FFFFFF" : t.brand} />
+                </Pressable>
+              </Link>
+            </View>
+          </View>
+    </Animated.View>
+  );
+
   // Each Home section, keyed so the arrangement can decide what appears
   // and in what order. Wrapped in a keyed <View> because the list is
   // rendered from an array -- without the key React reorders by position
@@ -614,7 +740,7 @@ export default function Home() {
     keyDates: (
       <View key="keyDates">
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Unforgettable days</Text>
+          <Text style={styles.sectionTitle}>Important dates</Text>
           <Link href="/key-dates" style={styles.sectionAction}>
             Manage
           </Link>
@@ -732,10 +858,59 @@ export default function Home() {
         )}
       </View>
     ),
+    // Null when nothing is booked. A section that exists to count down to
+    // something has nothing to say when there is nothing to count down to,
+    // and an empty card here would be a permanent advert for a feature on
+    // another screen.
+    nextTrip: nextTrip ? (
+      <View key="nextTrip">
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{away ? "You\u2019re away" : "Next trip"}</Text>
+          <Link href="/wishlists" style={styles.sectionAction}>
+            All trips
+          </Link>
+        </View>
+
+        <Pressable
+          style={press([styles.tripCard, tripCover ? styles.tripCardWithPhoto : null])}
+          onPress={() => router.push(`/trip?id=${nextTrip.id}`)}
+        >
+          {tripCover ? (
+            <>
+              <Image
+                source={{ uri: tripCover }}
+                alt={nextTrip.title}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                transition={250}
+              />
+              <LinearGradient
+                colors={["rgba(12,10,7,0.15)", "rgba(12,10,7,0.72)"]}
+                locations={[0.35, 1]}
+                style={StyleSheet.absoluteFill}
+              />
+            </>
+          ) : null}
+
+          <Text style={[styles.tripCountdown, tripCover ? styles.onPhoto : null]}>
+            {away ? tripHomecoming(nextTrip) : tripCountdown(nextTrip)}
+          </Text>
+          <Text style={[styles.tripTitle, tripCover ? styles.onPhoto : null]} numberOfLines={1}>
+            {nextTrip.destination?.trim() ? nextTrip.destination : nextTrip.title}
+          </Text>
+          <Text
+            style={[styles.tripWhen, tripCover ? styles.onPhotoMuted : null]}
+            numberOfLines={1}
+          >
+            {nextTrip.destination?.trim() ? `${nextTrip.title} \u00b7 ${tripWhen(nextTrip)}` : tripWhen(nextTrip)}
+          </Text>
+        </Pressable>
+      </View>
+    ) : null,
     littleThings: partner ? (
       <View key="littleThings">
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Little things</Text>
+          <Text style={styles.sectionTitle}>The Little Things</Text>
           <Link href="/valued" style={styles.sectionAction}>
             {partnerValued ? "Yours" : "Answer"}
           </Link>
@@ -883,7 +1058,13 @@ export default function Home() {
           // before it starts to go. The gap between the two thresholds is
           // what stops a finger resting at the crossover from flickering the
           // clock between black and white on every pixel of movement.
-          setPastHero((was) => (was ? y > swapFrom + 4 : y > swapTo - 6));
+          // Centred on the middle of the crossfade rather than its edges.
+          // The icons take their colour from this, and switching at the ends
+          // left them white over a mostly-cream scrim on the way down and
+          // near-black over a mostly-dark one on the way up -- invisible
+          // either way, for about as long as a finger rests.
+          const middle = (swapFrom + swapTo) / 2;
+          setPastHero((was) => (was ? y > middle - 5 : y > middle + 5));
         },
       })}
       refreshControl={
@@ -891,9 +1072,10 @@ export default function Home() {
       }
     >
       {/* Full bleed, so the negative margins undo the page gutter. The top
-          bar floats over it rather than sitting above it: a row of buttons
+          bar floats over it rather than sitting above it -- a row of buttons
           between the status bar and the photo wastes the best space on the
-          screen. */}
+          screen -- and it is rendered outside this scroll view so that it
+          stays there once the photo has gone. */}
       <View style={styles.heroBleed}>
         <HomeHero
           coverUrl={coverUrl}
@@ -906,46 +1088,6 @@ export default function Home() {
           onChangeCover={changeCover}
         />
 
-        <View style={styles.topBar} pointerEvents="box-none">
-          <Link href="/menu" asChild>
-            <Pressable style={press(styles.iconButton)} hitSlop={8} accessibilityLabel="Menu">
-              <MenuIcon size={22} color={coverUrl ? "#FFFFFF" : t.textPrimary} />
-            </Pressable>
-          </Link>
-
-          <View style={styles.topBarRight}>
-            {/* The bell holds anything skipped during setup, a key date
-                inside its own reminder window, and the fortnight nudge. Each
-                of those used to be a card on this screen arguing for the same
-                space, and a skipped step had nowhere to live at all. */}
-            <Link href="/inbox" asChild>
-              <Pressable
-                style={press(styles.iconButton)}
-                hitSlop={8}
-                accessibilityLabel={
-                  inbox.length === 0
-                    ? "Nothing waiting"
-                    : inbox.length === 1
-                      ? "One thing waiting on you"
-                      : `${inbox.length} things waiting on you`
-                }
-              >
-                <BellIcon size={22} color={coverUrl ? "#FFFFFF" : t.textPrimary} />
-                <InboxBadge count={inbox.length} />
-              </Pressable>
-            </Link>
-
-            <Link href="/calendar" asChild>
-              <Pressable
-                style={press(styles.iconButton)}
-                hitSlop={8}
-                accessibilityLabel="Shared calendar"
-              >
-                <CalendarIcon size={22} color={coverUrl ? "#FFFFFF" : t.brand} />
-              </Pressable>
-            </Link>
-          </View>
-        </View>
       </View>
 
       {/* The invitation, where the gate used to be. It sits above everything
@@ -1031,6 +1173,11 @@ export default function Home() {
     ) : null}
 
     <TopScrim
+      // Deep enough to reach under the buttons. They no longer scroll away,
+      // so without this a line of a section heading runs straight through
+      // three icons -- which is the same fault the scrim was built for, one
+      // notch further down the screen.
+      depth={96}
       style={{
         opacity: scrollY.interpolate({
           // With no photo there is nothing to protect and nothing to spoil,
@@ -1044,6 +1191,8 @@ export default function Home() {
         }),
       }}
     />
+
+    {topBar}
     </View>
   );
 }
@@ -1101,14 +1250,27 @@ const createStyles = (t: Theme) =>
   setupStepWhy: { ...t.type.caption, color: t.textSecondary, marginTop: 1 },
   setupChevron: { fontSize: 20, color: t.accent },
   topBarRight: { flexDirection: "row", alignItems: "center", gap: t.space(2) },
+  // Anchored to the screen rather than to the photo. The numbers are the
+  // ones it sat at inside the hero -- the page's top padding cancels out --
+  // so at rest it has not moved a pixel; it just stays there now.
   topBar: {
     position: "absolute",
     top: t.space(13),
     left: t.space(5),
     right: t.space(5),
+  },
+  topBarRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  // Over the page rather than a photograph: a dark disc on cream with a dark
+  // glyph in it is a smudge, so it flips to the page's own colour with a
+  // hairline around it.
+  iconButtonOnPage: {
+    backgroundColor: t.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.border,
   },
   iconButton: {
     width: 44,
@@ -1182,6 +1344,19 @@ const createStyles = (t: Theme) =>
     borderRadius: t.radius.md,
     marginBottom: t.space(2),
   },
+  // The same shape as the pinned countdown, in the accent rather than the
+  // brand: it is the second-biggest thing on the page and should not compete
+  // with her birthday.
+  tripCard: {
+    backgroundColor: t.accentSoft,
+    borderRadius: t.radius.lg,
+    padding: t.space(5),
+    marginBottom: t.space(6),
+  },
+  tripCardWithPhoto: { overflow: "hidden", minHeight: 160, justifyContent: "flex-end" },
+  tripCountdown: { ...t.type.hero, color: t.accent },
+  tripTitle: { ...t.type.title, color: t.textPrimary, marginTop: 2 },
+  tripWhen: { ...t.type.caption, color: t.textSecondary, marginTop: t.space(2) },
   heroCountdown: { ...t.type.hero, color: t.brand },
   heroTitle: { ...t.type.title, color: t.textPrimary, marginTop: 2 },
   heroNote: { ...t.type.caption, color: t.textSecondary, marginTop: t.space(2) },

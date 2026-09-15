@@ -97,7 +97,7 @@ export default function Personalisation() {
         })}
       </View>
       <Text style={styles.footnote}>
-        Changes links, buttons and key dates. The brand orange stays put.
+        Changes links, buttons and important dates. The brand orange stays put.
       </Text>
 
       <Text style={styles.groupTitle}>Calendar colour</Text>

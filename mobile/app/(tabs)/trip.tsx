@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Switch,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -65,7 +66,7 @@ export default function TripScreen() {
     const [tripRes, itemRes] = await Promise.all([
       supabase
         .from("trips")
-        .select("id, title, destination, start_date, end_date, notes, cover_path")
+        .select("id, title, destination, start_date, end_date, notes, cover_path, booked")
         .eq("id", tripId)
         .maybeSingle(),
       supabase
@@ -284,15 +285,39 @@ export default function TripScreen() {
           returnKeyType="done"
         />
 
-        <TextInput
-          style={styles.destinationInput}
-          value={trip.destination ?? ""}
-          placeholder="Where exactly?"
-          placeholderTextColor={t.textMuted}
-          onChangeText={(next) => setTrip({ ...trip, destination: next })}
-          onBlur={() => patchTrip({ destination: trip.destination?.trim() || null })}
-          returnKeyType="done"
-        />
+        <View style={styles.destinationRow}>
+          <TextInput
+            style={[styles.destinationInput, { flex: 1 }]}
+            value={trip.destination ?? ""}
+            placeholder="Where exactly?"
+            placeholderTextColor={t.textMuted}
+            onChangeText={(next) => setTrip({ ...trip, destination: next })}
+            onBlur={() => patchTrip({ destination: trip.destination?.trim() || null })}
+            returnKeyType="done"
+          />
+
+          {/* The line between an idea and a plan. Nothing here can work it
+              out -- flights paid for and nothing else is a booked trip, a
+              hotel held on free cancellation is not -- so it is asked, and
+              saying yes is what puts the countdown on your home screen. */}
+          <View style={styles.bookedToggle}>
+            <Text style={styles.bookedLabel}>Booked?</Text>
+            <Switch
+              value={trip.booked}
+              onValueChange={(next) => {
+                tapped();
+                patchTrip({ booked: next });
+              }}
+              trackColor={{ true: t.accent, false: t.surfaceSunken }}
+            />
+          </View>
+        </View>
+
+        {trip.booked && !trip.start_date ? (
+          <Text style={styles.bookedHint}>
+            Add the date you leave and it starts counting down on Home.
+          </Text>
+        ) : null}
 
         <View style={styles.dates}>
           <View style={{ flex: 1 }}>
@@ -459,7 +484,16 @@ const createStyles = (t: Theme) =>
       marginTop: t.space(5),
       paddingVertical: 0,
     },
-    destinationInput: { ...t.type.body, color: t.textSecondary, marginTop: t.space(2) },
+    destinationRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.space(4),
+      marginTop: t.space(2),
+    },
+    destinationInput: { ...t.type.body, color: t.textSecondary },
+    bookedToggle: { flexDirection: "row", alignItems: "center", gap: t.space(2) },
+    bookedLabel: { ...t.type.label, color: t.textSecondary },
+    bookedHint: { ...t.type.caption, color: t.textMuted, marginTop: t.space(2) },
     dates: { flexDirection: "row", gap: t.space(4), marginTop: t.space(4) },
     when: { ...t.type.caption, color: t.textMuted, marginTop: t.space(1) },
     section: { marginTop: t.space(8) },

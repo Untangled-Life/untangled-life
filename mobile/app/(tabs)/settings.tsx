@@ -28,7 +28,7 @@ export default function Settings() {
   function confirmUnpair() {
     Alert.alert(
       `Unpair from ${partnerName}?`,
-      `You'll keep your account and can pair again with a new code. ${partnerName} keeps your unforgettable days, to-dos, wishlists, trips and booked dates. They don't disappear from their phone. Your calendar data and working hours are removed; your profile photo stays, because you keep your account.`,
+      `You'll keep your account and can pair again with a new code. ${partnerName} keeps your important dates, to-dos, wishlists, trips and booked dates. They don't disappear from their phone. Your calendar data and working hours are removed; your profile photo stays, because you keep your account.`,
       [
         { text: "Stay paired", style: "cancel" },
         {
@@ -61,7 +61,7 @@ export default function Settings() {
     Alert.alert(
       "Delete your account?",
       partner
-        ? `This can't be undone. Your sign-in, your calendar data, your working hours and your photo are deleted. ${partnerName} keeps the unforgettable days, to-dos, wishlists, trips and booked dates you both built, except your birthday, which goes with you.`
+        ? `This can't be undone. Your sign-in, your calendar data, your working hours and your photo are deleted. ${partnerName} keeps the important dates, to-dos, wishlists, trips and booked dates you both built, except your birthday, which goes with you.`
         : "This can't be undone. Your sign-in and everything in the app is deleted. Nobody else is in your couple, so nothing is kept.",
       [
         { text: "Keep my account", style: "cancel" },
@@ -252,7 +252,7 @@ export default function Settings() {
                 be unreachable before pairing, so this row could assume one --
                 and on its own it does not merely do nothing: leave_couple()
                 deletes a couple with no members left, which for a solo
-                account is every key date, to-do, wishlist and booked date
+                account is every important date, to-do, wishlist and booked date
                 they have, under a dialog promising their partner keeps it
                 all. */}
             {partner ? (

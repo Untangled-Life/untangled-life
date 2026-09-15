@@ -16,6 +16,15 @@ export type Trip = {
   end_date: string | null;
   notes: string | null;
   cover_path: string | null;
+  /**
+   * Whether it is actually happening.
+   *
+   * Set by hand, because nothing here can tell the difference: flights paid
+   * for and nothing else is a booked trip, a hotel held on free cancellation
+   * is not, and only the two of you know which. It is what moves a trip off
+   * the Travel screen and onto Home with a countdown against it.
+   */
+  booked: boolean;
 };
 
 export type TripItem = {
@@ -141,6 +150,82 @@ export function isPast(trip: Pick<Trip, "start_date" | "end_date">, now: Date = 
   today.setHours(0, 0, 0, 0);
 
   return new Date(`${trip.end_date}T00:00:00`) < today;
+}
+
+/**
+ * The one Home should count down to: the soonest booked trip that has not
+ * finished. Null when there is nothing to look forward to yet.
+ *
+ * A trip that has started counts -- being ON one is the best case for
+ * showing it -- and only its end retires it, on the same rule as isPast.
+ */
+export function nextBookedTrip<T extends Trip>(trips: T[], now: Date = new Date()): T | null {
+  const candidates = trips
+    .filter((trip) => trip.booked && trip.start_date && !isPast(trip, now))
+    .sort(byStartDate);
+
+  return candidates[0] ?? null;
+}
+
+/**
+ * Days until it starts. Zero on the day, negative once you are on it.
+ *
+ * Whole days from midnight to midnight rather than by dividing the gap,
+ * because a day is not always 24 hours and the answer is a number people
+ * read on a screen and believe.
+ */
+export function daysUntilTrip(
+  trip: Pick<Trip, "start_date">,
+  now: Date = new Date()
+): number | null {
+  if (!trip.start_date) return null;
+
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  const start = new Date(`${trip.start_date}T00:00:00`);
+  return Math.round((start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/** "In 34 days", "Tomorrow", "You're away". */
+export function tripCountdown(
+  trip: Pick<Trip, "start_date" | "end_date">,
+  now: Date = new Date()
+): string {
+  const days = daysUntilTrip(trip, now);
+  if (days === null) return "No dates yet";
+
+  if (days > 1) return `In ${days} days`;
+  if (days === 1) return "Tomorrow";
+  if (days === 0) return "Today";
+
+  // Already started. Not a countdown any more, and saying "-3 days" about a
+  // holiday somebody is on is the app not paying attention.
+  return "You're away";
+}
+
+/**
+ * Once you are on it, the number that matters is the other end.
+ *
+ * "In -3 days" is nonsense and "You're away" is something you already know.
+ * The question somebody on a trip actually asks the app is when they are
+ * home.
+ */
+export function tripHomecoming(
+  trip: Pick<Trip, "end_date">,
+  now: Date = new Date()
+): string {
+  const days = trip.end_date ? daysUntilTrip({ start_date: trip.end_date }, now) : null;
+
+  // Half the trips that matter start as "Japan, maybe April", and plenty of
+  // them leave without a date home. Saying "You're away" under a heading that
+  // already says it is the app taking up the biggest line on the screen to
+  // repeat itself.
+  if (days === null || days < 0) return "No date home yet";
+
+  if (days > 1) return `Home in ${days} days`;
+  if (days === 1) return "Home tomorrow";
+  return "Home today";
 }
 
 /** Soonest first, with undated ones after the dated ones rather than nowhere. */

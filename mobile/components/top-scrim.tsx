@@ -27,6 +27,7 @@ import { useTheme } from "@/contexts/theme";
 export function TopScrim({
   style,
   tone = "page",
+  depth,
 }: {
   style?: Animated.WithAnimatedValue<StyleProp<ViewStyle>>;
   /**
@@ -38,6 +39,15 @@ export function TopScrim({
    * is protecting against, not the page it will eventually sit on.
    */
   tone?: "page" | "photo";
+  /**
+   * How far down the fade reaches, over the safe-area inset.
+   *
+   * The page's own scrim only ever has the status bar to cover, which is the
+   * default. Home needs more, because its three buttons are pinned over the
+   * page rather than over the photo now, and text scrolling through them is
+   * the mess this exists to prevent.
+   */
+  depth?: number;
 } = {}) {
   const insets = useSafeAreaInsets();
   const t = useTheme();
@@ -46,7 +56,7 @@ export function TopScrim({
   // inset ended in a visible edge rather than a fade -- over a photograph the
   // eye finds a straight horizontal line immediately, and what should read as
   // the page running out read as a bar somebody forgot to style.
-  const height = tone === "photo" ? insets.top + 96 : insets.top + 32;
+  const height = insets.top + (depth ?? (tone === "photo" ? 96 : 32));
 
   // Deep enough for the three buttons that float over the photo, which is
   // what the dark one is mostly there for. The page's own scrim only ever has

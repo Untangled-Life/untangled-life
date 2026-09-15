@@ -151,7 +151,11 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="key-dates"
         options={{
-          title: "Days",
+          title: "Important Dates",
+          // Two words where the others have one, so it is the only label that
+          // needs room. Shrinking just this one keeps it on a single line on
+          // a small phone without dropping the whole bar a size.
+          tabBarLabelStyle: { fontSize: 10, fontWeight: "600", marginTop: 2 },
           tabBarIcon: ({ color }) => <BellIcon size={24} color={color} />,
         }}
       />

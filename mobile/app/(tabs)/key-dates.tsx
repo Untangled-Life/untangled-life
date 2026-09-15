@@ -646,7 +646,7 @@ export default function KeyDates() {
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.textMuted} />
       } contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Unforgettable Days</Text>
+      <Text style={styles.title}>Important Dates</Text>
       <Text style={styles.subtitle}>
         Reminders land at 9am, 2 weeks, 1 week and 3 days before by default. Change that per date
         under Reminders &amp; notes. Dates save as soon as you pick them.

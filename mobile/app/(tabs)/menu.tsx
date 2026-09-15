@@ -95,7 +95,7 @@ export default function Menu() {
           onPress: () =>
             notReady(
               "Notification settings",
-              "Key-date reminders currently fire 2 weeks, 1 week and 3 days before each date, and can't be changed in-app yet. Turn them off entirely in your phone's Settings if you need to."
+              "Reminders for important dates currently fire 2 weeks, 1 week and 3 days before each date, and can't be changed in-app yet. Turn them off entirely in your phone's Settings if you need to."
             ),
         },
       ],

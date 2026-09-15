@@ -12,14 +12,25 @@
  * in Settings now, and a stored arrangement that still names them drops them
  * on the way in.
  */
-export type HomeSection = "pinned" | "keyDates" | "bookedIn" | "freeTogether" | "littleThings";
+export type HomeSection =
+  | "pinned"
+  | "keyDates"
+  | "bookedIn"
+  | "freeTogether"
+  | "nextTrip"
+  | "littleThings";
 
 export const HOME_SECTIONS: { key: HomeSection; label: string; blurb: string }[] = [
   { key: "pinned", label: "Pinned countdown", blurb: "The big one at the top" },
-  { key: "keyDates", label: "Unforgettable days", blurb: "The row you swipe through" },
+  { key: "keyDates", label: "Important dates", blurb: "The row you swipe through" },
   { key: "bookedIn", label: "Upcoming dates", blurb: "The dates you have booked, and a nudge when you have none" },
   { key: "freeTogether", label: "Free together", blurb: "When you're both actually free" },
-  { key: "littleThings", label: "Little things", blurb: "In their words, at the bottom" },
+  {
+    key: "nextTrip",
+    label: "Next trip",
+    blurb: "The booked one, counting down",
+  },
+  { key: "littleThings", label: "The Little Things", blurb: "In their words, at the bottom" },
 ];
 
 export const DEFAULT_HOME_ORDER: HomeSection[] = HOME_SECTIONS.map((s) => s.key);
@@ -63,14 +74,21 @@ export function resolveHomeLayout(stored: string[] | null | undefined): HomeLayo
   }
 
   // Anything this build knows about that the stored arrangement never
-  // mentioned is new. It goes in at its default position and is visible.
+  // mentioned is new. It goes in below whichever of its default neighbours
+  // the person still has above it, and is visible.
+  //
+  // Not "the first stored section whose default position is lower", which is
+  // the same thing only while the stored order IS the default order. Somebody
+  // who had moved The Little Things to the top would have had the next new
+  // section slotted in above their pinned countdown, because The Little
+  // Things sorts after it by default and happened to be sitting first.
   for (const key of DEFAULT_HOME_ORDER) {
     if (seen.has(key)) continue;
-    const insertAt = order.findIndex(
-      (k) => DEFAULT_HOME_ORDER.indexOf(k) > DEFAULT_HOME_ORDER.indexOf(key)
-    );
-    if (insertAt < 0) order.push(key);
-    else order.splice(insertAt, 0, key);
+
+    const above = DEFAULT_HOME_ORDER.slice(0, DEFAULT_HOME_ORDER.indexOf(key));
+    const anchor = [...above].reverse().find((k) => order.includes(k));
+
+    order.splice(anchor ? order.indexOf(anchor) + 1 : 0, 0, key);
   }
 
   return { order, hidden };
