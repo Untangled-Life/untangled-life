@@ -2,6 +2,7 @@ import { Animated, StyleProp, StyleSheet, ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/theme";
+import { withAlpha } from "@/lib/palette";
 
 
 
@@ -80,32 +81,6 @@ export function TopScrim({
       <LinearGradient colors={colors} locations={locations} style={StyleSheet.absoluteFill} />
     </Animated.View>
   );
-}
-
-/**
- * The same colour at a different alpha.
- *
- * Fading to the string "transparent" is the obvious move and the wrong one:
- * on Android that interpolates towards transparent BLACK, so a cream scrim
- * develops a grey bruise through its middle. The end stop has to be this
- * colour at zero.
- */
-function withAlpha(hex: string, alpha: number): string {
-  const value = hex.replace("#", "");
-  const full =
-    value.length === 3
-      ? value
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : value;
-
-  const r = parseInt(full.slice(0, 2), 16);
-  const g = parseInt(full.slice(2, 4), 16);
-  const b = parseInt(full.slice(4, 6), 16);
-
-  if ([r, g, b].some(Number.isNaN)) return hex;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 const styles = StyleSheet.create({

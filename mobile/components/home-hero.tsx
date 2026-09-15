@@ -5,6 +5,7 @@ import { Avatar } from "@/components/avatar";
 import { press } from "@/components/press";
 import { useThemedStyles, useTheme } from "@/contexts/theme";
 import { Theme } from "@/theme/tokens";
+import { withAlpha } from "@/lib/palette";
 
 /**
  * The top of Home: the two of you.
@@ -138,7 +139,7 @@ export function HomeHero({
                 picture to guarantee that would waste the picture. */}
             <LinearGradient
               colors={["rgba(12,10,7,0)", "rgba(12,10,7,0.25)", "rgba(12,10,7,0.78)"]}
-              locations={[0.35, 0.62, 1]}
+              locations={[0.35, 0.62, 0.88]}
               style={StyleSheet.absoluteFill}
             />
           </>
@@ -151,6 +152,25 @@ export function HomeHero({
           />
         )}
       </Animated.View>
+
+      {/* The page, coming up to meet the photograph.
+
+          A photograph that simply stops is a seam, and the rounded corners
+          were hiding one rather than solving it. This is the same idea as
+          the scrim under the status bar, upside down: the picture runs out
+          into the colour of the page instead of ending on a line.
+
+          Outside the stretching layer, so it keeps its height: inside it,
+          a hard pull would scale the band along with the photo and eat
+          half the picture in cream. The dark scrim above now tops out at
+          88%, so this fades from the photograph rather than from a black
+          bar. */}
+      <LinearGradient
+        colors={[withAlpha(t.bg, 0), withAlpha(t.bg, 0.55), t.bg]}
+        locations={[0, 0.55, 1]}
+        style={styles.taper}
+        pointerEvents="none"
+      />
 
       <View style={styles.content}>
         <View style={styles.faces}>
@@ -208,12 +228,14 @@ const createStyles = (t: Theme) =>
       left: 0,
       right: 0,
       bottom: 0,
-      borderBottomLeftRadius: t.radius.xl,
-      borderBottomRightRadius: t.radius.xl,
       overflow: "hidden",
       backgroundColor: t.surface,
     },
-    content: { padding: t.space(6), gap: t.space(1) },
+    content: { padding: t.space(6), paddingBottom: t.space(11), gap: t.space(1) },
+    // Deep enough to read as the page arriving rather than as a line somebody
+    // drew, and no deeper: every pixel of it is a pixel of photograph nobody
+    // gets to see.
+    taper: { position: "absolute", left: 0, right: 0, bottom: 0, height: 56 },
     faces: { flexDirection: "row", marginBottom: t.space(3) },
     faceRing: {
       borderRadius: 999,
