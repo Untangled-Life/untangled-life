@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { Redirect, Tabs, router, usePathname } from "expo-router";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import * as Notifications from "expo-notifications";
@@ -9,7 +9,9 @@ import { useCoupleMembers } from "@/hooks/useCoupleMembers";
 import { registerForPushNotifications } from "@/lib/pushRegistration";
 import { syncPlannedEventsToDevice } from "@/lib/plannedEvents";
 import { useTimeZoneSync } from "@/hooks/useTimeZoneSync";
+import { tapped } from "@/lib/haptics";
 import { TopScrim } from "@/components/top-scrim";
+import { EdgeBack } from "@/components/edge-back";
 
 export default function TabsLayout() {
   const { session, profile, loading } = useAuth();
@@ -20,6 +22,18 @@ export default function TabsLayout() {
   // and carries its own dark scrim, so a cream one over the top would be a
   // bar across somebody's face.
   const scrim = pathname !== "/";
+
+  // Home is where the gesture goes, so there is nothing for it to do there.
+  // The walkthrough is the other exception: it is the one screen you are
+  // meant to finish, and swiping out of it would only bounce you back.
+  const edgeBack = pathname !== "/" && pathname !== "/welcome";
+
+  // navigate rather than push, so swiping out of four screens in a row does
+  // not leave four copies of Home behind the one you are looking at.
+  const goHome = useCallback(() => {
+    tapped();
+    router.navigate("/");
+  }, []);
   const { partner, loading: membersLoading } = useCoupleMembers();
 
   // Keeps the stored zone matching the phone, here rather than on one screen
@@ -123,6 +137,7 @@ export default function TabsLayout() {
   }
 
   return (
+    <EdgeBack enabled={edgeBack} onTrigger={goHome}>
     <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
@@ -137,7 +152,11 @@ export default function TabsLayout() {
           height: 88,
           paddingTop: 8,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600", marginTop: 2 },
+        // Ten rather than eleven, and the same for all four. Two of these
+        // labels are two words long, and a bar where one label is a point
+        // smaller than its neighbours reads as a rendering fault rather than
+        // as a label that needed the room.
+        tabBarLabelStyle: { fontSize: 10, fontWeight: "600", marginTop: 2 },
         tabBarItemStyle: { paddingVertical: 4 },
       }}
     >
@@ -152,10 +171,6 @@ export default function TabsLayout() {
         name="key-dates"
         options={{
           title: "Important Dates",
-          // Two words where the others have one, so it is the only label that
-          // needs room. Shrinking just this one keeps it on a single line on
-          // a small phone without dropping the whole bar a size.
-          tabBarLabelStyle: { fontSize: 10, fontWeight: "600", marginTop: 2 },
           tabBarIcon: ({ color }) => <BellIcon size={24} color={color} />,
         }}
       />
@@ -170,9 +185,6 @@ export default function TabsLayout() {
         name="wishlists"
         options={{
           title: "Wishlist & Trips",
-          // Same as Important Dates: the long ones come down a point so they
-          // stay on one line rather than truncating on a small phone.
-          tabBarLabelStyle: { fontSize: 10, fontWeight: "600", marginTop: 2 },
           tabBarIcon: ({ color }) => <GiftIcon size={24} color={color} />,
         }}
       />
@@ -207,5 +219,6 @@ export default function TabsLayout() {
         of them being broken. */}
     {scrim ? <TopScrim /> : null}
     </View>
+    </EdgeBack>
   );
 }
