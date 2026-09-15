@@ -41,7 +41,16 @@ import { loadPartnerValued } from "@/lib/ideaData";
 import { daySeed } from "@/lib/dateIdeas";
 import { loadOpenProposals, splitProposals, DateProposal } from "@/lib/dateProposals";
 import { AwaitingReview } from "@/lib/dateHistory";
-import { nextAwaitingReview } from "@/lib/dateReviews";
+import { nextAwaitingReview, lovedTogether } from "@/lib/dateReviews";
+import { LovedDate } from "@/lib/dateHistory";
+import {
+  giftHint,
+  onThisDay,
+  yearsAgoLabel,
+  type GiftHint,
+  type OnThisDay,
+} from "@/lib/homeMoments";
+import { daysUntil as keyDaysUntil } from "@/lib/keyDates";
 import { InboxBadge } from "@/app/(tabs)/inbox";
 import { useCouplePhotos } from "@/hooks/useCouplePhotos";
 import { pickPhoto, uploadPhoto, removePhoto } from "@/lib/photos";
@@ -157,6 +166,10 @@ export default function Home() {
   const [syncing, setSyncing] = useState(false);
   const [myPattern, setMyPattern] = useState<WorkPattern | null>(null);
   const [plans, setPlans] = useState<UpcomingPlan[]>([]);
+  const [loved, setLoved] = useState<LovedDate[]>([]);
+  const [wishlistOwners, setWishlistOwners] = useState<
+    { id: string; name: string; created_by: string; itemCount: number }[]
+  >([]);
   const [bookingIndex, setBookingIndex] = useState<number | null>(null);
   const [bookingTitle, setBookingTitle] = useState("");
   const [booking, setBooking] = useState(false);
@@ -225,6 +238,23 @@ export default function Home() {
     // same answer. See lib/ideaData.ts for why it is scoped and limited.
     setPartnerValued(await loadPartnerValued(profile?.couple_id ?? null, session?.user.id ?? null));
     setPlans(await loadUpcomingPlans());
+    setLoved(await lovedTogether());
+
+    // Just enough of each wishlist to know whose it is and whether it has
+    // anything in it, for the gift hint. Not the items.
+    const { data: lists } = await supabase
+      .from("wishlists")
+      .select("id, name, created_by, wishlist_items(count)");
+    setWishlistOwners(
+      ((lists as { id: string; name: string; created_by: string; wishlist_items: { count: number }[] }[] | null) ?? []).map(
+        (w) => ({
+          id: w.id,
+          name: w.name,
+          created_by: w.created_by,
+          itemCount: w.wishlist_items?.[0]?.count ?? 0,
+        })
+      )
+    );
 
     // When anything was last put in the diary, which is a different question
     // from what is coming up: a couple who booked a holiday for March did
@@ -664,6 +694,18 @@ export default function Home() {
             </View>
           </View>
     </Animated.View>
+  );
+
+  // On this day, and a nudge before their birthday. Worked out on every
+  // render off dates already loaded, so they are right about "today" on a
+  // screen left open overnight.
+  const moment: OnThisDay | null = onThisDay(keyDates, loved);
+  const birthdayHint: GiftHint | null = giftHint(
+    partnerId,
+    partnerName,
+    keyDates.filter((kd) => kd.kind === "birthday"),
+    wishlistOwners,
+    keyDaysUntil
   );
 
   // Each Home section, keyed so the arrangement can decide what appears
@@ -1118,6 +1160,42 @@ export default function Home() {
         </View>
       ) : null}
 
+      {/* Neither of these is an arrangeable section: they appear only on the
+          day they mean something, so they sit above the list rather than in
+          it, where an empty slot would otherwise wait all year. */}
+      {moment ? (
+        <Link href={moment.href} asChild>
+          <Pressable style={press(styles.momentCard)}>
+            <Text style={styles.momentEyebrow}>{yearsAgoLabel(moment.years)}</Text>
+            <Text style={styles.momentTitle}>{moment.title}</Text>
+          </Pressable>
+        </Link>
+      ) : null}
+
+      {birthdayHint ? (
+        <Pressable
+          style={press(styles.giftCard)}
+          onPress={() =>
+            birthdayHint.wishlistId
+              ? router.push(`/wishlists/${birthdayHint.wishlistId}`)
+              : router.push("/wishlists")
+          }
+        >
+          <Text style={styles.giftEyebrow}>
+            {birthdayHint.daysUntil === 0
+              ? `${birthdayHint.partnerName}'s birthday is today`
+              : birthdayHint.daysUntil === 1
+                ? `${birthdayHint.partnerName}'s birthday is tomorrow`
+                : `${birthdayHint.partnerName}'s birthday is in ${birthdayHint.daysUntil} days`}
+          </Text>
+          <Text style={styles.giftTitle}>
+            {birthdayHint.wishlistName
+              ? `Their "${birthdayHint.wishlistName}" list is the place to look.`
+              : `${birthdayHint.partnerName} hasn't made a wishlist yet, but there's still time to think.`}
+          </Text>
+        </Pressable>
+      ) : null}
+
       {visible.map((key) => sectionBlocks[key])}
     </Animated.ScrollView>
 
@@ -1339,6 +1417,22 @@ const createStyles = (t: Theme) =>
   tripCountdown: { ...t.type.hero, color: t.accent },
   tripTitle: { ...t.type.title, color: t.textPrimary, marginTop: 2 },
   tripWhen: { ...t.type.caption, color: t.textSecondary, marginTop: t.space(2) },
+  momentCard: {
+    backgroundColor: t.brandSoft,
+    borderRadius: t.radius.lg,
+    padding: t.space(5),
+    marginBottom: t.space(4),
+  },
+  momentEyebrow: { ...t.type.eyebrow, color: t.brand, marginBottom: t.space(1) },
+  momentTitle: { ...t.type.title, color: t.textPrimary },
+  giftCard: {
+    backgroundColor: t.accentSoft,
+    borderRadius: t.radius.lg,
+    padding: t.space(5),
+    marginBottom: t.space(4),
+  },
+  giftEyebrow: { ...t.type.eyebrow, color: t.accent, marginBottom: t.space(1) },
+  giftTitle: { ...t.type.body, color: t.textPrimary },
   heroCountdown: { ...t.type.hero, color: t.brand },
   heroTitle: { ...t.type.title, color: t.textPrimary, marginTop: 2 },
   heroNote: { ...t.type.caption, color: t.textSecondary, marginTop: t.space(2) },
