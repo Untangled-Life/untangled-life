@@ -46,11 +46,19 @@ export default function TabsLayout() {
   // navigate rather than push for that case, so swiping out of four tabs in a
   // row does not leave four copies of Home stacked up behind the one you are
   // looking at.
+  //
+  // Deliberately without a canGoBack() check. Everything in here is a route on
+  // the tab navigator, and the app sits inside a root stack holding exactly
+  // one screen -- so canGoBack() asks the root, gets "no", and used to send
+  // every trip and every event to Home no matter how they were opened. back()
+  // does not ask the root: it goes to whichever navigator is actually in
+  // front, which is the same thing the Back button in the corner of these
+  // screens has always done.
   const onTab = TAB_ROUTES.includes(pathname);
   const swipeBack = useCallback(() => {
     tapped();
-    if (!onTab && router.canGoBack()) router.back();
-    else router.navigate("/");
+    if (onTab) router.navigate("/");
+    else router.back();
   }, [onTab]);
   const { partner, loading: membersLoading } = useCoupleMembers();
 
