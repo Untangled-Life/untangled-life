@@ -130,6 +130,30 @@ export default function Valued() {
     return true;
   }
 
+  /**
+   * Whether what is on screen differs from what is stored.
+   *
+   * Derived from the saved row rather than tracked alongside it, because
+   * save() reloads from the database when it finishes -- so the row IS the
+   * record of what was saved, and a separate copy of it could only ever go
+   * out of step and start saying "Saved" over unsaved words.
+   *
+   * Trimmed on both sides, because that is what gets written.
+   */
+  const dirty =
+    !mine ||
+    (mine.ranking ?? []).join("|") !== ranking.join("|") ||
+    (mine.feels_valued ?? "") !== (text.feels_valued?.trim() ?? "") ||
+    (mine.little_things ?? "") !== (text.little_things?.trim() ?? "") ||
+    (mine.hard_week ?? "") !== (text.hard_week?.trim() ?? "") ||
+    mine.shared !== shared;
+
+  // Three states rather than two. "Save" before there is anything stored,
+  // "Update" once there is and you have changed something, and "Saved" when
+  // the two agree -- which is the only one of the three that is a statement
+  // rather than an instruction, so it does not behave like a button.
+  const saveLabel = saving ? "Saving..." : !mine ? "Save" : dirty ? "Update" : "Saved";
+
   if (!loaded) {
     return (
       <View style={styles.loading}>
@@ -213,8 +237,16 @@ export default function Valued() {
         />
       </View>
 
-      <Pressable style={press(styles.save)} onPress={() => save()} disabled={saving}>
-        <Text style={styles.saveText}>{saving ? "Saving..." : "Save"}</Text>
+      <Pressable
+        style={press([styles.save, !dirty && !saving ? styles.saveDone : null])}
+        onPress={() => save()}
+        disabled={saving || !dirty}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: saving || !dirty }}
+      >
+        <Text style={[styles.saveText, !dirty && !saving ? styles.saveDoneText : null]}>
+          {!dirty && !saving ? `\u2713  ${saveLabel}` : saveLabel}
+        </Text>
       </Pressable>
 
       {theirs ? (
@@ -314,6 +346,10 @@ const createStyles = (t: Theme) =>
       marginTop: t.space(4),
     },
     saveText: { ...t.type.label, color: t.textOnBrand },
+    // Saved is a receipt, not an action. A filled button that does nothing
+    // teaches people not to trust the filled buttons.
+    saveDone: { backgroundColor: t.accentSoft },
+    saveDoneText: { color: t.accent },
 
     theirs: { marginTop: t.space(8) },
     theirRanking: { ...t.type.body, color: t.accent, marginTop: t.space(2) },
