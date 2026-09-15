@@ -169,7 +169,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="wishlists"
         options={{
-          title: "Wishlists",
+          title: "Wishlist & Trips",
+          // Same as Important Dates: the long ones come down a point so they
+          // stay on one line rather than truncating on a small phone.
+          tabBarLabelStyle: { fontSize: 10, fontWeight: "600", marginTop: 2 },
           tabBarIcon: ({ color }) => <GiftIcon size={24} color={color} />,
         }}
       />
