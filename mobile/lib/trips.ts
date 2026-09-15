@@ -53,7 +53,7 @@ export const SECTIONS: {
     kind: "flight",
     title: "Getting there",
     blurb: "Flights, trains, the hire car. A screenshot is enough until it is booked.",
-    add: "Add a flight",
+    add: "Add Travel",
   },
   {
     kind: "stay",
@@ -92,6 +92,17 @@ export const SECTIONS: {
     add: "Add a note",
   },
 ];
+
+/**
+ * Said at the moment of adding, not before it.
+ *
+ * Most of what goes in a trip before it is booked only exists as a
+ * screenshot, and the place to put one is on the row -- which does not exist
+ * until the row does. Somebody typing a name into an empty box has no way of
+ * knowing that, and "there is nowhere to put the booking email" is the point
+ * at which people stop filling a screen in.
+ */
+export const ADD_HINT = "Screenshots can be uploaded once it\u2019s added in.";
 
 export const SECTION_TITLES: Record<TripItemKind, string> = SECTIONS.reduce(
   (acc, section) => ({ ...acc, [section.kind]: section.title }),

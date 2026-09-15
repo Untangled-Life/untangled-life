@@ -26,7 +26,16 @@ import { PhotoTile } from "@/components/photo-tile";
 import { ActionSheet, type SheetAction } from "@/components/action-sheet";
 import { SwipeRow } from "@/components/swipe-row";
 import { removePhoto } from "@/lib/photos";
-import { SECTIONS, Trip, TripItem, TripItemKind, byWhen, tripNights, tripWhen } from "@/lib/trips";
+import {
+  ADD_HINT,
+  SECTIONS,
+  Trip,
+  TripItem,
+  TripItemKind,
+  byWhen,
+  tripNights,
+  tripWhen,
+} from "@/lib/trips";
 
 /**
  * One trip: everything you have booked, and everything you have not.
@@ -413,6 +422,7 @@ export default function TripScreen() {
               )}
 
               {draftFor === section.kind ? (
+                <View>
                 <View style={styles.draftRow}>
                   <TextInput
                     style={styles.draftInput}
@@ -427,6 +437,8 @@ export default function TripScreen() {
                   <Pressable style={press(styles.draftAdd)} onPress={() => addItem(section.kind)}>
                     <Text style={styles.draftAddText}>Add</Text>
                   </Pressable>
+                </View>
+                <Text style={styles.draftHint}>{ADD_HINT}</Text>
                 </View>
               ) : (
                 <Pressable
@@ -532,6 +544,7 @@ const createStyles = (t: Theme) =>
       justifyContent: "center",
     },
     draftAddText: { ...t.type.label, color: t.textOnBrand },
+    draftHint: { ...t.type.caption, color: t.textSecondary, marginTop: t.space(2) },
     notes: {
       ...t.card,
       padding: t.space(4),
