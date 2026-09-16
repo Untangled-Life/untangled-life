@@ -1,11 +1,12 @@
 @import "tailwindcss";
 
+/* The brand colours live in one swappable file. See src/styles/schemes/README.md. */
+@import "../styles/schemes/coral-cream-deep-teal.css";
+
 @theme inline {
   --color-surface: #f7f5f2;
   --color-surface-card: #ffffff;
   --color-border: #ece7e1;
-  --color-brand-orange: #d85a30;
-  --color-brand-green: #1d9e75;
   --color-text-primary: #171717;
   --color-text-secondary: #52525b;
   --color-text-muted: #8a8a8a;

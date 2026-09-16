@@ -43,13 +43,13 @@ function Bullets({ items }: { items: React.ReactNode[] }) {
 export default function Cookies() {
   return (
     <>
-      <header className="sticky top-0 z-10 border-b border-border bg-surface/90 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-hero-edge bg-header-bg/90 text-header-fg backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2.5">
             <Logo size={30} />
             <span className="text-base font-medium">Untangled Life</span>
           </Link>
-          <Link href="/" className="text-[14px] text-text-secondary hover:text-text-primary">
+          <Link href="/" className="text-[14px] text-hero-fg2 hover:text-header-fg">
             Back to site
           </Link>
         </div>
@@ -67,7 +67,7 @@ export default function Cookies() {
             the Untangled Life app keeps on your phone so that it works.
           </p>
 
-          <div className="mt-6 rounded-xl border border-brand-green/30 bg-brand-green/5 p-5">
+          <div className="mt-6 rounded-xl border border-accent/30 bg-accent/5 p-5">
             <p className="text-[15px] font-medium text-text-primary">The short version</p>
             <ul className="mt-3 ml-5 list-disc space-y-2 text-[15px] leading-7 text-text-secondary">
               <li>This website sets no cookies of any kind.</li>
@@ -139,7 +139,7 @@ export default function Cookies() {
               Our hosting provider keeps short-lived connection logs, including IP addresses, to
               detect abuse and diagnose faults. That happens on the server, not in your browser,
               and is described in our{" "}
-              <Link href="/privacy" className="text-brand-green underline underline-offset-2">
+              <Link href="/privacy" className="text-accent underline underline-offset-2">
                 Privacy Policy
               </Link>
               .
@@ -223,7 +223,7 @@ export default function Cookies() {
             <p>
               Questions about cookies or about what the app stores? Email{" "}
               <a
-                className="text-brand-green underline underline-offset-2"
+                className="text-accent underline underline-offset-2"
                 href="mailto:hello@untangledlife.com.au"
               >
                 hello@untangledlife.com.au

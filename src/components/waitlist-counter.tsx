@@ -36,13 +36,13 @@ export function WaitlistCounter() {
   return (
     <div className="mt-1.5">
       <p
-        className="text-[13px] font-semibold text-brand-orange"
+        className="text-[13px] font-semibold text-hero-accent"
         aria-live="polite"
       >
         {capped}/{GOAL} registered
       </p>
       {goalReached && (
-        <p className="mt-1 text-[13px] font-medium text-brand-green">
+        <p className="mt-1 text-[13px] font-medium text-hero-fg2">
           40% off for the first 10,000 users
         </p>
       )}

@@ -1,0 +1,28 @@
+/*
+ * Scheme 1: Coral and Teal on Cream. PARKED, ready to switch to.
+ *
+ * Same tokens as the live scheme, different values. The header and hero stay
+ * on the cream page, with the coral-and-teal loop on it. To make this the
+ * live scheme, change the @import in src/app/globals.css to this file, then
+ * swap the app icon set from mobile/assets/schemes/coral-teal-cream/ (see the
+ * README there).
+ */
+@theme inline {
+  --color-logo-a: #e9705a;
+  --color-logo-b: #1f6b78;
+
+  --color-brand: #e9705a;
+  --color-brand-deep: #d25a45;
+
+  --color-accent: #1f6b78;
+
+  --color-header-bg: #f7f5f2;
+  --color-header-fg: #171717;
+
+  --color-hero-bg: #f7f5f2;
+  --color-hero-fg: #171717;
+  --color-hero-fg2: #52525b;
+  --color-hero-muted: #8a8a8a;
+  --color-hero-accent: #e9705a;
+  --color-hero-edge: #ece7e1;
+}

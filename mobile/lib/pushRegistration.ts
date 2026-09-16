@@ -17,7 +17,7 @@ export async function registerForPushNotifications(userId: string): Promise<void
       await Notifications.setNotificationChannelAsync("default", {
         name: "Untangled Life",
         importance: Notifications.AndroidImportance.DEFAULT,
-        lightColor: "#D85A30",
+        lightColor: "#EF7A62",
       });
     }
 

@@ -47,7 +47,7 @@ export function WaitlistForm() {
 
   if (status === "success") {
     return (
-      <p className="text-sm font-medium text-brand-green">
+      <p className="text-sm font-medium text-hero-accent">
         You&apos;re on the list. We&apos;ll be in touch.
       </p>
     );
@@ -67,7 +67,7 @@ export function WaitlistForm() {
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Your name"
-        className="rounded-full border border-border bg-surface-card px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-brand-orange/40"
+        className="rounded-full border border-hero-edge bg-surface-card px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-brand/40"
       />
       <input
         type="email"
@@ -75,7 +75,7 @@ export function WaitlistForm() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="you@email.com"
-        className="rounded-full border border-border bg-surface-card px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-brand-orange/40"
+        className="rounded-full border border-hero-edge bg-surface-card px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-brand/40"
       />
       <div>
         <label
@@ -88,7 +88,7 @@ export function WaitlistForm() {
           id="sharedApp"
           value={sharedApp}
           onChange={(e) => setSharedApp(e.target.value)}
-          className="w-full rounded-full border border-border bg-surface-card px-4 py-2.5 text-sm text-text-secondary outline-none focus:ring-2 focus:ring-brand-orange/40"
+          className="w-full rounded-full border border-hero-edge bg-surface-card px-4 py-2.5 text-sm text-text-secondary outline-none focus:ring-2 focus:ring-brand/40"
         >
           {SHARED_APP_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -100,7 +100,7 @@ export function WaitlistForm() {
       <button
         type="submit"
         disabled={status === "loading"}
-        className="mt-1 rounded-full bg-brand-orange px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#c14f28] disabled:opacity-60"
+        className="mt-1 rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-deep disabled:opacity-60"
       >
         {status === "loading" ? "Joining…" : "Join the waitlist"}
       </button>

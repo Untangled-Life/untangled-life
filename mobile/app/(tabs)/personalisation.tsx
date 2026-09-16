@@ -4,7 +4,7 @@ import { press } from "@/components/press";
 import { ScreenHeader } from "@/components/screen";
 import { ChevronRightIcon } from "@/components/icons";
 import { useThemedStyles, useTheme, useThemeMode } from "@/contexts/theme";
-import { Theme, ThemeMode, ACCENTS } from "@/theme/tokens";
+import { Theme, ThemeMode, ACCENTS, GROUNDS } from "@/theme/tokens";
 import { tapped } from "@/lib/haptics";
 
 /**
@@ -30,7 +30,7 @@ const MODES: { key: ThemeMode; label: string; blurb: string }[] = [
 export default function Personalisation() {
   const styles = useThemedStyles(createStyles);
   const t = useTheme();
-  const { mode, setMode, scheme, accent, setAccent } = useThemeMode();
+  const { mode, setMode, scheme, accent, setAccent, ground, setGround } = useThemeMode();
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -65,6 +65,40 @@ export default function Personalisation() {
         {mode === "system" ? " Change your phone's appearance setting to switch." : ""}
       </Text>
 
+      {/* The two schemes from the icon and the website. A ground rather than
+          a colour: it changes what the whole page sits on, so it lives above
+          the accent, which only tints things on it. */}
+      <Text style={styles.groupTitle}>Colour scheme</Text>
+      <View style={styles.card}>
+        {GROUNDS.map((g, i) => (
+          <Pressable
+            key={g.name}
+            onPress={() => {
+              tapped();
+              setGround(g.name);
+            }}
+            style={press([styles.row, i > 0 ? styles.rowDivider : null])}
+            accessibilityRole="button"
+            accessibilityState={{ selected: ground === g.name }}
+          >
+            <View style={[styles.groundChip, g.name === "teal" ? styles.groundChipTeal : styles.groundChipCream]}>
+              <View style={[styles.groundStrand, { backgroundColor: "#EF7A62" }]} />
+              <View style={[styles.groundStrand, { backgroundColor: g.name === "teal" ? "#F5F2EC" : "#1F6B78" }]} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, ground === g.name ? styles.rowLabelActive : null]}>
+                {g.label}
+              </Text>
+              <Text style={styles.rowHint}>{g.blurb}</Text>
+            </View>
+            {ground === g.name ? <Text style={styles.tick}>✓</Text> : null}
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.footnote}>
+        The deep teal takes the place of the light look. Dark mode stays dark either way.
+      </Text>
+
       <Text style={styles.groupTitle}>Accent colour</Text>
       <View style={[styles.card, styles.swatchCard]}>
         {ACCENTS.map((a) => {
@@ -97,7 +131,7 @@ export default function Personalisation() {
         })}
       </View>
       <Text style={styles.footnote}>
-        Changes links, buttons and important dates. The brand orange stays put.
+        Changes links, buttons and important dates. The brand coral stays put.
       </Text>
 
       <Text style={styles.groupTitle}>Calendar colour</Text>
@@ -158,6 +192,22 @@ const createStyles = (t: Theme) =>
     rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border },
     rowLabel: { ...t.type.heading, color: t.textPrimary },
     rowLabelActive: { color: t.accent, fontWeight: "700" },
+    // A small tile showing the two strands on the scheme's ground, so the
+    // choice is visible before it is made.
+    groundChip: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 5,
+      marginRight: t.space(3),
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: t.border,
+    },
+    groundChipTeal: { backgroundColor: "#1F5F6B" },
+    groundChipCream: { backgroundColor: "#F5F2EC" },
+    groundStrand: { width: 26, height: 6, borderRadius: 3 },
     rowHint: { ...t.type.caption, color: t.textMuted, marginTop: 2 },
     tick: { color: t.accent, fontSize: 17, fontWeight: "700" },
     swatchCard: {

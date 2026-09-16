@@ -1,0 +1,38 @@
+/*
+ * Scheme 2: Coral and Cream on Deep Teal. THE LIVE SCHEME.
+ *
+ * The brand colours, and nothing else: surface, text and border stay in
+ * globals.css because they are the page, not the scheme. Everything a
+ * scheme owns is here so that switching is one line -- change the @import
+ * in src/app/globals.css to the other file in this folder.
+ *
+ * The header and hero take the deep teal as their ground, with the cream
+ * wordmark and the coral-and-cream loop sitting directly on it, exactly as
+ * they do on the app icon. Below the hero the page returns to cream.
+ */
+@theme inline {
+  /* the two strands of the loop, and the wordmark colour, in the header */
+  --color-logo-a: #ef7a62;
+  --color-logo-b: #f5f2ec;
+
+  /* buttons, active dots, highlights */
+  --color-brand: #ef7a62;
+  --color-brand-deep: #d9634c;
+
+  /* links, feature icons, success text */
+  --color-accent: #1f5f6b;
+
+  /* the header bar */
+  --color-header-bg: #1f5f6b;
+  --color-header-fg: #f5f2ec;
+
+  /* the hero band */
+  --color-hero-bg: #1f5f6b;
+  --color-hero-fg: #f5f2ec;
+  --color-hero-fg2: rgba(245, 242, 236, 0.82);
+  --color-hero-muted: rgba(245, 242, 236, 0.6);
+  /* strong text inside the hero: the counter, the success line */
+  --color-hero-accent: #f5f2ec;
+  /* form field edges inside the hero */
+  --color-hero-edge: rgba(245, 242, 236, 0.18);
+}

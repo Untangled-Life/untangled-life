@@ -156,13 +156,13 @@ export const lightTheme: Theme = {
   textSecondary: "#6B6B6B",
   textMuted: "#9A9A9A",
   textOnBrand: "#FFFFFF",
-  brand: "#D85A30",
-  brandSoft: "#FBE9E1",
-  accent: "#1D9E75",
-  accentSoft: "#E8F5EF",
+  brand: "#E9705A",
+  brandSoft: "#FCEAE5",
+  accent: "#1F6B78",
+  accentSoft: "#E3F0F2",
   danger: "#B3261E",
-  dotPlan: "#D85A30",
-  dotKeyDate: "#1D9E75",
+  dotPlan: "#E9705A",
+  dotKeyDate: "#1F6B78",
   dotWork: "#7A8B99",
   dotBusy: "#D6D2C8",
   type,
@@ -210,13 +210,13 @@ export const darkTheme: Theme = {
   // theme that is dark.
   textOnBrand: "#14130F",
   // Lifted slightly: the light-mode brand tones go muddy on a dark ground.
-  brand: "#F0714A",
-  brandSoft: "#3A251C",
-  accent: "#35B98C",
-  accentSoft: "#163026",
+  brand: "#F58B74",
+  brandSoft: "#3E2822",
+  accent: "#4FB3C4",
+  accentSoft: "#132C30",
   danger: "#E5675E",
-  dotPlan: "#F0714A",
-  dotKeyDate: "#35B98C",
+  dotPlan: "#F58B74",
+  dotKeyDate: "#4FB3C4",
   dotWork: "#8FA3B2",
   dotBusy: "#4A463E",
   // No shadow worth seeing on a dark ground, so the edge does the work.
@@ -239,9 +239,87 @@ export const darkTheme: Theme = {
 };
 
 /**
+ * The deep teal ground: Coral and Cream on Deep Teal, as a whole app.
+ *
+ * The icon and the website put the coral-and-cream loop on a deep teal
+ * ground, and this is the same idea carried through every screen. It is a
+ * dark-ground theme in the way that matters -- light type, a light status
+ * bar, lifted accents -- so its `scheme` is "dark", which is what the rest of
+ * the app reads to decide those things. It replaces the light look when it is
+ * chosen; the warm dark theme is unchanged for night.
+ *
+ * Coral on deep teal is about 3.3:1, fine for a button but not for a line of
+ * small type, so nothing here sets small text in the brand. `textOnBrand` is
+ * the near-black rather than cream, because cream on coral is 2.5:1 and
+ * unreadable. The accent for links is a light aqua, 8:1 against the ground.
+ */
+const TEAL_BG = "#1F5F6B";
+const TEAL_SURFACE = "#276E7A";
+const TEAL_BORDER = "rgba(245, 242, 236, 0.14)";
+
+export const tealTheme: Theme = {
+  scheme: "dark",
+  bg: TEAL_BG,
+  surface: TEAL_SURFACE,
+  surfaceAlt: "#2C7683",
+  surfaceSunken: "#1A525D",
+  border: TEAL_BORDER,
+  textPrimary: "#F5F2EC",
+  textSecondary: "#CFE3E6",
+  textMuted: "#9BC1C7",
+  textOnBrand: "#14130F",
+  brand: "#EF7A62",
+  brandSoft: "#4A6469",
+  accent: "#A9DEE6",
+  accentSoft: "#2E7683",
+  danger: "#F28B82",
+  dotPlan: "#EF7A62",
+  dotKeyDate: "#A9DEE6",
+  dotWork: "#9FB6BE",
+  dotBusy: "#3E7883",
+  card: {
+    backgroundColor: TEAL_SURFACE,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: TEAL_BORDER,
+  },
+  type,
+  radius,
+  space,
+  shadow: {
+    shadowColor: "#000000",
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+};
+
+/**
+ * Which ground the app sits on: the two colour schemes from Personalisation.
+ *
+ * "teal" is Coral and Cream on Deep Teal, the scheme the icon and website
+ * wear. "cream" is Coral and Teal on Cream, the same colours on the app's
+ * original cream page. Per device, like the accent, because it is a matter
+ * of taste and the two of you need not agree.
+ */
+export type GroundName = "teal" | "cream";
+
+export const GROUNDS: { name: GroundName; label: string; blurb: string }[] = [
+  { name: "teal", label: "Coral & Cream on Deep Teal", blurb: "The deep teal from the icon, through the whole app." },
+  { name: "cream", label: "Coral & Teal on Cream", blurb: "The same colours on the cream page." },
+];
+
+export const DEFAULT_GROUND: GroundName = "teal";
+
+export function isGroundName(value: unknown): value is GroundName {
+  return GROUNDS.some((g) => g.name === value);
+}
+
+/**
  * Accent colours.
  *
- * The brand orange is fixed -- it's the app's identity and it's on the website
+ * The brand coral is fixed -- it's the app's identity and it's on the website
  * -- so what's adjustable is the accent: the green used for links, actions,
  * chips and key dates. Each one carries a light and a dark pair, because a
  * colour that works on paper-white goes muddy on a dark ground and a colour
@@ -262,16 +340,16 @@ export const ACCENTS: {
   dark: AccentPair;
 }[] = [
   {
+    name: "teal",
+    label: "Teal",
+    light: { on: "#1F6B78", soft: "#E3F0F2" },
+    dark: { on: "#4FB3C4", soft: "#132C30" },
+  },
+  {
     name: "green",
     label: "Green",
     light: { on: "#1D9E75", soft: "#E8F5EF" },
     dark: { on: "#35B98C", soft: "#163026" },
-  },
-  {
-    name: "teal",
-    label: "Teal",
-    light: { on: "#0E8C9B", soft: "#E3F3F5" },
-    dark: { on: "#2FB6C6", soft: "#132C30" },
   },
   {
     name: "blue",
@@ -299,13 +377,16 @@ export const ACCENTS: {
   },
 ];
 
-export const DEFAULT_ACCENT: AccentName = "green";
+export const DEFAULT_ACCENT: AccentName = "teal";
 
 export function isAccentName(value: unknown): value is AccentName {
   return ACCENTS.some((a) => a.name === value);
 }
 
 function withAccent(base: Theme, accent: AccentName): Theme {
+  // The base theme already carries the default accent in its own tuned
+  // shade -- deep teal on cream, lifted teal on the dark theme, aqua on the
+  // deep teal ground -- so the default is the base, untouched.
   if (accent === DEFAULT_ACCENT) return base;
 
   const chosen = ACCENTS.find((a) => a.name === accent);
@@ -326,8 +407,14 @@ function withAccent(base: Theme, accent: AccentName): Theme {
 export function themeFor(
   mode: ThemeMode,
   system: Scheme,
-  accent: AccentName = DEFAULT_ACCENT
+  accent: AccentName = DEFAULT_ACCENT,
+  ground: GroundName = DEFAULT_GROUND
 ): Theme {
-  const base = mode === "system" ? (system === "dark" ? darkTheme : lightTheme) : mode === "dark" ? darkTheme : lightTheme;
+  const wantsDark = mode === "system" ? system === "dark" : mode === "dark";
+  // The ground decides what "light" looks like. Night is night either way:
+  // the deep teal is a daytime scheme, and the warm dark theme stays for the
+  // hours it was made for.
+  const light = ground === "teal" ? tealTheme : lightTheme;
+  const base = wantsDark ? darkTheme : light;
   return withAccent(base, accent);
 }

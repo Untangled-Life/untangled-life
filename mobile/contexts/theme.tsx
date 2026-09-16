@@ -9,10 +9,21 @@ import {
 } from "react";
 import { useColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AccentName, DEFAULT_ACCENT, Theme, ThemeMode, isAccentName, themeFor } from "@/theme/tokens";
+import {
+  AccentName,
+  DEFAULT_ACCENT,
+  DEFAULT_GROUND,
+  GroundName,
+  Theme,
+  ThemeMode,
+  isAccentName,
+  isGroundName,
+  themeFor,
+} from "@/theme/tokens";
 
 const STORAGE_KEY = "untangled.themeMode";
 const ACCENT_KEY = "untangled.accent";
+const GROUND_KEY = "untangled.ground";
 
 type ThemeContextValue = {
   theme: Theme;
@@ -20,6 +31,8 @@ type ThemeContextValue = {
   setMode: (mode: ThemeMode) => void;
   accent: AccentName;
   setAccent: (accent: AccentName) => void;
+  ground: GroundName;
+  setGround: (ground: GroundName) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -28,9 +41,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const system = useColorScheme() === "dark" ? "dark" : "light";
   const [mode, setModeState] = useState<ThemeMode>("system");
   const [accent, setAccentState] = useState<AccentName>(DEFAULT_ACCENT);
+  const [ground, setGroundState] = useState<GroundName>(DEFAULT_GROUND);
 
   useEffect(() => {
-    AsyncStorage.multiGet([STORAGE_KEY, ACCENT_KEY])
+    AsyncStorage.multiGet([STORAGE_KEY, ACCENT_KEY, GROUND_KEY])
       .then((entries) => {
         const stored = Object.fromEntries(entries);
         const storedMode = stored[STORAGE_KEY];
@@ -38,6 +52,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           setModeState(storedMode);
         }
         if (isAccentName(stored[ACCENT_KEY])) setAccentState(stored[ACCENT_KEY]);
+        if (isGroundName(stored[GROUND_KEY])) setGroundState(stored[GROUND_KEY]);
       })
       .catch(() => {
         // Preferences are a convenience, not state worth failing startup over.
@@ -54,9 +69,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem(ACCENT_KEY, next).catch(() => {});
   }, []);
 
+  const setGround = useCallback((next: GroundName) => {
+    setGroundState(next);
+    AsyncStorage.setItem(GROUND_KEY, next).catch(() => {});
+  }, []);
+
   const value = useMemo(
-    () => ({ theme: themeFor(mode, system, accent), mode, setMode, accent, setAccent }),
-    [mode, system, accent, setMode, setAccent]
+    () => ({
+      theme: themeFor(mode, system, accent, ground),
+      mode,
+      setMode,
+      accent,
+      setAccent,
+      ground,
+      setGround,
+    }),
+    [mode, system, accent, ground, setMode, setAccent, setGround]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -77,6 +105,8 @@ export function useThemeMode() {
     scheme: ctx.theme.scheme,
     accent: ctx.accent,
     setAccent: ctx.setAccent,
+    ground: ctx.ground,
+    setGround: ctx.setGround,
   };
 }
 

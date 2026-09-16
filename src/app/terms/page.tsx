@@ -17,7 +17,7 @@ const LAST_UPDATED = "14 September 2026";
  */
 function Fill({ children }: { children: React.ReactNode }) {
   return (
-    <mark className="rounded bg-brand-orange/15 px-1.5 py-0.5 font-medium text-brand-orange">
+    <mark className="rounded bg-brand/15 px-1.5 py-0.5 font-medium text-brand">
       [{children}]
     </mark>
   );
@@ -55,13 +55,13 @@ function Bullets({ items }: { items: React.ReactNode[] }) {
 export default function Terms() {
   return (
     <>
-      <header className="sticky top-0 z-10 border-b border-border bg-surface/90 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-hero-edge bg-header-bg/90 text-header-fg backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2.5">
             <Logo size={30} />
             <span className="text-base font-medium">Untangled Life</span>
           </Link>
-          <Link href="/" className="text-[14px] text-text-secondary hover:text-text-primary">
+          <Link href="/" className="text-[14px] text-hero-fg2 hover:text-header-fg">
             Back to site
           </Link>
         </div>
@@ -76,7 +76,7 @@ export default function Terms() {
             These terms are the agreement between you and the operator of Untangled Life. They sit
             alongside our{" "}
             <Link
-              className="text-brand-green underline underline-offset-2"
+              className="text-accent underline underline-offset-2"
               href="/privacy"
             >
               Privacy Policy
@@ -84,7 +84,7 @@ export default function Terms() {
             , which explains what we collect and what your partner can see. Read the two together.
           </p>
 
-          <div className="mt-6 rounded-xl border border-brand-green/30 bg-brand-green/5 p-5">
+          <div className="mt-6 rounded-xl border border-accent/30 bg-accent/5 p-5">
             <p className="text-[15px] font-medium text-text-primary">The short version of the money</p>
             <ul className="mt-3 ml-5 list-disc space-y-2 text-[15px] leading-7 text-text-secondary">
               <li>
@@ -139,7 +139,7 @@ export default function Terms() {
               You are responsible for keeping your login details confidential and for everything
               that happens under your account. Email{" "}
               <a
-                className="text-brand-green underline underline-offset-2"
+                className="text-accent underline underline-offset-2"
                 href="mailto:hello@untangledlife.com.au"
               >
                 hello@untangledlife.com.au
@@ -471,7 +471,7 @@ export default function Terms() {
             <p>
               Questions about these terms? Email{" "}
               <a
-                className="text-brand-green underline underline-offset-2"
+                className="text-accent underline underline-offset-2"
                 href="mailto:hello@untangledlife.com.au"
               >
                 hello@untangledlife.com.au

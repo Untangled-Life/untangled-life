@@ -22,7 +22,7 @@
     "android": {
       "package": "au.com.untangledlife.app",
       "adaptiveIcon": {
-        "backgroundColor": "#F5F2EC",
+        "backgroundColor": "#1F5F6B",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -55,7 +55,7 @@
         "expo-notifications",
         {
           "icon": "./assets/android-icon-monochrome.png",
-          "color": "#D85A30"
+          "color": "#EF7A62"
         }
       ],
       [
@@ -70,9 +70,9 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#F5F2EC",
+          "backgroundColor": "#1F5F6B",
           "dark": {
-            "backgroundColor": "#1C1A16"
+            "backgroundColor": "#14130F"
           }
         }
       ]

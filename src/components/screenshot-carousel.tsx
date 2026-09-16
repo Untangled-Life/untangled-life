@@ -144,7 +144,7 @@ export function ScreenshotCarousel() {
             aria-label={`Show ${slide.label}`}
             aria-current={i === index}
             className={`h-2 rounded-full transition-all ${
-              i === index ? "w-5 bg-brand-orange" : "w-2 bg-border hover:bg-text-muted"
+              i === index ? "w-5 bg-brand" : "w-2 bg-border hover:bg-text-muted"
             }`}
           />
         ))}
@@ -169,7 +169,7 @@ export function ScreenshotCarousel() {
 function Placeholder({ slide, position }: { slide: Slide; position: number }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 bg-gradient-to-b from-surface-card to-surface px-5 text-center">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-orange/10 text-[12px] font-semibold text-brand-orange">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/10 text-[12px] font-semibold text-brand">
         {position}
       </span>
       <p className="text-[14px] font-medium text-text-primary">{slide.label}</p>

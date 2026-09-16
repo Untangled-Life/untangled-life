@@ -17,7 +17,7 @@ const LAST_UPDATED = "14 September 2026";
  */
 function Fill({ children }: { children: React.ReactNode }) {
   return (
-    <mark className="rounded bg-brand-orange/15 px-1.5 py-0.5 font-medium text-brand-orange">
+    <mark className="rounded bg-brand/15 px-1.5 py-0.5 font-medium text-brand">
       [{children}]
     </mark>
   );
@@ -55,13 +55,13 @@ function Bullets({ items }: { items: React.ReactNode[] }) {
 export default function Privacy() {
   return (
     <>
-      <header className="sticky top-0 z-10 border-b border-border bg-surface/90 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-hero-edge bg-header-bg/90 text-header-fg backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2.5">
             <Logo size={30} />
             <span className="text-base font-medium">Untangled Life</span>
           </Link>
-          <Link href="/" className="text-[14px] text-text-secondary hover:text-text-primary">
+          <Link href="/" className="text-[14px] text-hero-fg2 hover:text-header-fg">
             Back to site
           </Link>
         </div>
@@ -79,7 +79,7 @@ export default function Privacy() {
             what the software actually does.
           </p>
 
-          <div className="mt-6 rounded-xl border border-brand-green/30 bg-brand-green/5 p-5">
+          <div className="mt-6 rounded-xl border border-accent/30 bg-accent/5 p-5">
             <p className="text-[15px] font-medium text-text-primary">
               The part that matters most
             </p>
@@ -127,7 +127,7 @@ export default function Privacy() {
             <p>
               Contact:{" "}
               <a
-                className="text-brand-green underline underline-offset-2"
+                className="text-accent underline underline-offset-2"
                 href="mailto:hello@untangledlife.com.au"
               >
                 hello@untangledlife.com.au
@@ -222,7 +222,7 @@ export default function Privacy() {
               This website uses no analytics, no advertising tags and no tracking cookies. The app
               contains no third-party advertising or analytics software either. We do not build a
               profile of you and we do not track you across other apps or websites. Our{" "}
-              <Link href="/cookies" className="text-brand-green underline underline-offset-2">
+              <Link href="/cookies" className="text-accent underline underline-offset-2">
                 Cookie Policy
               </Link>{" "}
               sets this out in full.
@@ -439,7 +439,7 @@ export default function Privacy() {
             <p>
               Email{" "}
               <a
-                className="text-brand-green underline underline-offset-2"
+                className="text-accent underline underline-offset-2"
                 href="mailto:hello@untangledlife.com.au"
               >
                 hello@untangledlife.com.au
