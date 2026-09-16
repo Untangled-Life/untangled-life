@@ -58,7 +58,7 @@ export function WaitlistForm() {
       onSubmit={handleSubmit}
       className="mx-auto flex w-full max-w-sm flex-col gap-2.5 text-left lg:mx-0"
     >
-      <p className="mb-1 px-1 text-sm font-medium text-text-primary">
+      <p className="mb-1 px-1 text-sm font-medium text-hero-fg">
         Register your interest
       </p>
       <input
@@ -80,7 +80,7 @@ export function WaitlistForm() {
       <div>
         <label
           htmlFor="sharedApp"
-          className="mb-1 block px-1 text-xs font-medium text-text-secondary"
+          className="mb-1 block px-1 text-xs font-medium text-hero-fg2"
         >
           Do you currently use a shared calendar app together?
         </label>
@@ -105,7 +105,7 @@ export function WaitlistForm() {
         {status === "loading" ? "Joining…" : "Join the waitlist"}
       </button>
       {status === "error" && message && (
-        <p className="text-sm text-red-600">{message}</p>
+        <p className="text-sm text-hero-danger">{message}</p>
       )}
     </form>
   );

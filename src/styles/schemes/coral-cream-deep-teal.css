@@ -35,4 +35,6 @@
   --color-hero-accent: #f5f2ec;
   /* form field edges inside the hero */
   --color-hero-edge: rgba(245, 242, 236, 0.18);
+  /* error text inside the hero: a light red that survives the teal */
+  --color-hero-danger: #ffb4a8;
 }
